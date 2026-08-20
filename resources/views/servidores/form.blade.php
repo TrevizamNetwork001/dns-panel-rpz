@@ -67,6 +67,15 @@
                 </div>
 
                 <div class="field-group">
+                    <label for="bloqueio_modo">Modo de bloqueio</label>
+                    <select class="form-control" id="bloqueio_modo" name="bloqueio_modo">
+                        <option value="nxdomain" @selected(old('bloqueio_modo', $servidor->bloqueio_modo ?? 'nxdomain') === 'nxdomain')>NXDOMAIN (domínio não existe)</option>
+                        <option value="redirect" @selected(old('bloqueio_modo', $servidor->bloqueio_modo) === 'redirect')>Página de bloqueio (redireciona)</option>
+                    </select>
+                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">NXDOMAIN faz o domínio parecer inexistente. "Página de bloqueio" resolve o domínio para o painel, que exibe um aviso ao usuário.</p>
+                </div>
+
+                <div class="field-group">
                     <label for="ip_v4">IPv4 (opcional)</label>
                     <input class="form-control" type="text" id="ip_v4" name="ip_v4" value="{{ old('ip_v4', $servidor->ip_v4) }}" placeholder="203.0.113.10">
                 </div>

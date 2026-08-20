@@ -29,6 +29,7 @@
             </span>
             <dl class="details-list" style="margin-top:14px">
                 <div><dt>Última sincronização</dt><dd>{{ optional($servidor->last_synced_at)->format('d/m/Y H:i:s') ?? 'nunca' }}</dd></div>
+                <div><dt>Modo de bloqueio</dt><dd>{{ $servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN' }}</dd></div>
             </dl>
         </div>
 
@@ -38,7 +39,7 @@
                 <button type="button" class="button button-secondary" id="copy-config-btn" data-copy-target="config-snippet">Copiar</button>
             </div>
             <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
-                Cole este bloco no <code>unbound.conf</code> do servidor do cliente (fora de <code>server:</code>). O Unbound vai buscar a zona periodicamente sozinho — não precisa de agente nem SSH.
+                Cole este bloco no <code>unbound.conf</code> do servidor do cliente, <strong>depois</strong> do fim do bloco <code>server:</code> (antes dele, se usar <code>hyperlocal</code>). O Unbound vai buscar a zona periodicamente sozinho — não precisa de agente nem SSH. Antes de reiniciar o serviço, rode <code>unbound-checkconf</code> para garantir que a configuração está correta.
             </p>
             <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $configSnippet }}</pre>
             <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $rpzUrl }}</code></p>

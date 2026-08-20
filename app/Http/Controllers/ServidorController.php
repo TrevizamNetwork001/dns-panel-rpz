@@ -265,6 +265,7 @@ class ServidorController extends Controller
             'nome' => ['required', 'string', 'max:255'],
             'status' => ['required', 'in:active,inactive'],
             'tipo_dns' => ['required', 'in:unbound,bind9,outro'],
+            'bloqueio_modo' => ['required', 'in:nxdomain,redirect'],
             'ip_v4' => ['nullable', 'ip'],
             'ip_v6' => ['nullable', 'ip'],
         ];

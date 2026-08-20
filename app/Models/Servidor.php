@@ -21,6 +21,7 @@ class Servidor extends Model
         'status',
         'ip_restriction_enabled',
         'tipo_dns',
+        'bloqueio_modo',
         'ip_v4',
         'ip_v6',
     ];

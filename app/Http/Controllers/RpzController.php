@@ -60,6 +60,10 @@ class RpzController extends Controller
         $panelHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
         $canario = 'blocktest.' . $panelHost;
 
+        $target = $servidor->bloqueio_modo === 'redirect'
+            ? rtrim($panelHost, '.') . '.'
+            : '.';
+
         $lines = [];
         $lines[] = '$TTL 60';
         $lines[] = '@ SOA localhost. root.localhost. (';
@@ -75,8 +79,8 @@ class RpzController extends Controller
         $lines[] = '';
 
         foreach ($dominios as $dominio) {
-            $lines[] = $dominio . ' CNAME .';
-            $lines[] = '*.' . $dominio . ' CNAME .';
+            $lines[] = $dominio . ' CNAME ' . $target;
+            $lines[] = '*.' . $dominio . ' CNAME ' . $target;
         }
 
         return implode("\n", $lines) . "\n";
