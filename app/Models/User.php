@@ -58,6 +58,7 @@ class User extends Authenticatable
             'engenheiro' => ['label' => 'Engenheiro', 'symbol' => '👷'],
             'ceo' => ['label' => 'CEO', 'symbol' => '🧑‍💼'],
             'burro' => ['label' => 'Burro', 'symbol' => '🐴'],
+            'boi' => ['label' => 'Boi', 'symbol' => '🐂'],
         ];
     }
 
