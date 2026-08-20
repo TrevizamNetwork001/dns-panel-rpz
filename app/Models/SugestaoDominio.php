@@ -19,6 +19,7 @@ class SugestaoDominio extends Model
         'motivo',
         'status',
         'created_by',
+        'ip_address',
         'reviewed_by',
         'reviewed_at',
     ];

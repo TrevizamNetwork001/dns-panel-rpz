@@ -34,6 +34,10 @@ class SugestaoDominioController extends Controller
 
     public function create(): View
     {
+        if (Auth::user()->isAdmin()) {
+            abort(403, 'Sugestão de domínio é uma ação do cliente.');
+        }
+
         return view('sugestoes.form');
     }
 
@@ -41,7 +45,7 @@ class SugestaoDominioController extends Controller
     {
         $user = Auth::user();
 
-        if (! $user->empresa_id) {
+        if ($user->isAdmin() || ! $user->empresa_id) {
             abort(403, 'Apenas usuários vinculados a uma empresa podem sugerir domínios.');
         }
 
@@ -63,6 +67,7 @@ class SugestaoDominioController extends Controller
             'motivo' => $data['motivo'] ?? null,
             'status' => 'pending',
             'created_by' => $user->id,
+            'ip_address' => $request->ip(),
         ]);
 
         return redirect()->route('sugestoes.index')->with('status', 'Sugestão enviada. O administrador vai revisar.');

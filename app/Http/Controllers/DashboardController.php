@@ -6,6 +6,7 @@ use App\Models\Dominio;
 use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\Servidor;
+use App\Models\SugestaoDominio;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -98,6 +99,14 @@ class DashboardController extends Controller
                 ->sum('max_servidores')
             : 0;
 
+        $sugestoesRecentes = $empresa
+            ? SugestaoDominio::where('empresa_id', $empresa->id)
+                ->with('lista')
+                ->orderByDesc('updated_at')
+                ->take(5)
+                ->get()
+            : collect();
+
         return view('dashboard.cliente', compact(
             'empresa',
             'totalServidores',
@@ -107,6 +116,7 @@ class DashboardController extends Controller
             'listas',
             'servidores',
             'capacidadeLicenca',
+            'sugestoesRecentes',
         ));
     }
 }

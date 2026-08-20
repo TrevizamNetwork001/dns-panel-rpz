@@ -10,7 +10,9 @@
             <p>{{ auth()->user()->isAdmin() ? 'Todas as sugestões recebidas de todas as empresas.' : 'Sugestões enviadas pela sua empresa.' }}</p>
         </div>
         <div class="page-actions">
+            @unless (auth()->user()->isAdmin())
             <a href="{{ route('sugestoes.create') }}" class="button button-primary">+ Nova sugestão</a>
+            @endunless
         </div>
     </div>
 
@@ -31,6 +33,9 @@
                             <th>Domínio</th>
                             @if (auth()->user()->isAdmin())
                                 <th>Empresa</th>
+                                <th>Enviado por</th>
+                                <th>Data/hora</th>
+                                <th>IP</th>
                             @endif
                             <th>Motivo</th>
                             <th>Status</th>
@@ -45,6 +50,9 @@
                                 <td class="table-mono">{{ $sugestao->dominio }}</td>
                                 @if (auth()->user()->isAdmin())
                                     <td>{{ $sugestao->empresa->nome }}</td>
+                                    <td>{{ $sugestao->criadoPor->name ?? '-' }}</td>
+                                    <td class="table-mono">{{ $sugestao->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="table-mono">{{ $sugestao->ip_address ?? '-' }}</td>
                                 @endif
                                 <td class="table-secondary-text" style="max-width:260px">{{ $sugestao->motivo ?? '-' }}</td>
                                 <td>
