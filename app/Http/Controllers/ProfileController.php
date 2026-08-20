@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,5 +43,16 @@ class ProfileController extends Controller
         $user->update(['password' => Hash::make($request->input('password'))]);
 
         return redirect()->route('profile.password')->with('status', 'Senha atualizada com sucesso.');
+    }
+
+    public function updateAvatar(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'avatar' => ['nullable', 'string', 'in:' . implode(',', array_keys(User::avatarOptions()))],
+        ]);
+
+        Auth::user()->update(['avatar' => $data['avatar'] ?? null]);
+
+        return redirect()->route('profile.show')->with('status', 'Avatar atualizado.');
     }
 }

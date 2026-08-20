@@ -470,6 +470,88 @@ html[data-theme="light"] .login-card {
     color: var(--danger);
 }
 
+.user-avatar-large {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    font-size: 17px;
+}
+
+.user-avatar.has-symbol {
+    background:
+        radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.18), transparent 42%),
+        var(--cyan-soft);
+}
+
+.user-avatar-symbol {
+    font-size: 1.45em;
+    line-height: 1;
+}
+
+.avatar-picker {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.avatar-option {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    flex-direction: column;
+    gap: 7px;
+    padding: 12px 8px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-soft);
+    cursor: pointer;
+    text-align: center;
+    transition:
+        transform 150ms ease,
+        border-color 150ms ease,
+        background 150ms ease;
+}
+
+.avatar-option:hover {
+    transform: translateY(-2px);
+    border-color: rgba(33, 199, 232, 0.38);
+}
+
+.avatar-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.avatar-option:has(input:checked) {
+    border-color: var(--cyan);
+    background: var(--cyan-soft);
+    box-shadow: 0 0 0 2px rgba(33, 199, 232, 0.12);
+}
+
+.avatar-option-label {
+    overflow: hidden;
+    width: 100%;
+    color: var(--text-soft);
+    font-size: 9px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.avatar-option:has(input:checked) .avatar-option-label {
+    color: var(--cyan);
+}
+
+@media (max-width: 700px) {
+    .avatar-picker {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 .theme-toggle {
     transition:
         color 150ms ease,

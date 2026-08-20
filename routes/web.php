@@ -36,6 +36,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
 
     Route::get('/perfil', [ProfileController::class, 'show'])->name('profile.show');
+    Route::put('/perfil/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::get('/perfil/senha', [ProfileController::class, 'editPassword'])->name('profile.password');
     Route::put('/perfil/senha', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
 

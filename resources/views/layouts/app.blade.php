@@ -69,7 +69,13 @@
 
                     <div class="account-menu">
                         <button type="button" class="account-menu-toggle user-menu" id="account-menu-toggle" aria-haspopup="true" aria-expanded="false">
-                            <span class="user-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
+                            <span class="user-avatar @if(auth()->user()->avatar) has-symbol @endif">
+                                @if (auth()->user()->avatarSymbol())
+                                    <span class="user-avatar-symbol">{{ auth()->user()->avatarSymbol() }}</span>
+                                @else
+                                    <span class="user-avatar-initials">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
+                                @endif
+                            </span>
                             <span class="user-details">
                                 <strong>{{ auth()->user()->name }}</strong>
                                 <span>{{ auth()->user()->isAdmin() ? 'Administrador' : 'Cliente' }}</span>
