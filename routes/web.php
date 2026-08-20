@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ConsultaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DominioController;
 use App\Http\Controllers\EmpresaController;
@@ -41,6 +42,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/perfil/senha', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
 
     Route::resource('sugestoes', SugestaoDominioController::class)->only(['index', 'create', 'store']);
+
+    Route::get('/consulta', [ConsultaController::class, 'index'])->name('consulta.index');
 
     Route::middleware('admin')->group(function () {
         Route::resource('empresas', EmpresaController::class)->except(['show']);

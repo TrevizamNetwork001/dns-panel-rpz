@@ -45,6 +45,7 @@
                 <a href="{{ route('licencas.index') }}" class="sidebar-link @if(request()->routeIs('licencas.*')) is-active @endif">Licenças</a>
                 @endif
                 <a href="{{ route('sugestoes.index') }}" class="sidebar-link @if(request()->routeIs('sugestoes.*')) is-active @endif">Sugestões</a>
+                <a href="{{ route('consulta.index') }}" class="sidebar-link @if(request()->routeIs('consulta.*')) is-active @endif">Consulta</a>
             </nav>
 
             @if (auth()->user()->isAdmin())
