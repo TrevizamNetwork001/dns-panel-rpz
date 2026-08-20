@@ -316,6 +316,7 @@ html[data-theme="light"] .login-card {
 .topbar-actions {
     display: flex;
     align-items: center;
+    margin-left: auto;
     gap: 16px;
 }
 
