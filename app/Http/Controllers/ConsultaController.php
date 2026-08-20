@@ -14,14 +14,19 @@ class ConsultaController extends Controller
     {
         $termoOriginal = trim((string) $request->input('dominio', ''));
         $resultados = collect();
+        $sugestoes = collect();
         $termo = null;
 
         if ($termoOriginal !== '') {
             $termo = $this->normalizar($termoOriginal);
             $resultados = $this->buscar($termo);
+
+            if ($resultados->isEmpty()) {
+                $sugestoes = $this->buscarPorTrecho($termoOriginal);
+            }
         }
 
-        return view('consulta.index', compact('termoOriginal', 'termo', 'resultados'));
+        return view('consulta.index', compact('termoOriginal', 'termo', 'resultados', 'sugestoes'));
     }
 
     private function normalizar(string $valor): string
@@ -67,6 +72,35 @@ class ConsultaController extends Controller
                     'tipo' => $d->dominio === $dominio ? 'exato' : 'subdominio (via wildcard)',
                 ];
             })
+            ->values();
+    }
+
+    /**
+     * Busca por trecho (substring), usada quando nao ha match exato/wildcard --
+     * util quando o usuario digita um pedaco do dominio (ex: "abreviar" um nome).
+     */
+    private function buscarPorTrecho(string $termoOriginal)
+    {
+        $user = Auth::user();
+        $trecho = strtolower(trim($termoOriginal));
+
+        if ($trecho === '' || strlen($trecho) < 3) {
+            return collect();
+        }
+
+        $query = Dominio::where('dominio', 'like', '%' . $trecho . '%')
+            ->with(['lista' => function ($q) use ($user) {
+                $q->with('empresa');
+                if ($user->isCliente()) {
+                    $q->where(function ($sub) use ($user) {
+                        $sub->whereNull('empresa_id')->orWhere('empresa_id', $user->empresa_id);
+                    });
+                }
+            }])
+            ->limit(20);
+
+        return $query->get()
+            ->filter(fn (Dominio $d) => $d->lista !== null)
             ->values();
     }
 
