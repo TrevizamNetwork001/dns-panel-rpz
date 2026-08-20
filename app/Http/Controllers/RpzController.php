@@ -18,6 +18,9 @@ class RpzController extends Controller
     {
         $servidor = Servidor::where('token', $token)
             ->where('status', 'active')
+            ->whereHas('empresa', function ($query) {
+                $query->where('status', 'active');
+            })
             ->firstOrFail();
 
         $servidor->forceFill(['last_synced_at' => now()])->saveQuietly();

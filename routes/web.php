@@ -19,7 +19,7 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.attempt')->
 Route::get('/cadastro', [RegistrationController::class, 'show'])->name('register');
 Route::post('/cadastro', [RegistrationController::class, 'store'])->name('register.store')->middleware('throttle:10,1');
 
-Route::get('/rpz/{token}.zone', [RpzController::class, 'show'])
+Route::get('/rpz/{token}.zone', [RpzController::class, 'show'])->middleware('throttle:60,1')
     ->where('token', '[A-Za-z0-9]+')
     ->name('rpz.show');
 
