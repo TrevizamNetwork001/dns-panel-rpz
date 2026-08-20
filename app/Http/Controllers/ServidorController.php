@@ -32,16 +32,20 @@ class ServidorController extends Controller
     {
         $user = Auth::user();
         $servidor = new Servidor();
+        $listasDisponiveis = collect();
 
         if ($user->isCliente()) {
             $empresas = collect([$user->empresa])->filter();
             $licencaBlocker = $this->licencaBlocker($user->empresa);
+            if ($user->empresa_id) {
+                $listasDisponiveis = $this->listasParaEmpresa($user->empresa_id);
+            }
         } else {
             $empresas = Empresa::orderBy('nome')->get();
             $licencaBlocker = null;
         }
 
-        return view('servidores.form', compact('servidor', 'empresas', 'licencaBlocker'));
+        return view('servidores.form', compact('servidor', 'empresas', 'licencaBlocker', 'listasDisponiveis'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -58,6 +62,7 @@ class ServidorController extends Controller
         }
 
         $servidor = Servidor::create($data);
+        $servidor->listas()->sync($request->input('lista_ids', []));
 
         AuditLog::record('servidor.created', "Servidor \"{$servidor->nome}\" criado", $servidor->empresa_id, 'servidor', $servidor->id);
 
@@ -78,7 +83,9 @@ class ServidorController extends Controller
             ->orderBy('nome')
             ->get();
 
-        return view('servidores.show', compact('servidor', 'listasDisponiveis'));
+        $syncLogs = $servidor->syncLogs()->orderByDesc('id')->limit(30)->get();
+
+        return view('servidores.show', compact('servidor', 'listasDisponiveis', 'syncLogs'));
     }
 
     public function edit(Servidor $servidor): View
@@ -87,8 +94,10 @@ class ServidorController extends Controller
 
         $user = Auth::user();
         $empresas = $user->isAdmin() ? Empresa::orderBy('nome')->get() : collect([$user->empresa])->filter();
+        $servidor->load('listas');
+        $listasDisponiveis = $this->listasParaEmpresa($servidor->empresa_id);
 
-        return view('servidores.form', compact('servidor', 'empresas'));
+        return view('servidores.form', compact('servidor', 'empresas', 'listasDisponiveis'));
     }
 
     public function update(Request $request, Servidor $servidor): RedirectResponse
@@ -103,6 +112,7 @@ class ServidorController extends Controller
         }
 
         $servidor->update($data);
+        $servidor->listas()->sync($request->input('lista_ids', []));
 
         AuditLog::record('servidor.updated', "Servidor \"{$servidor->nome}\" atualizado", $servidor->empresa_id, 'servidor', $servidor->id);
 
@@ -192,6 +202,16 @@ class ServidorController extends Controller
         return back()->with('status', 'IP removido da lista de permitidos.');
     }
 
+    private function listasParaEmpresa(?int $empresaId)
+    {
+        return Lista::where('status', 'active')
+            ->where(function ($query) use ($empresaId) {
+                $query->whereNull('empresa_id')->orWhere('empresa_id', $empresaId);
+            })
+            ->orderBy('nome')
+            ->get();
+    }
+
     private function validIpOrCidr(string $value): bool
     {
         if (str_contains($value, '/')) {
@@ -244,6 +264,9 @@ class ServidorController extends Controller
         $rules = [
             'nome' => ['required', 'string', 'max:255'],
             'status' => ['required', 'in:active,inactive'],
+            'tipo_dns' => ['required', 'in:unbound,bind9,outro'],
+            'ip_v4' => ['nullable', 'ip'],
+            'ip_v6' => ['nullable', 'ip'],
         ];
 
         if ($user->isAdmin()) {

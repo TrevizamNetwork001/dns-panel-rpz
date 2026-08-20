@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ServerSyncLog;
 use App\Models\Servidor;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -39,6 +40,13 @@ class RpzController extends Controller
             ->unique()
             ->sort()
             ->values();
+
+        ServerSyncLog::create([
+            'servidor_id' => $servidor->id,
+            'ip_address' => $request->ip(),
+            'dominios_count' => $dominios->count(),
+            'created_at' => now(),
+        ]);
 
         $zone = $this->buildZonefile($servidor, $dominios->all());
 

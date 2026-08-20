@@ -53,7 +53,15 @@
                                         {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
                                     </span>
                                 </td>
-                                <td class="table-mono">{{ optional($servidor->last_synced_at)->format('d/m/Y H:i') ?? 'nunca' }}</td>
+                                <td class="table-mono">
+                                    {{ optional($servidor->last_synced_at)->format('d/m/Y H:i') ?? 'nunca' }}
+                                    @php $dias = $servidor->diasSemSincronizar(); @endphp
+                                    @if ($dias === null)
+                                        <span class="status-pill is-inactive" style="margin-left:6px">sem sync</span>
+                                    @elseif ($dias >= 2)
+                                        <span class="status-pill is-warning" style="margin-left:6px">{{ $dias }}d sem sync</span>
+                                    @endif
+                                </td>
                                 <td>
                                     <div class="table-actions">
                                         <a href="{{ route('servidores.edit', $servidor) }}" class="table-action-link">Editar</a>

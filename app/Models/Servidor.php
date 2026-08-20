@@ -20,6 +20,9 @@ class Servidor extends Model
         'nome',
         'status',
         'ip_restriction_enabled',
+        'tipo_dns',
+        'ip_v4',
+        'ip_v6',
     ];
 
     protected $casts = [
@@ -49,6 +52,20 @@ class Servidor extends Model
     public function allowedIps(): HasMany
     {
         return $this->hasMany(ServerAllowedIp::class);
+    }
+
+    public function syncLogs(): HasMany
+    {
+        return $this->hasMany(ServerSyncLog::class);
+    }
+
+    public function diasSemSincronizar(): ?int
+    {
+        if (! $this->last_synced_at) {
+            return null;
+        }
+
+        return (int) $this->last_synced_at->diffInDays(now());
     }
 
     public function ipAllowed(string $ip): bool

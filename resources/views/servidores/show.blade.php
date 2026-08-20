@@ -160,6 +160,31 @@
                 </div>
             @endif
         </div>
+
+        <div class="panel details-card-wide">
+            <div class="panel-header"><h2>Histórico de sincronizações</h2></div>
+            @if ($syncLogs->isEmpty())
+                <div class="empty-state"><span>Este servidor ainda não sincronizou.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Data/hora</th><th>IP</th><th>Domínios entregues</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($syncLogs as $log)
+                                <tr>
+                                    <td class="table-mono">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
+                                    <td class="table-mono">{{ $log->ip_address ?? '-' }}</td>
+                                    <td class="table-mono">{{ $log->dominios_count }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 30 registros.</p>
+            @endif
+        </div>
     </div>
 
     <script>
