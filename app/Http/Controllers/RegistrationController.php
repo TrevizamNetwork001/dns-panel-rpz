@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -43,7 +44,7 @@ class RegistrationController extends Controller
             'password.regex' => 'A senha deve ter maiúscula, minúscula, número e caractere especial.',
         ]);
 
-        $user = DB::transaction(function () use ($data) {
+        [$user, $empresa] = DB::transaction(function () use ($data) {
             $empresa = Empresa::create([
                 'nome' => $data['empresa_nome'],
                 'documento' => $data['documento'] ?? null,
@@ -51,17 +52,21 @@ class RegistrationController extends Controller
                 'status' => 'pending',
             ]);
 
-            return User::create([
+            $user = User::create([
                 'name' => $data['responsavel_nome'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
                 'role' => 'cliente',
                 'empresa_id' => $empresa->id,
             ]);
+
+            return [$user, $empresa];
         });
 
         Auth::login($user);
         $request->session()->regenerate();
+
+        AuditLog::record('empresa.cadastro_publico', "Empresa \"{$empresa->nome}\" se cadastrou publicamente", $empresa->id);
 
         return redirect()->route('dashboard')
             ->with('status', 'Cadastro recebido! Sua empresa está com aprovação pendente — assim que o administrador ativar sua licença, você poderá cadastrar servidores.');

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Lista;
 use App\Models\SugestaoDominio;
 use Illuminate\Http\RedirectResponse;
@@ -61,7 +62,7 @@ class SugestaoDominioController extends Controller
             return back()->withErrors(['dominio' => 'Domínio inválido.'])->withInput();
         }
 
-        SugestaoDominio::create([
+        $sugestao = SugestaoDominio::create([
             'empresa_id' => $user->empresa_id,
             'dominio' => $normalized,
             'motivo' => $data['motivo'] ?? null,
@@ -69,6 +70,8 @@ class SugestaoDominioController extends Controller
             'created_by' => $user->id,
             'ip_address' => $request->ip(),
         ]);
+
+        AuditLog::record('sugestao.created', "Domínio {$normalized} sugerido", $user->empresa_id, 'sugestao', $sugestao->id);
 
         return redirect()->route('sugestoes.index')->with('status', 'Sugestão enviada. O administrador vai revisar.');
     }
@@ -89,6 +92,8 @@ class SugestaoDominioController extends Controller
             'reviewed_at' => now(),
         ]);
 
+        AuditLog::record('sugestao.approved', "Sugestão de {$sugestao->dominio} aprovada, adicionada à lista \"{$lista->nome}\"", $sugestao->empresa_id, 'sugestao', $sugestao->id);
+
         return back()->with('status', "Sugestão aprovada e adicionada à lista \"{$lista->nome}\".");
     }
 
@@ -99,6 +104,8 @@ class SugestaoDominioController extends Controller
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
         ]);
+
+        AuditLog::record('sugestao.rejected', "Sugestão de {$sugestao->dominio} rejeitada", $sugestao->empresa_id, 'sugestao', $sugestao->id);
 
         return back()->with('status', 'Sugestão rejeitada.');
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,6 +42,8 @@ class ProfileController extends Controller
 
         $user = Auth::user();
         $user->update(['password' => Hash::make($request->input('password'))]);
+
+        AuditLog::record('auth.password_changed', "Senha de {$user->email} alterada", $user->empresa_id, 'user', $user->id);
 
         return redirect()->route('profile.password')->with('status', 'Senha atualizada com sucesso.');
     }

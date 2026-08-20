@@ -47,6 +47,13 @@
                 <a href="{{ route('sugestoes.index') }}" class="sidebar-link @if(request()->routeIs('sugestoes.*')) is-active @endif">Sugestões</a>
             </nav>
 
+            @if (auth()->user()->isAdmin())
+            <p class="sidebar-section-label">Segurança</p>
+            <nav class="sidebar-nav">
+                <a href="{{ route('auditoria.index') }}" class="sidebar-link @if(request()->routeIs('auditoria.*')) is-active @endif">Auditoria</a>
+            </nav>
+            @endif
+
             <div class="sidebar-footer">
                 <div class="environment-status">
                     <span class="status-dot"></span>

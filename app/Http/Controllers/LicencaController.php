@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\Licenca;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +30,9 @@ class LicencaController extends Controller
     {
         $data = $this->validated($request);
 
-        Licenca::create($data);
+        $licenca = Licenca::create($data);
+
+        AuditLog::record('licenca.created', "Licença criada para empresa #{$licenca->empresa_id} (max {$licenca->max_servidores} servidores)", $licenca->empresa_id, 'licenca', $licenca->id);
 
         return redirect()->route('licencas.index')->with('status', 'Licença criada com sucesso.');
     }
@@ -54,11 +57,15 @@ class LicencaController extends Controller
 
         $licenca->update($data);
 
+        AuditLog::record('licenca.updated', "Licença #{$licenca->id} atualizada (max {$licenca->max_servidores} servidores, status {$licenca->status})", $licenca->empresa_id, 'licenca', $licenca->id);
+
         return redirect()->route('licencas.index')->with('status', 'Licença atualizada com sucesso.');
     }
 
     public function destroy(Licenca $licenca): RedirectResponse
     {
+        AuditLog::record('licenca.destroyed', "Licença #{$licenca->id} removida", $licenca->empresa_id, 'licenca', $licenca->id);
+
         $licenca->delete();
 
         return redirect()->route('licencas.index')->with('status', 'Licença removida.');

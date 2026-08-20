@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\Servidor;
@@ -58,6 +59,8 @@ class ServidorController extends Controller
 
         $servidor = Servidor::create($data);
 
+        AuditLog::record('servidor.created', "Servidor \"{$servidor->nome}\" criado", $servidor->empresa_id, 'servidor', $servidor->id);
+
         return redirect()->route('servidores.show', $servidor)->with('status', 'Servidor criado com sucesso.');
     }
 
@@ -101,12 +104,16 @@ class ServidorController extends Controller
 
         $servidor->update($data);
 
+        AuditLog::record('servidor.updated', "Servidor \"{$servidor->nome}\" atualizado", $servidor->empresa_id, 'servidor', $servidor->id);
+
         return redirect()->route('servidores.show', $servidor)->with('status', 'Servidor atualizado com sucesso.');
     }
 
     public function destroy(Servidor $servidor): RedirectResponse
     {
         $this->authorizeAccess($servidor);
+
+        AuditLog::record('servidor.destroyed', "Servidor \"{$servidor->nome}\" removido", $servidor->empresa_id, 'servidor', $servidor->id);
 
         $servidor->delete();
 
@@ -139,6 +146,14 @@ class ServidorController extends Controller
     {
         $servidor->update(['ip_restriction_enabled' => ! $servidor->ip_restriction_enabled]);
 
+        AuditLog::record(
+            $servidor->ip_restriction_enabled ? 'servidor.ip_restriction_enabled' : 'servidor.ip_restriction_disabled',
+            "Restrição de IP do servidor \"{$servidor->nome}\" " . ($servidor->ip_restriction_enabled ? 'ativada' : 'desativada'),
+            $servidor->empresa_id,
+            'servidor',
+            $servidor->id
+        );
+
         return back()->with('status', $servidor->ip_restriction_enabled
             ? 'Restrição de IP ativada.'
             : 'Restrição de IP desativada — qualquer IP com o token válido pode sincronizar.');
@@ -158,6 +173,8 @@ class ServidorController extends Controller
 
         $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
 
+        AuditLog::record('servidor.ips.added', "IP {$value} adicionado ao servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
+
         return back()->with('status', 'IP adicionado à lista de permitidos.');
     }
 
@@ -167,7 +184,10 @@ class ServidorController extends Controller
             abort(404);
         }
 
+        $cidr = $ip->ip_cidr;
         $ip->delete();
+
+        AuditLog::record('servidor.ips.removed', "IP {$cidr} removido do servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
 
         return back()->with('status', 'IP removido da lista de permitidos.');
     }

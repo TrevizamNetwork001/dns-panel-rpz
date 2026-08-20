@@ -954,6 +954,21 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
     color: var(--danger);
 }
 
+.status-pill.is-warning {
+    background: rgba(245, 173, 69, 0.12);
+    color: var(--amber);
+}
+
+.status-pill.is-info {
+    background: var(--cyan-soft);
+    color: var(--cyan);
+}
+
+.status-pill.is-muted {
+    background: var(--surface-soft);
+    color: var(--text-muted);
+}
+
 .pagination-simple {
     display: flex;
     align-items: center;

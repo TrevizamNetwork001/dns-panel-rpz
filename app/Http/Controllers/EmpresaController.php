@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Empresa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,7 +29,9 @@ class EmpresaController extends Controller
     {
         $data = $this->validated($request);
 
-        Empresa::create($data);
+        $empresa = Empresa::create($data);
+
+        AuditLog::record('empresa.created', "Empresa \"{$empresa->nome}\" criada", $empresa->id, 'empresa', $empresa->id);
 
         return redirect()->route('empresas.index')->with('status', 'Empresa criada com sucesso.');
     }
@@ -57,11 +60,15 @@ class EmpresaController extends Controller
 
         $empresa->update($data);
 
+        AuditLog::record('empresa.updated', "Empresa \"{$empresa->nome}\" atualizada", $empresa->id, 'empresa', $empresa->id);
+
         return redirect()->route('empresas.index')->with('status', 'Empresa atualizada com sucesso.');
     }
 
     public function destroy(Empresa $empresa): RedirectResponse
     {
+        AuditLog::record('empresa.destroyed', "Empresa \"{$empresa->nome}\" removida", null, 'empresa', $empresa->id);
+
         $empresa->delete();
 
         return redirect()->route('empresas.index')->with('status', 'Empresa removida.');

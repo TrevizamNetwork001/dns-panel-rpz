@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DominioController;
@@ -33,7 +34,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/servidores/{servidor}/listas/{lista}/detach', [ServidorController::class, 'detachLista'])->name('servidores.listas.detach');
 
     Route::resource('listas', ListaController::class)->only(['index', 'show']);
-    Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
 
     Route::get('/perfil', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/perfil/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
@@ -59,5 +59,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/servidores/{servidor}/ip-restriction/toggle', [ServidorController::class, 'toggleIpRestriction'])->name('servidores.ip-restriction.toggle');
         Route::post('/servidores/{servidor}/ips', [ServidorController::class, 'addAllowedIp'])->name('servidores.ips.store');
         Route::delete('/servidores/{servidor}/ips/{ip}', [ServidorController::class, 'removeAllowedIp'])->name('servidores.ips.destroy');
+
+        Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria.index');
     });
+
+    Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
 });

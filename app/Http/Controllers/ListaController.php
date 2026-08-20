@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\Servidor;
@@ -45,6 +46,8 @@ class ListaController extends Controller
         $lista = Lista::create($data);
         $lista->servidores()->sync($servidorIds);
 
+        AuditLog::record('lista.created', "Lista \"{$lista->nome}\" criada", $lista->empresa_id, 'lista', $lista->id);
+
         return redirect()->route('listas.show', $lista)->with('status', 'Lista criada com sucesso.');
     }
 
@@ -77,11 +80,15 @@ class ListaController extends Controller
         $lista->update($data);
         $lista->servidores()->sync($servidorIds);
 
+        AuditLog::record('lista.updated', "Lista \"{$lista->nome}\" atualizada", $lista->empresa_id, 'lista', $lista->id);
+
         return redirect()->route('listas.show', $lista)->with('status', 'Lista atualizada com sucesso.');
     }
 
     public function destroy(Lista $lista): RedirectResponse
     {
+        AuditLog::record('lista.destroyed', "Lista \"{$lista->nome}\" removida", $lista->empresa_id, 'lista', $lista->id);
+
         $lista->delete();
 
         return redirect()->route('listas.index')->with('status', 'Lista removida.');
