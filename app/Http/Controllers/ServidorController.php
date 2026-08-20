@@ -65,7 +65,7 @@ class ServidorController extends Controller
     {
         $this->authorizeAccess($servidor);
 
-        $servidor->load(['empresa', 'listas']);
+        $servidor->load(['empresa', 'listas', 'allowedIps']);
 
         $listasDisponiveis = Lista::where('status', 'active')
             ->where(function ($query) use ($servidor) {
@@ -133,6 +133,54 @@ class ServidorController extends Controller
         $servidor->listas()->detach($lista->id);
 
         return back()->with('status', "Lista \"{$lista->nome}\" removida do servidor.");
+    }
+
+    public function toggleIpRestriction(Servidor $servidor): RedirectResponse
+    {
+        $servidor->update(['ip_restriction_enabled' => ! $servidor->ip_restriction_enabled]);
+
+        return back()->with('status', $servidor->ip_restriction_enabled
+            ? 'Restrição de IP ativada.'
+            : 'Restrição de IP desativada — qualquer IP com o token válido pode sincronizar.');
+    }
+
+    public function addAllowedIp(Request $request, Servidor $servidor): RedirectResponse
+    {
+        $data = $request->validate([
+            'ip_cidr' => ['required', 'string', 'max:64'],
+        ]);
+
+        $value = trim($data['ip_cidr']);
+
+        if (! $this->validIpOrCidr($value)) {
+            return back()->withErrors(['ip_cidr' => 'IP ou CIDR inválido.']);
+        }
+
+        $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
+
+        return back()->with('status', 'IP adicionado à lista de permitidos.');
+    }
+
+    public function removeAllowedIp(Servidor $servidor, \App\Models\ServerAllowedIp $ip): RedirectResponse
+    {
+        if ($ip->servidor_id !== $servidor->id) {
+            abort(404);
+        }
+
+        $ip->delete();
+
+        return back()->with('status', 'IP removido da lista de permitidos.');
+    }
+
+    private function validIpOrCidr(string $value): bool
+    {
+        if (str_contains($value, '/')) {
+            [$ip, $mask] = array_pad(explode('/', $value, 2), 2, null);
+
+            return filter_var($ip, FILTER_VALIDATE_IP) !== false && is_numeric($mask) && (int) $mask >= 0 && (int) $mask <= 128;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_IP) !== false;
     }
 
     private function authorizeAccess(Servidor $servidor): void

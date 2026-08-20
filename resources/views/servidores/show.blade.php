@@ -2,6 +2,13 @@
 
 @section('title', $servidor->nome)
 
+@php
+    $panelHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
+    $rpzUrl = url('/rpz/' . $servidor->token . '.zone');
+    $rpzZoneName = $panelHost;
+    $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
+@endphp
+
 @section('content')
     <div class="page-heading">
         <div>
@@ -25,11 +32,68 @@
             </dl>
         </div>
 
-        <div class="panel">
-            <div class="panel-header"><h2>Zonefile RPZ</h2></div>
-            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">URL usada pelo Unbound (<code>rpz:</code> + <code>url:</code>):</p>
-            <code style="word-break:break-all">{{ url('/rpz/' . $servidor->token . '.zone') }}</code>
+        <div class="panel details-card-wide">
+            <div class="panel-header">
+                <h2>Configuração do Unbound</h2>
+                <button type="button" class="button button-secondary" id="copy-config-btn" data-copy-target="config-snippet">Copiar</button>
+            </div>
+            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
+                Cole este bloco no <code>unbound.conf</code> do servidor do cliente (fora de <code>server:</code>). O Unbound vai buscar a zona periodicamente sozinho — não precisa de agente nem SSH.
+            </p>
+            <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $configSnippet }}</pre>
+            <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $rpzUrl }}</code></p>
         </div>
+
+        @if (auth()->user()->isAdmin())
+        <div class="panel details-card-wide">
+            <div class="panel-header">
+                <h2>Restrição de IP (opcional)</h2>
+                <form action="{{ route('servidores.ip-restriction.toggle', $servidor) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="button button-secondary">
+                        {{ $servidor->ip_restriction_enabled ? 'Desativar restrição' : 'Ativar restrição' }}
+                    </button>
+                </form>
+            </div>
+            <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">
+                @if ($servidor->ip_restriction_enabled)
+                    Ativa: só os IPs listados abaixo conseguem sincronizar, mesmo com o token correto.
+                @else
+                    Desativada: qualquer IP com o token válido consegue sincronizar. O token (48 caracteres aleatórios) já é a proteção principal — isso é uma camada extra, útil se o IP do servidor do cliente for fixo.
+                @endif
+            </p>
+
+            <form action="{{ route('servidores.ips.store', $servidor) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px">
+                @csrf
+                <input class="form-control" type="text" name="ip_cidr" placeholder="203.0.113.10 ou 203.0.113.0/24" required>
+                <button type="submit" class="button button-primary">Adicionar IP</button>
+            </form>
+
+            @if ($servidor->allowedIps->isEmpty())
+                <div class="empty-state"><span>Nenhum IP cadastrado.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>IP / CIDR</th><th class="table-actions-column"></th></tr></thead>
+                        <tbody>
+                            @foreach ($servidor->allowedIps as $ip)
+                                <tr>
+                                    <td class="table-mono">{{ $ip->ip_cidr }}</td>
+                                    <td>
+                                        <form action="{{ route('servidores.ips.destroy', [$servidor, $ip]) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover este IP?')">Remover</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+        @endif
 
         <div class="panel details-card-wide">
             <div class="panel-header"><h2>Listas vinculadas ({{ $servidor->listas->count() }})</h2></div>
@@ -94,4 +158,20 @@
             @endif
         </div>
     </div>
+
+    <script>
+        (function () {
+            var btn = document.getElementById('copy-config-btn');
+            if (!btn) return;
+            btn.addEventListener('click', function () {
+                var target = document.getElementById(btn.dataset.copyTarget);
+                if (!target) return;
+                navigator.clipboard.writeText(target.textContent).then(function () {
+                    var original = btn.textContent;
+                    btn.textContent = 'Copiado!';
+                    setTimeout(function () { btn.textContent = original; }, 1500);
+                });
+            });
+        })();
+    </script>
 @endsection

@@ -3,18 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Servidor;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class RpzController extends Controller
 {
     /**
      * Gera o zonefile RPZ do servidor identificado pelo token.
-     *
-     * Esqueleto inicial: monta cabecalho SOA + dominio canario +
-     * dominios ativos das listas vinculadas ao servidor. Sem
-     * cache/otimizacao de serial ainda -- sera refinado depois.
      */
-    public function show(string $token): Response
+    public function show(Request $request, string $token): Response
     {
         $servidor = Servidor::where('token', $token)
             ->where('status', 'active')
@@ -22,6 +20,10 @@ class RpzController extends Controller
                 $query->where('status', 'active');
             })
             ->firstOrFail();
+
+        if (! $servidor->ipAllowed($request->ip())) {
+            throw new NotFoundHttpException();
+        }
 
         $servidor->forceFill(['last_synced_at' => now()])->saveQuietly();
 

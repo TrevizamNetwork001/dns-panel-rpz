@@ -55,5 +55,9 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/sugestoes/{sugestao}/aprovar', [SugestaoDominioController::class, 'aprovar'])->name('sugestoes.aprovar');
         Route::post('/sugestoes/{sugestao}/rejeitar', [SugestaoDominioController::class, 'rejeitar'])->name('sugestoes.rejeitar');
+
+        Route::post('/servidores/{servidor}/ip-restriction/toggle', [ServidorController::class, 'toggleIpRestriction'])->name('servidores.ip-restriction.toggle');
+        Route::post('/servidores/{servidor}/ips', [ServidorController::class, 'addAllowedIp'])->name('servidores.ips.store');
+        Route::delete('/servidores/{servidor}/ips/{ip}', [ServidorController::class, 'removeAllowedIp'])->name('servidores.ips.destroy');
     });
 });
