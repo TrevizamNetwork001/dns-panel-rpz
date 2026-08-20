@@ -55,6 +55,9 @@ class User extends Authenticatable
             'escudo' => ['label' => 'Escudo', 'symbol' => '🛡️'],
             'rede' => ['label' => 'Rede', 'symbol' => '🌐'],
             'servidor' => ['label' => 'Servidor', 'symbol' => '🖥️'],
+            'engenheiro' => ['label' => 'Engenheiro', 'symbol' => '👷'],
+            'ceo' => ['label' => 'CEO', 'symbol' => '🧑‍💼'],
+            'burro' => ['label' => 'Burro', 'symbol' => '🫏'],
         ];
     }
 
