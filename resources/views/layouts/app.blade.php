@@ -51,15 +51,10 @@
                 <div class="environment-status">
                     <span class="status-dot"></span>
                     <div>
-                        <strong>{{ auth()->user()->name }}</strong>
-                        <span>{{ auth()->user()->isAdmin() ? 'Administrador' : 'Cliente' }}</span>
+                        <strong>DNS Panel RPZ</strong>
+                        <span>ainda em revisão</span>
                     </div>
                 </div>
-                <a href="{{ route('profile.password') }}" class="button button-secondary" style="width:100%;margin-top:10px;justify-content:center">Alterar senha</a>
-                <form action="{{ route('logout') }}" method="POST" style="margin-top:8px">
-                    @csrf
-                    <button type="submit" class="button button-secondary" style="width:100%">Sair</button>
-                </form>
             </div>
         </aside>
 
@@ -67,15 +62,33 @@
             <header class="app-topbar">
                 <button type="button" class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Abrir menu">&#9776;</button>
                 <div class="topbar-actions">
-                    <span style="color:var(--text-muted);font-size:12px">{{ auth()->user()->name }} &middot; {{ auth()->user()->isAdmin() ? 'Administrador' : 'Cliente' }}</span>
                     <button type="button" class="topbar-icon-button theme-toggle" id="theme-toggle" aria-label="Alternar tema">
                         <span class="theme-icon theme-icon-sun">&#9788;</span>
                         <span class="theme-icon theme-icon-moon">&#9789;</span>
                     </button>
-                    <form action="{{ route('logout') }}" method="POST">
-                        @csrf
-                        <button type="submit" class="button button-secondary">Sair</button>
-                    </form>
+
+                    <div class="account-menu">
+                        <button type="button" class="account-menu-toggle user-menu" id="account-menu-toggle" aria-haspopup="true" aria-expanded="false">
+                            <span class="user-avatar">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
+                            <span class="user-details">
+                                <strong>{{ auth()->user()->name }}</strong>
+                                <span>{{ auth()->user()->isAdmin() ? 'Administrador' : 'Cliente' }}</span>
+                            </span>
+                            <span class="account-menu-chevron">&#9662;</span>
+                        </button>
+                        <div class="account-menu-dropdown" id="account-menu-dropdown" hidden>
+                            <div class="account-menu-header">
+                                <strong>{{ auth()->user()->name }}</strong>
+                                <span>{{ auth()->user()->email }}</span>
+                            </div>
+                            <a href="{{ route('profile.password') }}" class="account-menu-item">Alterar senha</a>
+                            <div class="account-menu-divider"></div>
+                            <form action="{{ route('logout') }}" method="POST">
+                                @csrf
+                                <button type="submit" class="account-menu-item account-menu-logout" style="width:100%">Sair</button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </header>
 
@@ -121,6 +134,31 @@
             if (menuToggle && nav) {
                 menuToggle.addEventListener('click', function () {
                     nav.classList.toggle('is-open');
+                });
+            }
+
+            var accountToggle = document.getElementById('account-menu-toggle');
+            var accountDropdown = document.getElementById('account-menu-dropdown');
+            if (accountToggle && accountDropdown) {
+                accountToggle.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                    var isOpen = accountToggle.getAttribute('aria-expanded') === 'true';
+                    accountToggle.setAttribute('aria-expanded', String(!isOpen));
+                    accountDropdown.hidden = isOpen;
+                });
+
+                document.addEventListener('click', function (event) {
+                    if (!accountDropdown.hidden && !accountDropdown.contains(event.target) && event.target !== accountToggle) {
+                        accountDropdown.hidden = true;
+                        accountToggle.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && !accountDropdown.hidden) {
+                        accountDropdown.hidden = true;
+                        accountToggle.setAttribute('aria-expanded', 'false');
+                    }
                 });
             }
         })();

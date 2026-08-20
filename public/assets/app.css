@@ -332,6 +332,144 @@ html[data-theme="light"] .login-card {
     color: var(--text-soft);
 }
 
+.user-menu {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar {
+    display: grid;
+    width: 37px;
+    height: 37px;
+    place-items: center;
+    border: 1px solid rgba(33, 199, 232, 0.35);
+    border-radius: 10px;
+    background: var(--cyan-soft);
+    color: var(--cyan);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.user-details {
+    min-width: 112px;
+}
+
+.user-details strong,
+.user-details span {
+    display: block;
+}
+
+.user-details strong {
+    font-size: 12px;
+}
+
+.user-details span {
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 9px;
+}
+
+.account-menu {
+    position: relative;
+}
+
+.account-menu-toggle {
+    padding: 3px 5px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+}
+
+.account-menu-toggle:hover,
+.account-menu-toggle[aria-expanded="true"] {
+    border-color: var(--border-soft);
+    background: var(--surface);
+}
+
+.account-menu-chevron {
+    margin-left: 2px;
+    color: var(--text-muted);
+    font-size: 10px;
+    transition: transform 150ms ease;
+}
+
+.account-menu-toggle[aria-expanded="true"] .account-menu-chevron {
+    transform: rotate(180deg);
+}
+
+.account-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 80;
+    width: 230px;
+    padding: 8px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+}
+
+.account-menu-dropdown[hidden] {
+    display: none;
+}
+
+.account-menu-header {
+    padding: 9px 10px 11px;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.account-menu-header strong,
+.account-menu-header span {
+    display: block;
+}
+
+.account-menu-header strong {
+    font-size: 12px;
+}
+
+.account-menu-header span {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 9px;
+}
+
+.account-menu-item {
+    display: flex;
+    width: 100%;
+    min-height: 36px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+    text-align: left;
+    text-decoration: none;
+}
+
+.account-menu-item:hover {
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+.account-menu-divider {
+    height: 1px;
+    margin: 6px 4px;
+    background: var(--border-soft);
+}
+
+.account-menu-logout {
+    color: var(--danger);
+}
+
 .theme-toggle {
     transition:
         color 150ms ease,
