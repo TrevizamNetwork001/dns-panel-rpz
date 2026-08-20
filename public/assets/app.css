@@ -546,7 +546,64 @@ html[data-theme="light"] .login-card {
     color: var(--cyan);
 }
 
-@media (max-width: 700px) {
+.profile-layout {
+    display: grid;
+    grid-template-columns: minmax(250px, 0.34fr) minmax(0, 1fr);
+    gap: 18px;
+}
+
+.profile-sidebar {
+    display: grid;
+    align-self: start;
+    gap: 18px;
+}
+
+.profile-summary-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    align-self: start;
+}
+
+.profile-summary-card h2 {
+    margin: 3px 0 5px;
+    font-size: 18px;
+}
+
+.profile-summary-card > div {
+    min-width: 0;
+}
+
+.profile-account-card {
+    min-width: 0;
+}
+
+.profile-account-value {
+    overflow: hidden;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+html[data-theme="light"] .avatar-option {
+    background: #f7fafc;
+}
+
+html[data-theme="light"] .avatar-option:has(input:checked) {
+    background: rgba(19, 185, 214, 0.1);
+}
+
+@media (max-width: 1100px) {
+    .avatar-picker {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .profile-layout {
+        grid-template-columns: 1fr;
+    }
+
     .avatar-picker {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
