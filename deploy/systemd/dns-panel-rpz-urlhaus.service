@@ -1,0 +1,7 @@
+[Unit]
+Description=Sincroniza a lista externa URLhaus do DNS Panel RPZ
+
+[Service]
+Type=oneshot
+User=devops
+ExecStart=/opt/dns-panel-rpz/scripts/sync-urlhaus.sh

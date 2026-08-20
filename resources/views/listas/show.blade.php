@@ -13,6 +13,9 @@
                 @else
                     <span class="status-pill is-active">Catálogo — todas as empresas</span>
                 @endif
+                @if ($lista->isExterna())
+                    <span class="status-pill is-info">fonte externa: {{ $lista->fonte_externa }}</span>
+                @endif
                 @if ($lista->descricao)
                     &middot; {{ $lista->descricao }}
                 @endif
@@ -32,6 +35,26 @@
                 {{ $lista->status === 'active' ? 'Ativa' : 'Inativa' }}
             </span>
         </div>
+
+        @if ($lista->isExterna())
+        <div class="panel">
+            <div class="panel-header"><h2>Sincronização automática</h2></div>
+            <span class="status-pill @if($lista->sync_ativo) is-active @else is-warning @endif">
+                {{ $lista->sync_ativo ? 'Ativa' : 'Pausada' }}
+            </span>
+            <dl class="details-list" style="margin-top:14px">
+                <div><dt>Última sincronização</dt><dd>{{ optional($lista->last_sync_at)->format('d/m/Y H:i:s') ?? 'ainda não rodou' }}</dd></div>
+            </dl>
+            <p style="color:var(--text-muted);font-size:11px;margin:10px 0 0">Esta lista é populada automaticamente por um feed externo. Domínios adicionados/removidos manualmente serão sobrescritos na próxima sincronização.</p>
+            @if (auth()->user()->isAdmin())
+            <form action="{{ route('listas.toggle-sync', $lista) }}" method="POST" style="margin-top:12px">
+                @csrf
+                @method('PATCH')
+                <button type="submit" class="button button-secondary">{{ $lista->sync_ativo ? 'Pausar sincronização' : 'Reativar sincronização' }}</button>
+            </form>
+            @endif
+        </div>
+        @endif
 
         <div class="panel">
             <div class="panel-header"><h2>Servidores vinculados</h2></div>
@@ -61,7 +84,7 @@
             <div class="panel-header">
                 <h2>Domínios ({{ $lista->dominios()->count() }})</h2>
                 @if (auth()->user()->isAdmin())
-                <a href="{{ route('listas.dominios.index', $lista) }}" class="button button-primary">Gerenciar domínios</a>
+                <a href="{{ route('listas.dominios.index', $lista) }}" class="button button-primary">{{ $lista->isExterna() ? 'Ver domínios' : 'Gerenciar domínios' }}</a>
                 @endif
             </div>
             @if ($lista->dominios()->count() === 0)
@@ -87,7 +110,7 @@
                     </table>
                 </div>
                 @if ($lista->dominios()->count() > 10)
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:12px">mostrando os primeiros 10 de {{ $lista->dominios()->count() }} domínios &mdash; use "Gerenciar domínios" para ver todos.</p>
+                    <p style="color:var(--text-muted);font-size:10px;margin-top:12px">mostrando os primeiros 10 de {{ $lista->dominios()->count() }} domínios &mdash; use "{{ $lista->isExterna() ? 'Ver domínios' : 'Gerenciar domínios' }}" para ver todos.</p>
                 @endif
             @endif
         </div>

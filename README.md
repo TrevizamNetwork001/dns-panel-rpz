@@ -13,16 +13,30 @@ Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que ge
    ```
    https://rpz.trevizamnetwork.com.br/rpz/{token}.zone
    ```
-3. O Unbound busca essa URL periodicamente. O painel responde com um zonefile RPZ válido: cabeçalho `SOA` com serial (timestamp Unix — cresce a cada geração, cabe em 32 bits), um domínio canário fixo (`blocktest.<host-do-painel>`) sempre presente para o cliente testar se a sincronização está funcionando, e uma linha `dominio CNAME .` por domínio ativo nas listas vinculadas àquele servidor.
+   O bloco `rpz:` precisa ficar **depois** do fim do bloco `server:` no `unbound.conf` (antes dele, se você usar `hyperlocal`). Rode `unbound-checkconf` antes de reiniciar o serviço, para garantir que a config está válida e o Unbound não caia no reload.
+3. O Unbound busca essa URL periodicamente. O painel responde com um zonefile RPZ válido: cabeçalho `SOA` com serial (timestamp Unix — cresce a cada geração, cabe em 32 bits), um domínio canário fixo (`blocktest.<host-do-painel>`, sempre `CNAME .`, usado para o cliente testar se a sincronização está funcionando) e uma linha `dominio CNAME <alvo>` + `*.dominio CNAME <alvo>` por domínio ativo nas listas vinculadas àquele servidor. O `<alvo>` depende do **modo de bloqueio** configurado em cada servidor:
+   - `nxdomain` (padrão) — `CNAME .`, o domínio parece inexistente.
+   - `redirect` — `CNAME rpz.trevizamnetwork.com.br.`, resolve para o próprio painel, que serve uma página de aviso ("Esta página está bloqueada") em vez de NXDOMAIN. Depende do vhost Nginx dedicado `dns-blocked-page` estar configurado como `default_server` (ver Infraestrutura).
 4. A rota é pública (não exige login — o Unbound não tem sessão), mas exige token válido, servidor ativo **e empresa ativa**, e tem rate-limit (60 req/min por IP).
 5. Validado com `named-checkzone` (pacote `bind9-utils`) — sintaticamente correto mesmo com dezenas de milhares de domínios.
+
+## Listas externas (feeds públicos de blacklist)
+
+Além de listas manuais, o painel sincroniza automaticamente uma lista de **domínios maliciosos** a partir do feed público [URLhaus](https://urlhaus.abuse.ch/) (abuse.ch) — malware/phishing ativo, gratuito, sem chave de API.
+
+- Comando: `php artisan urlhaus:sync` (idempotente, seguro rodar a qualquer hora).
+- Agendado via `systemd timer` a cada 6h (`dns-panel-rpz-urlhaus.timer`) — não usa o scheduler do Laravel, mesmo padrão do backup.
+- A lista fica marcada como `origem = externa`, `fonte_externa = urlhaus`. Edição manual de domínios é bloqueada na UI e no controller (seria sobrescrita na próxima sync).
+- Admin pode pausar/reativar a sincronização (não some a lista, só para de atualizar) — botão "Pausar sync" em `/listas` ou na página da lista.
+- **Proteção contra feed quebrado**: se o URLhaus retornar menos de 100 domínios (sinal de formato mudado ou feed fora do ar), o comando aborta sem alterar a lista — evita esvaziar o bloqueio por engano.
+- Como qualquer lista de catálogo (`empresa_id = null`), fica disponível pra qualquer empresa vincular a um servidor normalmente.
 
 ## Entidades
 
 - **Empresa** — o cliente (provedor de internet). Status: `pending` (recém-cadastrada, aguardando aprovação), `active`, `inactive`.
 - **Licença** — vinculada a uma empresa, com `starts_at`/`expires_at` e `max_servidores`. Uma empresa pode ter várias; a capacidade de servidores é a soma das licenças ativas e vigentes.
-- **Servidor** — pertence a uma empresa, tem token único (usado na URL do RPZ) e status.
-- **Lista** — pode pertencer a uma empresa (lista privada) **ou não** (`empresa_id = null` = lista de catálogo, ex: lista da Anatel, reutilizável por qualquer empresa). Vinculada a servidores via tabela pivô `lista_servidor` (N:N).
+- **Servidor** — pertence a uma empresa, tem token único (usado na URL do RPZ), status e `bloqueio_modo` (`nxdomain` ou `redirect`).
+- **Lista** — pode pertencer a uma empresa (lista privada) **ou não** (`empresa_id = null` = lista de catálogo, ex: lista da Anatel, reutilizável por qualquer empresa). Vinculada a servidores via tabela pivô `lista_servidor` (N:N). Pode ser `manual` ou `externa` (sincronizada de um feed público — ver seção acima).
 - **Domínio** — pertence a uma lista, tem `dominio` + `ativo` (bool).
 - **SugestaoDominio** — domínio sugerido por um cliente para bloqueio, com fluxo de aprovação pelo admin (aprovar escolhe em qual lista o domínio entra; rejeitar só marca o status).
 - **User** — `role` (`admin` ou `cliente`) + `empresa_id` (só para clientes) + `avatar` (emoji opcional).
@@ -37,6 +51,7 @@ Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que ge
 | Criar/editar/remover servidor | ✅ (qualquer empresa) | ✅ (só a própria, até o limite da licença) |
 | Vincular/desvincular lista a um servidor | ✅ | ✅ (nos próprios servidores; listas de catálogo + próprias) |
 | Criar/editar/remover lista, gerenciar domínios | ✅ | ❌ (só sugestão) |
+| Pausar/reativar sincronização de lista externa | ✅ | ❌ |
 | Sugerir domínio | ✅ | ✅ |
 | Aprovar/rejeitar sugestão | ✅ | ❌ |
 | Ver dashboard | Global (todas as empresas) | Escopado à própria empresa |
@@ -67,8 +82,10 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 
 - Laravel 13 + SQLite (`database/database.sqlite`), PHP 8.4-FPM, Nginx.
 - HTTPS via Let's Encrypt (`certbot --nginx`), renovação automática.
-- Config real do Nginx e do timer de backup ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
+- Config real do Nginx e dos timers ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
 - Backup diário do SQLite via `systemd timer` (03:30, retém 14 dias) — script em `scripts/backup-db.sh`.
+- Sync da lista URLhaus via `systemd timer` a cada 6h — script em `scripts/sync-urlhaus.sh`.
+- `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`) servido como `default_server` do Nginx, exibe a página "Esta página está bloqueada" para qualquer Host desconhecido (inclui o modo `redirect` do RPZ). O painel antigo (`dns-panel-central`) e este painel continuam com seus próprios vhosts nominais — só o catch-all mudou de dono.
 - Timezone da aplicação: `America/Sao_Paulo`.
 
 ## Rodando localmente
@@ -99,6 +116,7 @@ App\Models\User::create([
 - `GET|POST /login`, `GET|POST /cadastro` — públicas.
 - `GET /rpz/{token}.zone` — pública, sem sessão, throttle 60/min.
 - `POST /servidores/{servidor}/listas/{lista}/attach` e `DELETE .../detach` — vínculo servidor↔lista (self-service do cliente).
+- `PATCH /listas/{lista}/toggle-sync` — admin only, pausa/reativa sync de lista externa.
 - `GET /perfil`, `PUT /perfil/avatar`, `GET|PUT /perfil/senha` — conta do usuário logado (qualquer papel).
 - `POST /sugestoes/{sugestao}/aprovar|rejeitar` — admin only.
 

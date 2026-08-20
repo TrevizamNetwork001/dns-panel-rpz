@@ -17,6 +17,15 @@ class Lista extends Model
         'nome',
         'descricao',
         'status',
+        'origem',
+        'fonte_externa',
+        'sync_ativo',
+        'last_sync_at',
+    ];
+
+    protected $casts = [
+        'sync_ativo' => 'boolean',
+        'last_sync_at' => 'datetime',
     ];
 
     public function empresa(): BelongsTo
@@ -32,5 +41,10 @@ class Lista extends Model
     public function dominios(): HasMany
     {
         return $this->hasMany(Dominio::class);
+    }
+
+    public function isExterna(): bool
+    {
+        return $this->origem === 'externa';
     }
 }

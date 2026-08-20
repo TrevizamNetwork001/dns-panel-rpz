@@ -11,6 +11,13 @@
         </div>
     </div>
 
+    @if ($lista->isExterna())
+        <div class="panel" style="margin-bottom:14px">
+            <div class="alert-error" style="margin:0;background:rgba(33,199,232,0.08);border-color:var(--cyan, #21c7e8);color:var(--text)">
+                Esta lista é sincronizada automaticamente do feed <strong>{{ $lista->fonte_externa }}</strong>. Edição manual está desabilitada — qualquer alteração seria sobrescrita na próxima sincronização.
+            </div>
+        </div>
+    @else
     <div class="details-grid">
         <div class="panel">
             <div class="panel-header"><h2>Adicionar domínio</h2></div>
@@ -40,6 +47,7 @@
             </form>
         </div>
     </div>
+    @endif
 
     <div class="panel" style="margin-top:14px">
         <div class="panel-header"><h2>Domínios cadastrados ({{ $dominios->total() }})</h2></div>
@@ -53,7 +61,9 @@
                         <tr>
                             <th>Domínio</th>
                             <th>Status</th>
+                            @unless ($lista->isExterna())
                             <th class="table-actions-column"></th>
+                            @endunless
                         </tr>
                     </thead>
                     <tbody>
@@ -65,6 +75,7 @@
                                         {{ $dominio->ativo ? 'Ativo' : 'Inativo' }}
                                     </span>
                                 </td>
+                                @unless ($lista->isExterna())
                                 <td>
                                     <div class="table-actions">
                                         <form action="{{ route('dominios.toggle', $dominio) }}" method="POST">
@@ -81,6 +92,7 @@
                                         </form>
                                     </div>
                                 </td>
+                                @endunless
                             </tr>
                         @endforeach
                     </tbody>

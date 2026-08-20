@@ -87,11 +87,36 @@ class ListaController extends Controller
 
     public function destroy(Lista $lista): RedirectResponse
     {
+        if ($lista->isExterna()) {
+            return back()->withErrors(['lista' => 'Listas de fonte externa não podem ser removidas por aqui. Desative a sincronização em vez disso.']);
+        }
+
         AuditLog::record('lista.destroyed', "Lista \"{$lista->nome}\" removida", $lista->empresa_id, 'lista', $lista->id);
 
         $lista->delete();
 
         return redirect()->route('listas.index')->with('status', 'Lista removida.');
+    }
+
+    public function toggleSync(Lista $lista): RedirectResponse
+    {
+        if (! $lista->isExterna()) {
+            abort(404);
+        }
+
+        $lista->update(['sync_ativo' => ! $lista->sync_ativo]);
+
+        AuditLog::record(
+            $lista->sync_ativo ? 'lista.externa.sync_habilitado' : 'lista.externa.sync_pausado',
+            "Sincronização automática da lista \"{$lista->nome}\" " . ($lista->sync_ativo ? 'reativada' : 'pausada'),
+            null,
+            'lista',
+            $lista->id
+        );
+
+        return back()->with('status', $lista->sync_ativo
+            ? 'Sincronização automática reativada.'
+            : 'Sincronização automática pausada — a lista fica como está até você reativar.');
     }
 
     private function authorizeAccess(Lista $lista): void

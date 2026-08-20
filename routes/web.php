@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('empresas', EmpresaController::class)->except(['show']);
         Route::resource('licencas', LicencaController::class);
         Route::resource('listas', ListaController::class)->except(['index', 'show']);
+        Route::patch('/listas/{lista}/toggle-sync', [ListaController::class, 'toggleSync'])->name('listas.toggle-sync');
 
         Route::get('/listas/{lista}/dominios', [DominioController::class, 'index'])->name('listas.dominios.index');
         Route::post('/listas/{lista}/dominios', [DominioController::class, 'store'])->name('listas.dominios.store');

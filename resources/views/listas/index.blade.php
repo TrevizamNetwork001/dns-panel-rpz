@@ -39,7 +39,12 @@
                     <tbody>
                         @foreach ($listas as $lista)
                             <tr>
-                                <td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td>
+                                <td>
+                                    <a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a>
+                                    @if ($lista->isExterna())
+                                        <span class="status-pill is-info" style="margin-left:6px">externa</span>
+                                    @endif
+                                </td>
                                 <td>{{ $lista->empresa?->nome ?? 'Catálogo (todas)' }}</td>
                                 <td>
                                     <span class="status-pill @if($lista->status === 'active') is-active @else is-inactive @endif">
@@ -50,11 +55,19 @@
                                     @if (auth()->user()->isAdmin())
                                     <div class="table-actions">
                                         <a href="{{ route('listas.edit', $lista) }}" class="table-action-link">Editar</a>
-                                        <form action="{{ route('listas.destroy', $lista) }}" method="POST">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover lista?')">Remover</button>
-                                        </form>
+                                        @if ($lista->isExterna())
+                                            <form action="{{ route('listas.toggle-sync', $lista) }}" method="POST">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="table-action-link" style="background:none;border:0">{{ $lista->sync_ativo ? 'Pausar sync' : 'Reativar sync' }}</button>
+                                            </form>
+                                        @else
+                                            <form action="{{ route('listas.destroy', $lista) }}" method="POST">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover lista?')">Remover</button>
+                                            </form>
+                                        @endif
                                     </div>
                                     @endif
                                 </td>

@@ -21,6 +21,10 @@ class DominioController extends Controller
 
     public function store(Request $request, Lista $lista): RedirectResponse
     {
+        if ($lista->isExterna()) {
+            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+        }
+
         $data = $request->validate([
             'dominio' => ['required', 'string', 'max:255'],
         ]);
@@ -38,6 +42,10 @@ class DominioController extends Controller
 
     public function bulkStore(Request $request, Lista $lista): RedirectResponse
     {
+        if ($lista->isExterna()) {
+            return back()->withErrors(['dominios' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+        }
+
         $data = $request->validate([
             'dominios' => ['required', 'string'],
         ]);
@@ -74,6 +82,10 @@ class DominioController extends Controller
 
     public function toggle(Dominio $dominio): RedirectResponse
     {
+        if ($dominio->lista->isExterna()) {
+            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+        }
+
         $dominio->update(['ativo' => ! $dominio->ativo]);
 
         return redirect()->route('listas.dominios.index', $dominio->lista_id)->with('status', 'Status do domínio atualizado.');
@@ -81,6 +93,10 @@ class DominioController extends Controller
 
     public function destroy(Dominio $dominio): RedirectResponse
     {
+        if ($dominio->lista->isExterna()) {
+            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+        }
+
         $listaId = $dominio->lista_id;
         $dominio->delete();
 
