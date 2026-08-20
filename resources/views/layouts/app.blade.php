@@ -73,7 +73,7 @@
                                 @if (auth()->user()->avatarSymbol())
                                     <span class="user-avatar-symbol">{{ auth()->user()->avatarSymbol() }}</span>
                                 @else
-                                    <span class="user-avatar-initials">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
+                                    <span class="user-avatar-initials">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
                                 @endif
                             </span>
                             <span class="user-details">

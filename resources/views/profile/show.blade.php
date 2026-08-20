@@ -22,7 +22,7 @@
                         @if (auth()->user()->avatarSymbol())
                             <span class="user-avatar-symbol">{{ auth()->user()->avatarSymbol() }}</span>
                         @else
-                            <span class="user-avatar-initials">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
+                            <span class="user-avatar-initials">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
                         @endif
                     </span>
                     <div>
@@ -57,7 +57,7 @@
                     <label class="avatar-option">
                         <input type="radio" name="avatar" value="" @checked(!auth()->user()->avatar) onchange="this.form.submit()">
                         <span class="user-avatar" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center">
-                            <span class="user-avatar-initials">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
+                            <span class="user-avatar-initials">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
                         </span>
                         <span class="avatar-option-label">Inicial do nome</span>
                     </label>
