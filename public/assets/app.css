@@ -1,15 +1,3 @@
-/* ============================================================
-   DNS Panel RPZ — identidade visual do IRCENTER.
-
-   Este arquivo e um SUBCONJUNTO de app/public/assets/app.css do
-   IRCENTER: as regras abaixo (tokens, shell, panel, botoes,
-   tabela, status-pill, formularios, empty-state) sao copiadas
-   literalmente do CSS real do IRCENTER, nao reimplementadas.
-   Foram omitidas apenas secoes especificas de outras paginas do
-   IRCENTER que nao se aplicam aqui (busca global, menu de conta,
-   financeiro, incidentes, RPKI, auth com hero/network-visual etc.).
-   ============================================================ */
-
 * {
     box-sizing: border-box;
 }
