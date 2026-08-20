@@ -1,0 +1,87 @@
+@extends('layouts.app')
+
+@section('title', $empresa->nome)
+
+@section('content')
+    <div class="page-heading">
+        <div>
+            <div class="page-eyebrow">Empresa</div>
+            <h1>{{ $empresa->nome }}</h1>
+            <p>{{ $empresa->documento ?? 'sem documento' }} &middot; {{ $empresa->email_contato ?? 'sem e-mail' }}</p>
+        </div>
+        <div class="page-actions">
+            @if (auth()->user()->isAdmin())<a href="{{ route('empresas.edit', $empresa) }}" class="button button-secondary">Editar</a>@endif
+        </div>
+    </div>
+
+    <div class="details-grid">
+        <div class="panel">
+            <div class="panel-header"><h2>Status</h2></div>
+            <span class="status-pill @if($empresa->status === 'active') is-active @else is-inactive @endif">
+                {{ $empresa->status === 'active' ? 'Ativa' : 'Inativa' }}
+            </span>
+        </div>
+
+        <div class="panel details-card-wide">
+            <div class="panel-header"><h2>Servidores</h2></div>
+            @if ($empresa->servidores->isEmpty())
+                <div class="empty-state"><span>Nenhum servidor cadastrado.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <tbody>
+                            @foreach ($empresa->servidores as $servidor)
+                                <tr><td><a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">{{ $servidor->nome }}</a></td></tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+
+        <div class="panel details-card-wide">
+            <div class="panel-header"><h2>Listas</h2></div>
+            @if ($empresa->listas->isEmpty())
+                <div class="empty-state"><span>Nenhuma lista cadastrada.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <tbody>
+                            @foreach ($empresa->listas as $lista)
+                                <tr><td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td></tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+
+        <div class="panel details-card-wide">
+            <div class="panel-header"><h2>Licenças</h2></div>
+            @if ($empresa->licencas->isEmpty())
+                <div class="empty-state"><span>Nenhuma licença cadastrada.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Início</th><th>Expiração</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($empresa->licencas as $licenca)
+                                <tr>
+                                    <td>{{ $licenca->starts_at->format('d/m/Y') }}</td>
+                                    <td>{{ optional($licenca->expires_at)->format('d/m/Y') ?? 'sem expiração' }}</td>
+                                    <td>
+                                        <span class="status-pill @if($licenca->status === 'active') is-active @else is-inactive @endif">
+                                            {{ $licenca->status }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+    </div>
+@endsection
