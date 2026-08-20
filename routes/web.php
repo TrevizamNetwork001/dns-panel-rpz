@@ -35,6 +35,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('listas', ListaController::class)->only(['index', 'show']);
     Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
 
+    Route::get('/perfil', [ProfileController::class, 'show'])->name('profile.show');
     Route::get('/perfil/senha', [ProfileController::class, 'editPassword'])->name('profile.password');
     Route::put('/perfil/senha', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
 
