@@ -16,7 +16,7 @@ class ServidorController extends Controller
     {
         $user = Auth::user();
 
-        $query = Servidor::with('empresa')->orderByDesc('id');
+        $query = Servidor::with(['empresa', 'listas'])->orderByDesc('id');
 
         if ($user->isCliente()) {
             $query->where('empresa_id', $user->empresa_id);

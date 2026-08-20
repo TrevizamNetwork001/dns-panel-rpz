@@ -30,6 +30,7 @@
                         <tr>
                             <th>Nome</th>
                             <th>Empresa</th>
+                            <th>Listas</th>
                             <th>Status</th>
                             <th>Última sincronização</th>
                             <th class="table-actions-column"></th>
@@ -40,6 +41,13 @@
                             <tr>
                                 <td><a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">{{ $servidor->nome }}</a></td>
                                 <td>{{ $servidor->empresa->nome }}</td>
+                                <td>
+                                    @if ($servidor->listas->isEmpty())
+                                        <a href="{{ route('servidores.show', $servidor) }}" class="inline-link" style="color:var(--danger)">nenhuma — escolher</a>
+                                    @else
+                                        <a href="{{ route('servidores.show', $servidor) }}" class="inline-link">{{ $servidor->listas->pluck('nome')->implode(', ') }}</a>
+                                    @endif
+                                </td>
                                 <td>
                                     <span class="status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
                                         {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
