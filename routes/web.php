@@ -35,7 +35,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/servidores/{servidor}/listas/{lista}/attach', [ServidorController::class, 'attachLista'])->name('servidores.listas.attach');
     Route::delete('/servidores/{servidor}/listas/{lista}/detach', [ServidorController::class, 'detachLista'])->name('servidores.listas.detach');
 
-    Route::resource('listas', ListaController::class)->only(['index', 'show']);
+    Route::resource('listas', ListaController::class)->only(['index']);
 
     Route::get('/perfil', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/perfil/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
@@ -71,4 +71,5 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
+    Route::get('/listas/{lista}', [ListaController::class, 'show'])->name('listas.show');
 });

@@ -112,7 +112,7 @@ class ListaController extends Controller
             'status' => ['required', 'in:active,inactive'],
         ]);
 
-        $data['empresa_id'] = $data['empresa_id'] ?: null;
+        $data['empresa_id'] = $data['empresa_id'] ?? null;
 
         return $data;
     }
