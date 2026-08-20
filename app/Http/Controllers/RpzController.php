@@ -68,6 +68,7 @@ class RpzController extends Controller
 
         foreach ($dominios as $dominio) {
             $lines[] = $dominio . ' CNAME .';
+            $lines[] = '*.' . $dominio . ' CNAME .';
         }
 
         return implode("\n", $lines) . "\n";
