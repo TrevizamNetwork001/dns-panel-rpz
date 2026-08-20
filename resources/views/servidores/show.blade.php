@@ -63,9 +63,12 @@
                 @endif
             </p>
 
+            <p style="color:var(--text-muted);font-size:10px;margin:0 0 8px">
+                Aceita IPv4 e IPv6 (com ou sem CIDR). Confirme com o cliente por qual IP o Unbound dele realmente sai antes de cadastrar &mdash; se o servidor for dual-stack, pode sair por IPv6 mesmo você esperando IPv4.
+            </p>
             <form action="{{ route('servidores.ips.store', $servidor) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px">
                 @csrf
-                <input class="form-control" type="text" name="ip_cidr" placeholder="203.0.113.10 ou 203.0.113.0/24" required>
+                <input class="form-control" type="text" name="ip_cidr" placeholder="203.0.113.10, 203.0.113.0/24 ou 2001:db8::1" required>
                 <button type="submit" class="button button-primary">Adicionar IP</button>
             </form>
 
