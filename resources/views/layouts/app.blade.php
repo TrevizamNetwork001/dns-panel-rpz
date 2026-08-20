@@ -43,6 +43,7 @@
                 <a href="{{ route('listas.index') }}" class="sidebar-link @if(request()->routeIs('listas.*')) is-active @endif">Listas</a>
                 @if (auth()->user()->isAdmin())
                 <a href="{{ route('licencas.index') }}" class="sidebar-link @if(request()->routeIs('licencas.*')) is-active @endif">Licenças</a>
+                <a href="{{ route('usuarios.index') }}" class="sidebar-link @if(request()->routeIs('usuarios.*')) is-active @endif">Usuários</a>
                 @endif
                 <a href="{{ route('sugestoes.index') }}" class="sidebar-link @if(request()->routeIs('sugestoes.*')) is-active @endif">Sugestões</a>
                 <a href="{{ route('consulta.index') }}" class="sidebar-link @if(request()->routeIs('consulta.*')) is-active @endif">Consulta</a>

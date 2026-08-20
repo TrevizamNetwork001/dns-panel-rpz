@@ -56,6 +56,33 @@
             @endif
         </div>
 
+        @if (auth()->user()->isAdmin())
+        <div class="panel details-card-wide">
+            <div class="panel-header">
+                <h2>Usuários</h2>
+                <a href="{{ route('usuarios.create', ['empresa_id' => $empresa->id]) }}" class="button button-primary">+ Criar acesso</a>
+            </div>
+            @if ($empresa->users->isEmpty())
+                <div class="empty-state"><span>Nenhum usuário com acesso a esta empresa ainda.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>Nome</th><th>E-mail</th><th class="table-actions-column"></th></tr></thead>
+                        <tbody>
+                            @foreach ($empresa->users as $user)
+                                <tr>
+                                    <td>{{ $user->name }}</td>
+                                    <td class="table-mono">{{ $user->email }}</td>
+                                    <td><a href="{{ route('usuarios.edit', $user) }}" class="table-action-link">Editar</a></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
+        @endif
+
         <div class="panel details-card-wide">
             <div class="panel-header"><h2>Licenças</h2></div>
             @if ($empresa->licencas->isEmpty())

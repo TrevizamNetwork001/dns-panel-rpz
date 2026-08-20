@@ -44,7 +44,7 @@ class EmpresaController extends Controller
             abort(403);
         }
 
-        $empresa->load(['servidores', 'listas', 'licencas']);
+        $empresa->load(['servidores', 'listas', 'licencas', 'users']);
 
         return view('empresas.show', compact('empresa'));
     }
