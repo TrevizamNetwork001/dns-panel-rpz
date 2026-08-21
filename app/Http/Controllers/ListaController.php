@@ -149,8 +149,10 @@ class ListaController extends Controller
 
         $totalAtivos = $lista->dominios()->where('ativo', true)->count();
 
+        $diario = $this->serieDiaria($lista, $desde);
+
         return view('listas.historico', compact(
-            'lista', 'periodo', 'desde', 'adicionados', 'removidos', 'totalAtivos',
+            'lista', 'periodo', 'desde', 'adicionados', 'removidos', 'totalAtivos', 'diario',
             'adicionadosCount', 'removidosCount', 'mostrarDetalhe'
         ));
     }
@@ -169,6 +171,47 @@ class ListaController extends Controller
             'erro' => back()->withErrors(['lista' => 'Falha ao sincronizar: ' . ($resultado['motivo'] ?? 'erro desconhecido')]),
             default => back(),
         };
+    }
+
+    /**
+     * Serie diaria de adicionados/removidos entre $desde e hoje, pro grafico
+     * de historico. Sempre agregado por dia (poucos pontos), independente do
+     * tamanho da lista -- diferente das tabelas detalhadas, nao tem limite.
+     *
+     * @return array<int, array{dia: string, adicionados: int, removidos: int}>
+     */
+    private function serieDiaria(Lista $lista, \Illuminate\Support\Carbon $desde): array
+    {
+        $adicionadosPorDia = \Illuminate\Support\Facades\DB::table('dominios')
+            ->selectRaw("DATE(created_at) as dia, COUNT(*) as total")
+            ->where('lista_id', $lista->id)
+            ->where('created_at', '>=', $desde)
+            ->groupBy('dia')
+            ->pluck('total', 'dia');
+
+        $removidosPorDia = \Illuminate\Support\Facades\DB::table('dominios')
+            ->selectRaw("DATE(updated_at) as dia, COUNT(*) as total")
+            ->where('lista_id', $lista->id)
+            ->where('ativo', false)
+            ->where('updated_at', '>=', $desde)
+            ->groupBy('dia')
+            ->pluck('total', 'dia');
+
+        $dias = [];
+        $cursor = $desde->copy()->startOfDay();
+        $hoje = now()->startOfDay();
+
+        while ($cursor->lte($hoje)) {
+            $chave = $cursor->toDateString();
+            $dias[] = [
+                'dia' => $chave,
+                'adicionados' => (int) ($adicionadosPorDia[$chave] ?? 0),
+                'removidos' => (int) ($removidosPorDia[$chave] ?? 0),
+            ];
+            $cursor->addDay();
+        }
+
+        return $dias;
     }
 
     private function authorizeAccess(Lista $lista): void
