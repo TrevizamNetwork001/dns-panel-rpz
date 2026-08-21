@@ -22,6 +22,21 @@
             </span>
         </div>
 
+        @if (auth()->user()->isAdmin())
+        <div class="panel details-card-wide">
+            <div class="panel-header">
+                <h2>Chave de API</h2>
+                <span class="status-pill is-info">acesso via X-Api-Key</span>
+            </div>
+            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">Autentica chamadas à API em nome desta empresa (equivalente a um usuário cliente — nunca acesso de admin). Header: <code>X-Api-Key: {chave}</code>.</p>
+            <code style="display:block;word-break:break-all;background:#080d17;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px">{{ $empresa->api_key ?? 'ainda não gerada' }}</code>
+            <form action="{{ route('empresas.regenerate-api-key', $empresa) }}" method="POST" style="margin-top:10px">
+                @csrf
+                <button type="submit" class="button button-secondary" onclick="return confirm('Regenerar a chave? A chave antiga para de funcionar imediatamente.')">Regenerar chave</button>
+            </form>
+        </div>
+        @endif
+
         <div class="panel details-card-wide">
             <div class="panel-header"><h2>Servidores</h2></div>
             @if ($empresa->servidores->isEmpty())

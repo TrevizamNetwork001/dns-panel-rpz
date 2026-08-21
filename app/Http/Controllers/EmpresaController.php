@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class EmpresaController extends Controller
@@ -63,6 +64,15 @@ class EmpresaController extends Controller
         AuditLog::record('empresa.updated', "Empresa \"{$empresa->nome}\" atualizada", $empresa->id, 'empresa', $empresa->id);
 
         return redirect()->route('empresas.index')->with('status', 'Empresa atualizada com sucesso.');
+    }
+
+    public function regenerateApiKey(Empresa $empresa): RedirectResponse
+    {
+        $empresa->update(['api_key' => Str::random(48)]);
+
+        AuditLog::record('empresa.api_key_regenerada', "Chave de API da empresa \"{$empresa->nome}\" regenerada", $empresa->id, 'empresa', $empresa->id);
+
+        return back()->with('status', 'Chave de API regenerada. Atualize as integrações que usavam a chave antiga — ela parou de funcionar.');
     }
 
     public function destroy(Empresa $empresa): RedirectResponse

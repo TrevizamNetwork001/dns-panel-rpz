@@ -5,6 +5,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ConsultaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DominioController;
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\LicencaController;
 use App\Http\Controllers\ListaController;
@@ -42,6 +43,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/perfil/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::get('/perfil/senha', [ProfileController::class, 'editPassword'])->name('profile.password');
     Route::put('/perfil/senha', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
+    Route::get('/perfil/tokens', [ApiTokenController::class, 'index'])->name('profile.tokens');
+    Route::post('/perfil/tokens', [ApiTokenController::class, 'store'])->name('profile.tokens.store');
+    Route::delete('/perfil/tokens/{tokenId}', [ApiTokenController::class, 'destroy'])->name('profile.tokens.destroy');
 
     Route::resource('sugestoes', SugestaoDominioController::class)->only(['index', 'create', 'store']);
 
@@ -49,6 +53,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('admin')->group(function () {
         Route::resource('empresas', EmpresaController::class)->except(['show']);
+        Route::post('/empresas/{empresa}/regenerar-api-key', [EmpresaController::class, 'regenerateApiKey'])->name('empresas.regenerate-api-key');
         Route::resource('licencas', LicencaController::class);
         Route::resource('listas', ListaController::class)->except(['index', 'show']);
         Route::patch('/listas/{lista}/toggle-sync', [ListaController::class, 'toggleSync'])->name('listas.toggle-sync');

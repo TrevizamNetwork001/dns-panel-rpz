@@ -99,6 +99,7 @@
                             </div>
                             <a href="{{ route('profile.show') }}" class="account-menu-item">Meu perfil</a>
                             <a href="{{ route('profile.password') }}" class="account-menu-item">Alterar senha</a>
+                            <a href="{{ route('profile.tokens') }}" class="account-menu-item">Tokens de API</a>
                             <div class="account-menu-divider"></div>
                             <form action="{{ route('logout') }}" method="POST">
                                 @csrf

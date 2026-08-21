@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Empresa extends Model
 {
@@ -15,7 +16,17 @@ class Empresa extends Model
         'documento',
         'email_contato',
         'status',
+        'api_key',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Empresa $empresa) {
+            if (empty($empresa->api_key)) {
+                $empresa->api_key = Str::random(48);
+            }
+        });
+    }
 
     public function servidores(): HasMany
     {
