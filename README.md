@@ -73,48 +73,6 @@ Controle de acesso é feito via middleware `auth` (tudo exceto login/cadastro/RP
 
 Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio em vez de deixar salvar.
 
-## API
-
-Base: `https://rpz.trevizamnetwork.com.br/api/v1`. Escopo deliberadamente pequeno: **Listas e Domínios**, pra automação de fora (ex: um cliente consultando periodicamente o que está bloqueado, ou publicando os próprios domínios). Não cobre Servidores/Empresas/Licenças — essas continuam só pela web, gerenciadas por um humano; não havia necessidade concreta de automatizar isso ainda, e API sem caso de uso real é manutenção à toa.
-
-### Autenticação — dois jeitos, escolha um
-
-**Token pessoal (Sanctum)** — revogável individualmente. Gere em `/perfil/tokens` (qualquer usuário, admin ou cliente). O valor só aparece uma vez na hora de criar.
-
-```bash
-curl https://rpz.trevizamnetwork.com.br/api/v1/listas \
-  -H "Authorization: Bearer SEU_TOKEN"
-```
-
-**Chave de empresa** — um segredo fixo por empresa (visível pro admin em `/empresas/{id}`, regenerável a qualquer momento). Equivale sempre ao nível de acesso de um usuário cliente daquela empresa — **nunca** dá acesso de admin, mesmo que a chave vaze não expõe outras empresas.
-
-```bash
-curl https://rpz.trevizamnetwork.com.br/api/v1/listas \
-  -H "X-Api-Key: CHAVE_DA_EMPRESA"
-```
-
-A API **não** usa o guard `sanctum` padrão do Laravel de propósito — por padrão ele cai pra sessão web antes de checar o token, o que deixaria um admin logado no navegador acessar a API sem token nenhum (e sem proteção CSRF, já que rotas `api/*` não verificam CSRF). O middleware customizado (`EnsureApiAuthenticated`) valida só o token/chave, isolado da sessão web.
-
-### ACL de IP (opcional, por empresa)
-
-Igual à restrição de IP que já existe pros servidores buscarem o RPZ: o admin liga em `/empresas/{id}` e cadastra os IPs/CIDRs permitidos. Enquanto desligado (padrão), qualquer IP com credencial válida acessa. Ligado, só os IPs da lista conseguem — vale tanto pra chave da empresa quanto pra tokens pessoais de usuários cliente daquela empresa. Não afeta admin.
-
-### Endpoints
-
-| Método | Rota | Quem pode |
-|---|---|---|
-| GET | `/listas`, `/listas/{id}` | admin: todas · cliente/chave: catálogo + próprias |
-| POST/PUT | `/listas`, `/listas/{id}` | admin only |
-| GET | `/listas/{id}/dominios` | mesma regra de `/listas/{id}` — aceita `?desde=2026-08-21T10:00:00Z` (só domínios alterados a partir dali, pra consulta incremental) e `?ativo=1` |
-| POST/PATCH/DELETE | `/listas/{id}/dominios`, `/dominios/{id}` | admin only (mesma regra da web — cliente não edita domínio direto, mesmo em lista própria) |
-| GET | `/user` | quem quer que esteja autenticado — confirma quem você é |
-
-`GET /listas/{id}` traz `ultima_alteracao_dominios` (timestamp do domínio modificado mais recentemente na lista) e, se for externa, `last_sync_at` — dá pra saber se algo mudou sem baixar a lista inteira toda vez.
-
-Todas as respostas de lista vêm paginadas: `{"data": [...], "meta": {"current_page", "last_page", "total"}}`. `per_page` aceita até 100 (200 pra domínios).
-
-Rate limit: 60 requisições/minuto por token ou chave.
-
 ## Segurança implementada
 
 - Autenticação via sessão (Laravel `Auth`), rate-limit de tentativas de login, senha com política de complexidade (maiúscula/minúscula/número/especial, mín. 8 caracteres).
@@ -209,7 +167,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-88 testes / 167 assertions cobrindo os pontos mais críticos:
+53 testes / 106 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade).
 - `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.
@@ -217,11 +175,6 @@ php artisan test
 - `tests/Feature/ExternalListaSyncTest.php` — sincroniza múltiplas listas externas de uma vez, import, desativação de domínios que saíram do feed, feed quebrado não afeta as outras listas, pausa de sincronização, formatos `hostfile`/`plain`, parsing de linhas inválidas/localhost.
 - `tests/Feature/ListaCrudTest.php` — criação de lista manual e externa via HTTP real (POST), validação de URL obrigatória pra listas externas.
 - `tests/Unit/ServidorIpMatchesCidrTest.php`, `tests/Unit/AuditLogBucketTest.php` — lógica pura (CIDR matching, classificação de severidade).
-- `tests/Feature/Api/ApiAuthTest.php` — token pessoal, chave de empresa, token revogado/inválido, chave de empresa inativa.
-- `tests/Feature/Api/ApiListaDominioTest.php` — isolamento de listas entre empresas, catálogo, bloqueio de edição manual em lista externa, admin-only pra criar/editar.
-- `tests/Feature/Api/ApiDominioQueryTest.php` — filtro `?desde=` (consulta incremental), filtro `?ativo=`, timestamp de última alteração exposto na lista.
-- `tests/Feature/Api/ApiIpRestrictionTest.php` — ACL de IP bloqueando/permitindo por empresa, aplicada tanto à chave quanto a tokens de cliente, admin sempre passa.
-- `tests/Feature/ApiTokenManagementTest.php`, `tests/Feature/EmpresaApiKeyTest.php` — geração/revogação de token pela UI (fluxo real via sessão), regeneração de chave de empresa, e confirmação de que a credencial antiga realmente para de funcionar.
 
 Usa banco SQLite em memória (`phpunit.xml`, `DB_DATABASE=:memory:`) — não toca no banco real. `Http::fake()` mockado nos testes que envolvem chamada externa (URLhaus).
 
@@ -240,7 +193,6 @@ Usa banco SQLite em memória (`phpunit.xml`, `DB_DATABASE=:memory:`) — não to
 - `PATCH /listas/{lista}/toggle-sync` — admin only, pausa/reativa sync de lista externa.
 - `GET /perfil`, `PUT /perfil/avatar`, `GET|PUT /perfil/senha` — conta do usuário logado (qualquer papel).
 - `POST /sugestoes/{sugestao}/aprovar|rejeitar` — admin only.
-- `routes/api.php`, prefixo `/api/v1` — ver seção [API](#api) acima.
 
 Lista completa: `php artisan route:list`.
 
