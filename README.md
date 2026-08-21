@@ -35,7 +35,7 @@ Além de listas manuais, o admin pode criar uma **Lista externa**: aponta uma UR
 - Admin pode pausar/reativar a sincronização por lista (não some a lista, só para de atualizar) — botão em `/listas` ou na página da lista.
 - **Proteção contra feed quebrado**: se um feed retornar menos de 100 domínios (sinal de formato mudado ou feed fora do ar), aquela lista específica é pulada sem ser alterada — evita esvaziar o bloqueio por engano. As outras listas continuam sincronizando normalmente.
 - Como qualquer lista de catálogo (`empresa_id = null`), fica disponível pra qualquer empresa vincular a um servidor normalmente.
-- Já vêm duas listas pré-configuradas: [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo) e [ThreatFox](https://threatfox.abuse.ch/) (C2/botnet — infraestrutura de comando-e-controle), ambas abuse.ch, gratuitas, sem chave de API. Pode editar a URL delas ou criar outras do zero.
+- Já vêm três listas pré-configuradas, todas gratuitas e sem chave de API: [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo), [ThreatFox](https://threatfox.abuse.ch/) (C2/botnet — infraestrutura de comando-e-controle) e [Phishing Army](https://phishing.army/) (phishing). Pode editar a URL delas ou criar outras do zero. Testado com as três somadas (~245k domínios, ~492k linhas no zonefile) em ~1,3s sem estourar memória.
 
 ## Entidades
 
