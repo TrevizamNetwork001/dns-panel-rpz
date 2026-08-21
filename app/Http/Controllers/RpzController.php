@@ -64,9 +64,12 @@ class RpzController extends Controller
             ? rtrim($panelHost, '.') . '.'
             : '.';
 
+        $mname = $panelHost . '.';
+        $rname = 'hostmaster.' . $panelHost . '.';
+
         $lines = [];
         $lines[] = '$TTL 60';
-        $lines[] = '@ SOA localhost. root.localhost. (';
+        $lines[] = '@ SOA ' . $mname . ' ' . $rname . ' (';
         $lines[] = '    ' . $serial . '  ; serial';
         $lines[] = '    3600           ; refresh';
         $lines[] = '    600            ; retry';
