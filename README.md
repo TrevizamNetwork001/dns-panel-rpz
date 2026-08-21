@@ -108,6 +108,8 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 
 ## Rodando localmente
 
+Pra desenvolvimento rápido na sua máquina, com o servidor embutido do PHP:
+
 ```bash
 composer install
 cp .env.example .env
@@ -128,13 +130,40 @@ App\Models\User::create([
 ]);
 ```
 
+## Subindo em uma VM nova (staging ou uma segunda instância)
+
+O projeto ainda não tem staging fixo rodando 24/7 — não compensa o custo/manutenção enquanto está em desenvolvimento, sem clientes reais dependendo dele. Em vez disso, o repositório privado no GitHub (`TrevizamNetwork001/dns-panel-rpz`) funciona como staging sob demanda: suba uma VM quando precisar testar algo mais a sério, derrube depois.
+
+```bash
+# na VM nova (Debian/Ubuntu, exemplo)
+apt install -y php8.4-fpm php8.4-sqlite3 php8.4-mbstring php8.4-xml php8.4-curl composer nginx sqlite3 bind9-utils fail2ban
+
+git clone https://github.com/TrevizamNetwork001/dns-panel-rpz.git
+cd dns-panel-rpz
+composer install --no-dev --optimize-autoloader
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate
+
+# ajuste o .env: APP_ENV=staging, APP_DEBUG=false, APP_URL com o host/IP real da VM
+```
+
+Depois disso, siga o padrão do servidor de produção pra deixar realista:
+
+- Vhost Nginx (adapte [`deploy/nginx/dns-panel-rpz-domain.conf`](deploy/nginx/dns-panel-rpz-domain.conf) trocando o `server_name`).
+- Se quiser HTTPS de verdade, precisa de um subdomínio próprio (ex: `staging.rpz.trevizamnetwork.com.br`) apontando pro IP da VM — sem isso, o Certbot não emite certificado. Sem HTTPS também funciona pra teste, só perde a paridade com produção nesse ponto.
+- `bind9-utils` é necessário pro teste que valida o zonefile com `named-checkzone` — sem ele, `php artisan test` falha um teste específico (mesma pegadinha que aconteceu no CI, ver `.github/workflows/tests.yml`).
+- **Não** copie o `database.sqlite` de produção pra lá sem anonimizar antes (tem e-mail e dados reais de cliente) — comece com um banco vazio + o admin de teste do tinker acima.
+- Timers/fail2ban/logrotate de produção (`deploy/systemd/`, `deploy/fail2ban/`, `deploy/logrotate/`) são opcionais numa VM de teste — copie só o que fizer sentido testar.
+
 ## Testes automatizados
 
 ```bash
 php artisan test
 ```
 
-45 testes / 85 assertions cobrindo os pontos mais críticos:
+48 testes / 90 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade).
 - `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.
@@ -169,4 +198,4 @@ CSS em `public/assets/app.css` — subconjunto **copiado literalmente** (não re
 ## Pendências conhecidas
 
 - **Notificação por Telegram** — decisão consciente de deixar por último; precisa de um bot token do BotFather.
-- **RPZ**: SOA usa `localhost.` como MNAME/RNAME (placeholder) — pode ser trocado por um contato real do domínio.
+- **Staging fixo** — decisão consciente de não manter uma VM de staging rodando 24/7 enquanto o projeto está em desenvolvimento (sem clientes reais dependendo dele ainda). O GitHub serve como staging sob demanda — ver seção "Subindo em uma VM nova" acima.
