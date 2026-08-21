@@ -46,4 +46,21 @@ class AuditLogBucketTest extends TestCase
     {
         $this->assertSame('muted', AuditLog::bucket('servidor.updated'));
     }
+
+    public function test_health_site_down_and_disk_low_are_danger(): void
+    {
+        $this->assertSame('danger', AuditLog::bucket('health.site_down'));
+        $this->assertSame('danger', AuditLog::bucket('health.disk_low'));
+    }
+
+    public function test_health_cert_expiring_is_warning(): void
+    {
+        $this->assertSame('warning', AuditLog::bucket('health.cert_expiring'));
+        $this->assertSame('warning', AuditLog::bucket('health.cert_unreadable'));
+    }
+
+    public function test_health_ok_is_muted(): void
+    {
+        $this->assertSame('muted', AuditLog::bucket('health.ok'));
+    }
 }

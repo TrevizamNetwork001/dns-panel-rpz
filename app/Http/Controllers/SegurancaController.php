@@ -35,12 +35,24 @@ class SegurancaController extends Controller
             ->limit(15)
             ->get();
 
+        $ultimoHealthCheck = AuditLog::where('action', 'like', 'health.%')
+            ->orderByDesc('id')
+            ->first();
+
+        $alertasSaude = AuditLog::where('action', 'like', 'health.%')
+            ->where('action', '!=', 'health.ok')
+            ->orderByDesc('id')
+            ->limit(15)
+            ->get();
+
         return view('seguranca.index', compact(
             'bansAtivos',
             'historico',
             'bansUltimas24h',
             'loginFalhasUltimas24h',
-            'ultimasFalhasLogin'
+            'ultimasFalhasLogin',
+            'ultimoHealthCheck',
+            'alertasSaude'
         ));
     }
 }

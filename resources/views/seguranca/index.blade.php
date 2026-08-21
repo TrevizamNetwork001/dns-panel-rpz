@@ -41,6 +41,23 @@
             <div class="metric-value">{{ $loginFalhasUltimas24h }}</div>
             <div class="metric-label">Falhas de login no painel (24h)</div>
         </div>
+
+        <div class="metric-card">
+            <div class="metric-card-header">
+                <div class="metric-icon @if($alertasSaude->isEmpty()) green @else amber @endif">
+                    <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+            </div>
+            <div class="metric-value">{{ $alertasSaude->isEmpty() ? 'OK' : $alertasSaude->count() }}</div>
+            <div class="metric-label">
+                Saúde do servidor
+                @if ($ultimoHealthCheck)
+                    <br><small style="color:var(--text-muted)">última checagem: {{ $ultimoHealthCheck->created_at->diffForHumans() }}</small>
+                @else
+                    <br><small style="color:var(--text-muted)">ainda não rodou</small>
+                @endif
+            </div>
+        </div>
     </div>
 
     <div class="panel" style="margin-bottom:14px">
@@ -48,6 +65,30 @@
             O SSH do servidor está protegido por <strong>fail2ban</strong>: qualquer IP com 5 tentativas de senha erradas em 10 minutos é bloqueado por 1 hora automaticamente. Esta página mostra o que o fail2ban já bloqueou — não é um firewall configurável por aqui.
         </div>
     </div>
+
+    @if ($alertasSaude->isNotEmpty())
+    <div class="panel" style="margin-bottom:14px">
+        <div class="panel-header">
+            <h2>Alertas de saúde do servidor</h2>
+            <span class="status-pill is-warning">requer atenção</span>
+        </div>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr><th>Data</th><th>Alerta</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($alertasSaude as $alerta)
+                        <tr>
+                            <td class="table-mono">{{ $alerta->created_at->format('d/m/Y H:i:s') }}</td>
+                            <td>{{ $alerta->description }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
 
     <div class="details-grid">
         <div class="panel">

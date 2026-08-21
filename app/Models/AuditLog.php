@@ -67,6 +67,14 @@ class AuditLog extends Model
             return 'warning';
         }
 
+        if (str_starts_with($action, 'health.')) {
+            if ($action === 'health.ok') {
+                return 'muted';
+            }
+
+            return str_contains($action, 'site_down') || str_contains($action, 'disk_low') ? 'danger' : 'warning';
+        }
+
         if (str_starts_with($action, 'sugestao.') || str_contains($action, 'ip_restriction') || str_contains($action, 'ips.')) {
             return 'info';
         }

@@ -85,13 +85,21 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - Página `/seguranca` (admin) mostra IPs banidos agora, histórico de bans/unbans e falhas de login no painel — visão consolidada de ameaças.
 - **Pendente de decisão consciente**: `PermitRootLogin yes` e `PasswordAuthentication yes` continuam ativos no `sshd_config`. Já existe uma chave SSH (ed25519) instalada em `~/.ssh/authorized_keys` do root e testada com sucesso (login sem senha funciona), mas a decisão do dono do servidor foi manter login por senha habilitado por enquanto — a chave fica como opção extra, não obrigatória. Quando quiser travar (recomendado): mudar `PermitRootLogin` para `prohibit-password` e `PasswordAuthentication` para `no`, testar login por chave numa sessão nova **antes** de fechar a sessão atual.
 
-## Infraestrutura (servidor `paineldns`, 45.239.157.239)
+## Healthcheck (disco, certificado, disponibilidade)
+
+- `php artisan health:check` roda a cada 30min via `systemd timer` (`dns-panel-rpz-healthcheck.timer`, como **root** — precisa disso pra ler o certificado do Let's Encrypt, que fica com permissão restrita mesmo para `www-data`).
+- Verifica: uso de disco (alerta a partir de 85%), validade do certificado TLS (alerta a partir de 14 dias), e se `https://rpz.trevizamnetwork.com.br/up` responde 200.
+- Quando está tudo OK, grava um `health.ok` silencioso (só pra saber "checou pela última vez há X min"). Quando encontra algo, grava um evento por problema (`health.disk_low`, `health.cert_expiring`, `health.site_down`, `health.cert_unreadable`) — aparece em `/seguranca` (card dedicado + alertas) e em `/auditoria`.
+- Ainda não notifica ninguém ativamente (sem Telegram/e-mail configurado) — é preciso abrir o painel pra ver. Fica registrado como próximo passo natural quando o bot do Telegram entrar.
+
+## Infraestrutura (servidor `paineldns`)
 
 - Laravel 13 + SQLite (`database/database.sqlite`), PHP 8.4-FPM, Nginx.
 - HTTPS via Let's Encrypt (`certbot --nginx`), renovação automática.
 - Config real do Nginx e dos timers ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
 - Backup diário do SQLite via `systemd timer` (03:30, retém 14 dias) — script em `scripts/backup-db.sh`.
 - Sync da lista URLhaus via `systemd timer` a cada 6h — script em `scripts/sync-urlhaus.sh`.
+- Healthcheck (disco/certificado/site) via `systemd timer` a cada 30min — script em `scripts/health-check.sh`.
 - `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`) servido como `default_server` do Nginx, exibe a página "Esta página está bloqueada" para qualquer Host desconhecido (inclui o modo `redirect` do RPZ). O painel antigo (`dns-panel-central`) e este painel continuam com seus próprios vhosts nominais — só o catch-all mudou de dono.
 - Timezone da aplicação: `America/Sao_Paulo`.
 

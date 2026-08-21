@@ -1,6 +1,6 @@
 # deploy/
 
-Cópias de referência da configuração de infraestrutura do servidor `paineldns` (45.239.157.239). **Não são lidas automaticamente pelo servidor** — são só documentação versionada do estado esperado.
+Cópias de referência da configuração de infraestrutura do servidor `paineldns`. **Não são lidas automaticamente pelo servidor** — são só documentação versionada do estado esperado.
 
 Se você editar a configuração real no servidor, lembre de copiar a mudança pra cá também:
 
@@ -9,6 +9,7 @@ cp /etc/nginx/sites-available/dns-panel-rpz-domain deploy/nginx/dns-panel-rpz-do
 cp /etc/nginx/sites-available/dns-blocked-page deploy/nginx/dns-blocked-page.conf
 cp /etc/systemd/system/dns-panel-rpz-backup.* deploy/systemd/
 cp /etc/systemd/system/dns-panel-rpz-urlhaus.* deploy/systemd/
+cp /etc/systemd/system/dns-panel-rpz-healthcheck.* deploy/systemd/
 cp /etc/fail2ban/jail.local deploy/fail2ban/jail.local
 cp /etc/fail2ban/action.d/dns-panel-hook.conf deploy/fail2ban/dns-panel-hook.conf
 ```
@@ -21,3 +22,4 @@ cp /etc/fail2ban/action.d/dns-panel-hook.conf deploy/fail2ban/dns-panel-hook.con
 - `systemd/dns-panel-rpz-urlhaus.service` + `.timer` — sincronização da lista externa URLhaus a cada 6h (`php artisan urlhaus:sync`).
 - `fail2ban/jail.local` — jail do SSH (backend systemd/journal, 5 tentativas em 10min → ban de 1h) + hook customizado.
 - `fail2ban/dns-panel-hook.conf` — action do fail2ban que chama `php artisan security:log-ban` a cada ban/unban, alimentando a página `/seguranca` do painel.
+- `systemd/dns-panel-rpz-healthcheck.service` + `.timer` — healthcheck (disco, certificado TLS, disponibilidade do site) a cada 30min, rodando como root (`php artisan health:check`).

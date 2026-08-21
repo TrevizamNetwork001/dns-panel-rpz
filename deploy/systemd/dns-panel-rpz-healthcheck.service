@@ -1,0 +1,7 @@
+[Unit]
+Description=Healthcheck do DNS Panel RPZ (disco, certificado TLS, site no ar)
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/dns-panel-rpz/scripts/health-check.sh
