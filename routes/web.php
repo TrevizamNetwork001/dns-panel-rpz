@@ -76,4 +76,5 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');
     Route::get('/listas/{lista}', [ListaController::class, 'show'])->name('listas.show');
+    Route::get('/listas/{lista}/historico', [ListaController::class, 'history'])->name('listas.historico');
 });

@@ -22,6 +22,7 @@
             </p>
         </div>
         <div class="page-actions">
+            <a href="{{ route('listas.historico', $lista) }}" class="button button-secondary">Histórico</a>
             @if (auth()->user()->isAdmin())
             <a href="{{ route('listas.edit', $lista) }}" class="button button-secondary">Editar</a>
             @endif

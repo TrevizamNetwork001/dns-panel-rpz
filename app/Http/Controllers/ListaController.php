@@ -120,6 +120,41 @@ class ListaController extends Controller
             : 'Sincronização automática pausada — a lista fica como está até você reativar.');
     }
 
+    public function history(Lista $lista, Request $request): View
+    {
+        $this->authorizeAccess($lista);
+
+        $periodo = $request->input('periodo', 'hoje');
+
+        $desde = match ($periodo) {
+            '7dias' => now()->subDays(7)->startOfDay(),
+            '30dias' => now()->subDays(30)->startOfDay(),
+            default => now()->startOfDay(),
+        };
+
+        $limiteDetalhe = 200;
+
+        $adicionadosCount = $lista->dominios()->where('created_at', '>=', $desde)->count();
+        $removidosCount = $lista->dominios()->where('ativo', false)->where('updated_at', '>=', $desde)->count();
+
+        $mostrarDetalhe = ($adicionadosCount + $removidosCount) <= $limiteDetalhe;
+
+        $adicionados = $mostrarDetalhe
+            ? $lista->dominios()->where('created_at', '>=', $desde)->orderByDesc('created_at')->get()
+            : collect();
+
+        $removidos = $mostrarDetalhe
+            ? $lista->dominios()->where('ativo', false)->where('updated_at', '>=', $desde)->orderByDesc('updated_at')->get()
+            : collect();
+
+        $totalAtivos = $lista->dominios()->where('ativo', true)->count();
+
+        return view('listas.historico', compact(
+            'lista', 'periodo', 'desde', 'adicionados', 'removidos', 'totalAtivos',
+            'adicionadosCount', 'removidosCount', 'mostrarDetalhe'
+        ));
+    }
+
     public function syncNow(Lista $lista, ExternalListaSyncer $syncer): RedirectResponse
     {
         if (! $lista->isExterna()) {
