@@ -86,11 +86,14 @@ class ListaController extends Controller
             'status' => $lista->status,
             'origem' => $lista->origem,
             'empresa_id' => $lista->empresa_id,
+            'atualizada_em' => $lista->updated_at?->toIso8601String(),
         ];
 
         if ($detalhado) {
             $base['dominios_count'] = $lista->dominios()->count();
             $base['dominios_ativos_count'] = $lista->dominios()->where('ativo', true)->count();
+            $base['ultima_alteracao_dominios'] = $lista->dominios()->max('updated_at');
+
             if ($lista->isExterna()) {
                 $base['fonte_url'] = $lista->fonte_url;
                 $base['fonte_formato'] = $lista->fonte_formato;

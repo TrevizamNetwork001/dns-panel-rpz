@@ -19,7 +19,27 @@ class DominioController extends Controller
     {
         $this->authorizeListaAccess($request, $lista);
 
-        $dominios = $lista->dominios()->orderBy('dominio')->paginate(min((int) $request->input('per_page', 50), 200));
+        $query = $lista->dominios()->orderBy('dominio');
+
+        if ($request->filled('desde')) {
+            try {
+                $desde = $request->date('desde');
+            } catch (\Throwable $e) {
+                $desde = null;
+            }
+
+            if ($desde === null) {
+                return response()->json(['message' => 'Parâmetro "desde" inválido — use um formato de data/hora ISO 8601 (ex: 2026-08-21T10:00:00Z).'], 422);
+            }
+
+            $query->where('updated_at', '>=', $desde);
+        }
+
+        if ($request->filled('ativo')) {
+            $query->where('ativo', $request->boolean('ativo'));
+        }
+
+        $dominios = $query->paginate(min((int) $request->input('per_page', 50), 200));
 
         return response()->json([
             'data' => $dominios->getCollection()->map(fn (Dominio $d) => $this->transform($d)),
@@ -27,6 +47,7 @@ class DominioController extends Controller
                 'current_page' => $dominios->currentPage(),
                 'last_page' => $dominios->lastPage(),
                 'total' => $dominios->total(),
+                'consultado_em' => now()->toIso8601String(),
             ],
         ]);
     }
@@ -131,6 +152,7 @@ class DominioController extends Controller
             'lista_id' => $dominio->lista_id,
             'dominio' => $dominio->dominio,
             'ativo' => $dominio->ativo,
+            'atualizado_em' => $dominio->updated_at?->toIso8601String(),
         ];
     }
 

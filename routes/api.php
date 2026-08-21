@@ -1,10 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\DominioController;
-use App\Http\Controllers\Api\EmpresaController;
-use App\Http\Controllers\Api\LicencaController;
 use App\Http\Controllers\Api\ListaController;
-use App\Http\Controllers\Api\ServidorController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -32,9 +29,6 @@ Route::prefix('v1')->middleware(['api.auth'])->group(function () {
         ]]);
     });
 
-    Route::apiResource('empresas', EmpresaController::class)->except(['destroy']);
-    Route::apiResource('licencas', LicencaController::class);
-    Route::apiResource('servidores', ServidorController::class)->parameters(['servidores' => 'servidor']);
     Route::apiResource('listas', ListaController::class)->except(['destroy']);
 
     Route::get('/listas/{lista}/dominios', [DominioController::class, 'index'])->name('api.listas.dominios.index');

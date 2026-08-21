@@ -45,7 +45,7 @@ class EmpresaController extends Controller
             abort(403);
         }
 
-        $empresa->load(['servidores', 'listas', 'licencas', 'users']);
+        $empresa->load(['servidores', 'listas', 'licencas', 'users', 'allowedIps']);
 
         return view('empresas.show', compact('empresa'));
     }
@@ -82,6 +82,67 @@ class EmpresaController extends Controller
         $empresa->delete();
 
         return redirect()->route('empresas.index')->with('status', 'Empresa removida.');
+    }
+
+    public function toggleIpRestriction(Empresa $empresa): RedirectResponse
+    {
+        $empresa->update(['ip_restriction_enabled' => ! $empresa->ip_restriction_enabled]);
+
+        AuditLog::record(
+            $empresa->ip_restriction_enabled ? 'empresa.ip_restriction_enabled' : 'empresa.ip_restriction_disabled',
+            "Restrição de IP da empresa \"{$empresa->nome}\" " . ($empresa->ip_restriction_enabled ? 'ativada' : 'desativada'),
+            $empresa->id,
+            'empresa',
+            $empresa->id
+        );
+
+        return back()->with('status', $empresa->ip_restriction_enabled
+            ? 'Restrição de IP ativada para a API desta empresa.'
+            : 'Restrição de IP desativada — qualquer IP com token/chave válida pode usar a API.');
+    }
+
+    public function addAllowedIp(Request $request, Empresa $empresa): RedirectResponse
+    {
+        $data = $request->validate([
+            'ip_cidr' => ['required', 'string', 'max:64'],
+        ]);
+
+        $value = trim($data['ip_cidr']);
+
+        if (! $this->validIpOrCidr($value)) {
+            return back()->withErrors(['ip_cidr' => 'IP ou CIDR inválido.']);
+        }
+
+        $empresa->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
+
+        AuditLog::record('empresa.ips.added', "IP {$value} adicionado à empresa \"{$empresa->nome}\"", $empresa->id, 'empresa', $empresa->id);
+
+        return back()->with('status', 'IP adicionado à lista de permitidos.');
+    }
+
+    public function removeAllowedIp(Empresa $empresa, \App\Models\EmpresaAllowedIp $ip): RedirectResponse
+    {
+        if ($ip->empresa_id !== $empresa->id) {
+            abort(404);
+        }
+
+        $cidr = $ip->ip_cidr;
+        $ip->delete();
+
+        AuditLog::record('empresa.ips.removed', "IP {$cidr} removido da empresa \"{$empresa->nome}\"", $empresa->id, 'empresa', $empresa->id);
+
+        return back()->with('status', 'IP removido da lista de permitidos.');
+    }
+
+    private function validIpOrCidr(string $value): bool
+    {
+        if (str_contains($value, '/')) {
+            [$ip, $mask] = array_pad(explode('/', $value, 2), 2, null);
+
+            return filter_var($ip, FILTER_VALIDATE_IP) !== false && is_numeric($mask) && (int) $mask >= 0 && (int) $mask <= 128;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_IP) !== false;
     }
 
     private function validated(Request $request): array

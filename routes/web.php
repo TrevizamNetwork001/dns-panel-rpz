@@ -54,6 +54,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware('admin')->group(function () {
         Route::resource('empresas', EmpresaController::class)->except(['show']);
         Route::post('/empresas/{empresa}/regenerar-api-key', [EmpresaController::class, 'regenerateApiKey'])->name('empresas.regenerate-api-key');
+        Route::post('/empresas/{empresa}/ip-restriction/toggle', [EmpresaController::class, 'toggleIpRestriction'])->name('empresas.ip-restriction.toggle');
+        Route::post('/empresas/{empresa}/ips', [EmpresaController::class, 'addAllowedIp'])->name('empresas.ips.store');
+        Route::delete('/empresas/{empresa}/ips/{ip}', [EmpresaController::class, 'removeAllowedIp'])->name('empresas.ips.destroy');
         Route::resource('licencas', LicencaController::class);
         Route::resource('listas', ListaController::class)->except(['index', 'show']);
         Route::patch('/listas/{lista}/toggle-sync', [ListaController::class, 'toggleSync'])->name('listas.toggle-sync');

@@ -35,6 +35,54 @@
                 <button type="submit" class="button button-secondary" onclick="return confirm('Regenerar a chave? A chave antiga para de funcionar imediatamente.')">Regenerar chave</button>
             </form>
         </div>
+
+        <div class="panel details-card-wide">
+            <div class="panel-header">
+                <h2>Restrição de IP da API (opcional)</h2>
+                <form action="{{ route('empresas.ip-restriction.toggle', $empresa) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="button button-secondary">
+                        {{ $empresa->ip_restriction_enabled ? 'Desativar restrição' : 'Ativar restrição' }}
+                    </button>
+                </form>
+            </div>
+            <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">
+                @if ($empresa->ip_restriction_enabled)
+                    Ativa: só os IPs listados abaixo conseguem usar a API em nome desta empresa (chave e tokens de usuários cliente dela), mesmo com credencial correta.
+                @else
+                    Desativada: qualquer IP com credencial válida consegue usar a API. Isso vale pra chave da empresa e pra tokens pessoais de usuários cliente dessa empresa — admin não é afetado.
+                @endif
+            </p>
+            <form action="{{ route('empresas.ips.store', $empresa) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px">
+                @csrf
+                <input class="form-control" type="text" name="ip_cidr" placeholder="203.0.113.10, 203.0.113.0/24 ou 2001:db8::1" required>
+                <button type="submit" class="button button-primary">Adicionar IP</button>
+            </form>
+
+            @if ($empresa->allowedIps->isEmpty())
+                <div class="empty-state"><span>Nenhum IP cadastrado.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead><tr><th>IP / CIDR</th><th class="table-actions-column"></th></tr></thead>
+                        <tbody>
+                            @foreach ($empresa->allowedIps as $ip)
+                                <tr>
+                                    <td class="table-mono">{{ $ip->ip_cidr }}</td>
+                                    <td>
+                                        <form action="{{ route('empresas.ips.destroy', [$empresa, $ip]) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover este IP?')">Remover</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </div>
         @endif
 
         <div class="panel details-card-wide">

@@ -17,6 +17,11 @@ class Empresa extends Model
         'email_contato',
         'status',
         'api_key',
+        'ip_restriction_enabled',
+    ];
+
+    protected $casts = [
+        'ip_restriction_enabled' => 'boolean',
     ];
 
     protected static function booted(): void
@@ -46,5 +51,27 @@ class Empresa extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    public function allowedIps(): HasMany
+    {
+        return $this->hasMany(EmpresaAllowedIp::class);
+    }
+
+    public function ipAllowed(string $ip): bool
+    {
+        if (! $this->ip_restriction_enabled) {
+            return true;
+        }
+
+        $rules = $this->allowedIps()->where('status', 'active')->pluck('ip_cidr');
+
+        foreach ($rules as $cidr) {
+            if (Servidor::ipMatchesCidr($ip, $cidr)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
