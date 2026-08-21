@@ -125,6 +125,7 @@ class ExternalListaSyncer
     {
         return match ($formato) {
             'plain' => $this->parsePlain($body),
+            'unbound_local_zone' => $this->parseUnboundLocalZone($body),
             default => $this->parseHostfile($body),
         };
     }
@@ -172,6 +173,37 @@ class ExternalListaSyncer
             }
 
             $dominio = $this->normalize($line);
+            if ($dominio !== null) {
+                $dominios[$dominio] = true;
+            }
+        }
+
+        return array_keys($dominios);
+    }
+
+    /**
+     * Formato nativo do Unbound: blocos "local-zone: "dominio" redirect" +
+     * linhas local-data. Le so a linha local-zone (a fonte da verdade do
+     * dominio bloqueado) e ignora local-data (redundante pro nosso uso).
+     *
+     * @return array<int, string>
+     */
+    private function parseUnboundLocalZone(string $body): array
+    {
+        $dominios = [];
+
+        foreach (preg_split('/\r\n|\r|\n/', $body) as $line) {
+            $line = trim($line);
+
+            if (! str_starts_with($line, 'local-zone:')) {
+                continue;
+            }
+
+            if (! preg_match('/local-zone:\s*"([^"]+)"/', $line, $matches)) {
+                continue;
+            }
+
+            $dominio = $this->normalize($matches[1]);
             if ($dominio !== null) {
                 $dominios[$dominio] = true;
             }

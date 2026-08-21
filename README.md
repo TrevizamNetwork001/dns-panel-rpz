@@ -29,13 +29,15 @@ Além de listas manuais, o admin pode criar uma **Lista externa**: aponta uma UR
 - Ao criar/editar uma lista, escolha "Origem: Externa", informe a **URL do feed** e o **formato**:
   - `hostfile` — formato hosts file (`127.0.0.1 dominio.com` por linha), usado pelo [URLhaus](https://urlhaus.abuse.ch/) (abuse.ch) e outros feeds de threat intel.
   - `plain` — um domínio por linha, sem prefixo.
+  - `unbound_local_zone` — formato nativo do Unbound (`local-zone: "dominio.com" redirect` + linhas `local-data`), lê só a linha `local-zone`.
 - Comando: `php artisan external:sync` — roda **todas** as listas externas ativas de uma vez (idempotente, seguro rodar a qualquer hora). Uma lista com feed quebrado não impede as outras de sincronizarem.
+- Domínios que não batem com a regex de FQDN válido (ex: entradas corrompidas por extração de PDF, URLs com path) são descartados silenciosamente na sincronização — não travam o processo nem entram errados no banco.
 - Agendado via `systemd timer` a cada 6h (`dns-panel-rpz-external-sync.timer`) — não usa o scheduler do Laravel, mesmo padrão do backup. Também dá pra forçar na hora pelo botão "Sincronizar agora" na página da lista.
 - Edição manual de domínios é bloqueada na UI e no controller pra listas externas (seria sobrescrita na próxima sync).
 - Admin pode pausar/reativar a sincronização por lista (não some a lista, só para de atualizar) — botão em `/listas` ou na página da lista.
 - **Proteção contra feed quebrado**: se um feed retornar menos de 100 domínios (sinal de formato mudado ou feed fora do ar), aquela lista específica é pulada sem ser alterada — evita esvaziar o bloqueio por engano. As outras listas continuam sincronizando normalmente.
 - Como qualquer lista de catálogo (`empresa_id = null`), fica disponível pra qualquer empresa vincular a um servidor normalmente.
-- Já vêm três listas pré-configuradas, todas gratuitas e sem chave de API: [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo), [ThreatFox](https://threatfox.abuse.ch/) (C2/botnet — infraestrutura de comando-e-controle) e [Phishing Army](https://phishing.army/) (phishing). Pode editar a URL delas ou criar outras do zero. Testado com as três somadas (~245k domínios, ~492k linhas no zonefile) em ~1,3s sem estourar memória.
+- Já vêm quatro listas pré-configuradas: [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo), [ThreatFox](https://threatfox.abuse.ch/) (C2/botnet), [Phishing Army](https://phishing.army/) (phishing) — as três gratuitas e sem chave de API — e **Anatel** (bloqueio judicial/regulatório), mantida por um pipeline próprio (Python extrai domínios dos PDFs que a Anatel publica, monta um `.txt` em formato `local-zone`, sobe via FTP) — o painel só consome a URL, atualiza sozinho a cada 6h. Pode editar a URL delas ou criar outras do zero. Testado com URLhaus+ThreatFox+Phishing Army somadas (~245k domínios, ~492k linhas no zonefile) em ~1,3s sem estourar memória.
 
 ## Entidades
 
@@ -168,7 +170,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-54 testes / 108 assertions cobrindo os pontos mais críticos:
+56 testes / 112 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade).
 - `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.

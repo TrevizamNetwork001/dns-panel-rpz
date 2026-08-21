@@ -154,7 +154,7 @@ class ListaController extends Controller
             'status' => ['required', 'in:active,inactive'],
             'origem' => ['nullable', 'in:manual,externa'],
             'fonte_url' => ['nullable', 'url', 'max:500', 'required_if:origem,externa'],
-            'fonte_formato' => ['nullable', 'in:hostfile,plain'],
+            'fonte_formato' => ['nullable', 'in:hostfile,plain,unbound_local_zone'],
         ]);
 
         $data['empresa_id'] = $data['empresa_id'] ?? null;

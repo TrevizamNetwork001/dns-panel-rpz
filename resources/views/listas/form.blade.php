@@ -65,6 +65,7 @@
                     <select class="form-control" id="fonte_formato" name="fonte_formato">
                         <option value="hostfile" @selected(old('fonte_formato', $lista->fonte_formato ?? 'hostfile') === 'hostfile')>Hosts file (ex: "127.0.0.1 dominio.com" por linha)</option>
                         <option value="plain" @selected(old('fonte_formato', $lista->fonte_formato) === 'plain')>Lista simples (um domínio por linha)</option>
+                        <option value="unbound_local_zone" @selected(old('fonte_formato', $lista->fonte_formato) === 'unbound_local_zone')>Unbound local-zone (ex: linhas "local-zone: "dominio.com" redirect")</option>
                     </select>
                 </div>
             </div>

@@ -134,4 +134,47 @@ class ExternalListaSyncTest extends TestCase
         $lista->refresh();
         $this->assertSame(150, $lista->dominios()->where('ativo', true)->count());
     }
+
+    private function unboundLocalZoneFile(array $domains): string
+    {
+        $lines = [];
+        foreach ($domains as $domain) {
+            $lines[] = "local-zone: \"{$domain}\" redirect";
+            $lines[] = "local-data: \"{$domain} A 127.0.0.1\"";
+            $lines[] = "local-data: \"{$domain} AAAA ::1\"";
+            $lines[] = '';
+        }
+
+        return implode("\n", $lines);
+    }
+
+    public function test_unbound_local_zone_format_extracts_domain_from_local_zone_lines(): void
+    {
+        $lista = Lista::factory()->externa('feed', 'https://feed.example/unbound.txt', 'unbound_local_zone')->create();
+
+        Http::fake(['feed.example/*' => Http::response($this->unboundLocalZoneFile($this->manyDomains(150)), 200)]);
+
+        $this->artisan('external:sync');
+
+        $lista->refresh();
+        $this->assertSame(150, $lista->dominios()->where('ativo', true)->count());
+        $this->assertTrue($lista->dominios()->where('dominio', 'malware0.example')->exists());
+    }
+
+    public function test_unbound_local_zone_format_rejects_malformed_domains(): void
+    {
+        $lista = Lista::factory()->externa('feed', 'https://feed.example/unbound.txt', 'unbound_local_zone')->create();
+
+        $body = $this->unboundLocalZoneFile($this->manyDomains(150))
+            . "\nlocal-zone: \"0.googleap0i1s/.1c0o/m20.p2t5\" redirect\n"
+            . "local-zone: \"adoroassistir.online/planos\" redirect\n";
+
+        Http::fake(['feed.example/*' => Http::response($body, 200)]);
+
+        $this->artisan('external:sync');
+
+        $lista->refresh();
+        $this->assertSame(150, $lista->dominios()->count(), 'entradas corrompidas (com barra) nao deveriam ser aceitas como dominio');
+        $this->assertFalse($lista->dominios()->where('dominio', 'like', '%/%')->exists());
+    }
 }
