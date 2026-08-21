@@ -53,6 +53,7 @@
             <p class="sidebar-section-label">Segurança</p>
             <nav class="sidebar-nav">
                 <a href="{{ route('auditoria.index') }}" class="sidebar-link @if(request()->routeIs('auditoria.*')) is-active @endif">Auditoria</a>
+                <a href="{{ route('seguranca.index') }}" class="sidebar-link @if(request()->routeIs('seguranca.*')) is-active @endif">Segurança do servidor</a>
             </nav>
             @endif
 

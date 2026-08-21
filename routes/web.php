@@ -13,6 +13,7 @@ use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\SugestaoDominioController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RpzController;
+use App\Http\Controllers\SegurancaController;
 use App\Http\Controllers\ServidorController;
 use Illuminate\Support\Facades\Route;
 
@@ -66,6 +67,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/servidores/{servidor}/ips/{ip}', [ServidorController::class, 'removeAllowedIp'])->name('servidores.ips.destroy');
 
         Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria.index');
+        Route::get('/seguranca', [SegurancaController::class, 'index'])->name('seguranca.index');
 
         Route::resource('usuarios', UserController::class)->except(['show']);
         Route::post('/usuarios/{usuario}/resetar-senha', [UserController::class, 'resetPassword'])->name('usuarios.reset-password');

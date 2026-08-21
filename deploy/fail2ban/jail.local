@@ -1,0 +1,15 @@
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+backend = systemd
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+backend = systemd
+maxretry = 5
+bantime = 1h
+action = %(action_)s
+         dns-panel-hook[name=%(__name__)s]

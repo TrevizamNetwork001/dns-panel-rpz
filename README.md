@@ -78,6 +78,13 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - Endpoint público do RPZ com rate-limit e checagem de empresa ativa (desativar uma empresa corta o serviço dos servidores dela).
 - Todos os models usam `$fillable` explícito (sem mass assignment amplo).
 
+## Segurança do host (SSH / fail2ban)
+
+- `fail2ban` monitora o SSH via journal (`backend = systemd`): 5 tentativas de senha erradas em 10 minutos → IP banido por 1h. Config em `/etc/fail2ban/jail.local` (versionada em `deploy/fail2ban/`).
+- Cada ban/unban dispara `php artisan security:log-ban {ip} {jail} {ban|unban}` (hook customizado em `deploy/fail2ban/dns-panel-hook.conf`), que grava em `security_bans` **e** no `audit_logs` normal — aparece tanto em `/seguranca` quanto em `/auditoria`.
+- Página `/seguranca` (admin) mostra IPs banidos agora, histórico de bans/unbans e falhas de login no painel — visão consolidada de ameaças.
+- **Pendente de decisão consciente**: `PermitRootLogin yes` e `PasswordAuthentication yes` continuam ativos no `sshd_config` (não alterados nesta auditoria porque desativar login por senha sem antes configurar uma chave SSH funcional arrisca trancar o acesso ao servidor). Recomendação: configurar autenticação por chave e só então desabilitar login por senha/root.
+
 ## Infraestrutura (servidor `paineldns`, 45.239.157.239)
 
 - Laravel 13 + SQLite (`database/database.sqlite`), PHP 8.4-FPM, Nginx.
