@@ -1,0 +1,23 @@
+#!/bin/bash
+# Pre-commit gate do dns-panel-rpz: lint + suite de testes.
+# Instalado manualmente (git nao versiona hooks) -- ver deploy/git-hooks/README.md.
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "==> php -l nos arquivos PHP staged"
+STAGED_PHP=$(git diff --cached --name-only --diff-filter=ACM -- '*.php')
+if [ -n "$STAGED_PHP" ]; then
+    for f in $STAGED_PHP; do
+        php -l "$f" > /dev/null || { echo "ERRO de sintaxe em $f"; exit 1; }
+    done
+fi
+
+echo "==> suite de testes (php artisan test)"
+if ! php artisan test; then
+    echo ""
+    echo "Testes falharam -- commit bloqueado. Corrija ou use 'git commit --no-verify' para pular (nao recomendado)."
+    exit 1
+fi
+
+echo "==> tudo verde, prosseguindo com o commit"
