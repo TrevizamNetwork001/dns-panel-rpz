@@ -9,6 +9,7 @@ use App\Models\ServerAllowedIp;
 use App\Models\ServerSyncLog;
 use App\Models\Servidor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class RpzZonefileTest extends TestCase
@@ -164,5 +165,43 @@ class RpzZonefileTest extends TestCase
         unlink($tmpFile);
 
         $this->assertSame(0, $exitCode, 'named-checkzone falhou: ' . implode("\n", $output));
+    }
+
+    public function test_handles_large_domain_lists_without_high_memory_usage(): void
+    {
+        // Regressao: a versao antiga carregava tudo via Eloquent (with()/pluck()/
+        // flatten() em memoria) e estourava um memory_limit de 128M com feeds de
+        // threat intel grandes (dezenas de milhares de dominios). Simula esse
+        // limite aqui pra garantir que a consulta enxuta (DB::table) nao volte
+        // a esse padrao sem que o teste acuse.
+        $servidor = Servidor::factory()->create();
+        $lista = Lista::factory()->create();
+        $servidor->listas()->attach($lista);
+
+        $agora = now();
+        $rows = [];
+        for ($i = 0; $i < 20000; $i++) {
+            $rows[] = [
+                'lista_id' => $lista->id,
+                'dominio' => "dominio-teste-{$i}.example",
+                'ativo' => true,
+                'created_at' => $agora,
+                'updated_at' => $agora,
+            ];
+        }
+        foreach (array_chunk($rows, 1000) as $chunk) {
+            DB::table('dominios')->insert($chunk);
+        }
+
+        $limiteAnterior = ini_set('memory_limit', '128M');
+        try {
+            $response = $this->get("/rpz/{$servidor->token}.zone");
+        } finally {
+            ini_set('memory_limit', $limiteAnterior);
+        }
+
+        $response->assertStatus(200);
+        // cada dominio gera 2 linhas (exato + wildcard) + 1 linha fixa do canario
+        $this->assertSame(20000 * 2 + 1, substr_count($response->getContent(), ' CNAME .'));
     }
 }

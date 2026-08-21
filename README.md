@@ -35,7 +35,7 @@ Além de listas manuais, o admin pode criar uma **Lista externa**: aponta uma UR
 - Admin pode pausar/reativar a sincronização por lista (não some a lista, só para de atualizar) — botão em `/listas` ou na página da lista.
 - **Proteção contra feed quebrado**: se um feed retornar menos de 100 domínios (sinal de formato mudado ou feed fora do ar), aquela lista específica é pulada sem ser alterada — evita esvaziar o bloqueio por engano. As outras listas continuam sincronizando normalmente.
 - Como qualquer lista de catálogo (`empresa_id = null`), fica disponível pra qualquer empresa vincular a um servidor normalmente.
-- Já vem uma lista pré-configurada com o feed do [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo, gratuito, sem chave de API) — pode editar a URL dela ou criar outras do zero.
+- Já vêm duas listas pré-configuradas: [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo) e [ThreatFox](https://threatfox.abuse.ch/) (C2/botnet — infraestrutura de comando-e-controle), ambas abuse.ch, gratuitas, sem chave de API. Pode editar a URL delas ou criar outras do zero.
 
 ## Entidades
 
@@ -109,6 +109,7 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - Healthcheck (disco/certificado/site) via `systemd timer` a cada 30min — script em `scripts/health-check.sh`.
 - `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`) servido como `default_server` do Nginx, exibe a página "Esta página está bloqueada" para qualquer Host desconhecido (inclui o modo `redirect` do RPZ). O painel antigo (`dns-panel-central`) e este painel continuam com seus próprios vhosts nominais — só o catch-all mudou de dono.
 - Timezone da aplicação: `America/Sao_Paulo`.
+- `memory_limit` do PHP-FPM em 256M (`/etc/php/8.4/fpm/php.ini`) — a geração do zonefile RPZ consulta domínios via `DB::table()` puro (sem hidratar models Eloquent) de propósito, pra aguentar listas de dezenas de milhares de domínios (feeds de threat intel) sem estourar memória. Testado com 90k+ domínios reais e 20k num teste automatizado simulando 128M de limite.
 
 ## Rodando localmente
 
@@ -167,7 +168,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-53 testes / 106 assertions cobrindo os pontos mais críticos:
+54 testes / 108 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade).
 - `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.
