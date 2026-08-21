@@ -117,6 +117,22 @@ App\Models\User::create([
 ]);
 ```
 
+## Testes automatizados
+
+```bash
+php artisan test
+```
+
+45 testes / 85 assertions cobrindo os pontos mais críticos:
+
+- `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade).
+- `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.
+- `tests/Feature/RoleAuthorizationTest.php` — isolamento admin vs cliente, inclusive entre empresas diferentes.
+- `tests/Feature/UrlhausSyncTest.php` — import, desativação de domínios que saíram do feed, proteção contra feed quebrado (< 100 domínios), pausa de sincronização, parsing de linhas inválidas/localhost.
+- `tests/Unit/ServidorIpMatchesCidrTest.php`, `tests/Unit/AuditLogBucketTest.php` — lógica pura (CIDR matching, classificação de severidade).
+
+Usa banco SQLite em memória (`phpunit.xml`, `DB_DATABASE=:memory:`) — não toca no banco real. `Http::fake()` mockado nos testes que envolvem chamada externa (URLhaus).
+
 ## Estrutura de rotas
 
 - `GET /`, `/empresas`, `/servidores`, `/listas`, `/licencas`, `/sugestoes` — CRUD padrão Laravel (`Route::resource`), com fatias `only`/`except` diferentes por papel.
@@ -135,6 +151,5 @@ CSS em `public/assets/app.css` — subconjunto **copiado literalmente** (não re
 
 ## Pendências conhecidas
 
-- **Sem testes automatizados** — nenhuma cobertura ainda (PHPUnit configurado, mas vazio).
 - **Notificação por Telegram** — decisão consciente de deixar por último; precisa de um bot token do BotFather.
 - **RPZ**: SOA usa `localhost.` como MNAME/RNAME (placeholder) — pode ser trocado por um contato real do domínio.
