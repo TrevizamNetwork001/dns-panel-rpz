@@ -12,6 +12,7 @@ cp /etc/systemd/system/dns-panel-rpz-urlhaus.* deploy/systemd/
 cp /etc/systemd/system/dns-panel-rpz-healthcheck.* deploy/systemd/
 cp /etc/fail2ban/jail.local deploy/fail2ban/jail.local
 cp /etc/fail2ban/action.d/dns-panel-hook.conf deploy/fail2ban/dns-panel-hook.conf
+cp /etc/logrotate.d/dns-panel-rpz deploy/logrotate/dns-panel-rpz
 ```
 
 ## Conteúdo
@@ -23,3 +24,4 @@ cp /etc/fail2ban/action.d/dns-panel-hook.conf deploy/fail2ban/dns-panel-hook.con
 - `fail2ban/jail.local` — jail do SSH (backend systemd/journal, 5 tentativas em 10min → ban de 1h) + hook customizado.
 - `fail2ban/dns-panel-hook.conf` — action do fail2ban que chama `php artisan security:log-ban` a cada ban/unban, alimentando a página `/seguranca` do painel.
 - `systemd/dns-panel-rpz-healthcheck.service` + `.timer` — healthcheck (disco, certificado TLS, disponibilidade do site) a cada 30min, rodando como root (`php artisan health:check`).
+- `logrotate/dns-panel-rpz` — rotação semanal dos logs em `storage/logs/*.log`, retém 8 semanas, `copytruncate` (não precisa sinalizar o PHP-FPM).

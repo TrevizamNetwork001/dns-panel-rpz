@@ -4,6 +4,8 @@ Painel para provedores de internet gerenciarem listas de bloqueio DNS (RPZ) e di
 
 Produção: **https://rpz.trevizamnetwork.com.br**
 
+Deu algum problema em produção? Veja o [`RUNBOOK.md`](RUNBOOK.md) — site fora do ar, RPZ não sincroniza, banco corrompido, disco cheio, certificado expirando, SSH travado, reverter deploy.
+
 Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que gerencia provisionamento/tuning de servidores Unbound via SSH). Os dois não compartilham banco, código ou usuários.
 
 ## Como funciona a distribuição de listas
@@ -98,6 +100,7 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - HTTPS via Let's Encrypt (`certbot --nginx`), renovação automática.
 - Config real do Nginx e dos timers ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
 - Backup diário do SQLite via `systemd timer` (03:30, retém 14 dias) — script em `scripts/backup-db.sh`.
+- Logs (`storage/logs/*.log`) rotacionam semanalmente via `logrotate` (retém 8 semanas, comprime) — config em `/etc/logrotate.d/dns-panel-rpz`.
 - Sync da lista URLhaus via `systemd timer` a cada 6h — script em `scripts/sync-urlhaus.sh`.
 - Healthcheck (disco/certificado/site) via `systemd timer` a cada 30min — script em `scripts/health-check.sh`.
 - `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`) servido como `default_server` do Nginx, exibe a página "Esta página está bloqueada" para qualquer Host desconhecido (inclui o modo `redirect` do RPZ). O painel antigo (`dns-panel-central`) e este painel continuam com seus próprios vhosts nominais — só o catch-all mudou de dono.
