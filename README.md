@@ -83,7 +83,7 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - `fail2ban` monitora o SSH via journal (`backend = systemd`): 5 tentativas de senha erradas em 10 minutos → IP banido por 1h. Config em `/etc/fail2ban/jail.local` (versionada em `deploy/fail2ban/`).
 - Cada ban/unban dispara `php artisan security:log-ban {ip} {jail} {ban|unban}` (hook customizado em `deploy/fail2ban/dns-panel-hook.conf`), que grava em `security_bans` **e** no `audit_logs` normal — aparece tanto em `/seguranca` quanto em `/auditoria`.
 - Página `/seguranca` (admin) mostra IPs banidos agora, histórico de bans/unbans e falhas de login no painel — visão consolidada de ameaças.
-- **Pendente de decisão consciente**: `PermitRootLogin yes` e `PasswordAuthentication yes` continuam ativos no `sshd_config` (não alterados nesta auditoria porque desativar login por senha sem antes configurar uma chave SSH funcional arrisca trancar o acesso ao servidor). Recomendação: configurar autenticação por chave e só então desabilitar login por senha/root.
+- **Pendente de decisão consciente**: `PermitRootLogin yes` e `PasswordAuthentication yes` continuam ativos no `sshd_config`. Já existe uma chave SSH (ed25519) instalada em `~/.ssh/authorized_keys` do root e testada com sucesso (login sem senha funciona), mas a decisão do dono do servidor foi manter login por senha habilitado por enquanto — a chave fica como opção extra, não obrigatória. Quando quiser travar (recomendado): mudar `PermitRootLogin` para `prohibit-password` e `PasswordAuthentication` para `no`, testar login por chave numa sessão nova **antes** de fechar a sessão atual.
 
 ## Infraestrutura (servidor `paineldns`, 45.239.157.239)
 
