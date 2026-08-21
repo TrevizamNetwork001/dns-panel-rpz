@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\Servidor;
+use App\Services\ExternalListaSyncer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -119,6 +120,22 @@ class ListaController extends Controller
             : 'Sincronização automática pausada — a lista fica como está até você reativar.');
     }
 
+    public function syncNow(Lista $lista, ExternalListaSyncer $syncer): RedirectResponse
+    {
+        if (! $lista->isExterna()) {
+            abort(404);
+        }
+
+        $resultado = $syncer->syncAndLog($lista);
+
+        return match ($resultado['status']) {
+            'ok' => back()->with('status', "Sincronizado agora: {$resultado['total']} ativos, {$resultado['adicionados']} novos, {$resultado['removidos']} desativados."),
+            'pausada' => back()->withErrors(['lista' => 'Sincronização está pausada — reative antes de sincronizar.']),
+            'erro' => back()->withErrors(['lista' => 'Falha ao sincronizar: ' . ($resultado['motivo'] ?? 'erro desconhecido')]),
+            default => back(),
+        };
+    }
+
     private function authorizeAccess(Lista $lista): void
     {
         $user = Auth::user();
@@ -135,9 +152,22 @@ class ListaController extends Controller
             'nome' => ['required', 'string', 'max:255'],
             'descricao' => ['nullable', 'string'],
             'status' => ['required', 'in:active,inactive'],
+            'origem' => ['nullable', 'in:manual,externa'],
+            'fonte_url' => ['nullable', 'url', 'max:500', 'required_if:origem,externa'],
+            'fonte_formato' => ['nullable', 'in:hostfile,plain'],
         ]);
 
         $data['empresa_id'] = $data['empresa_id'] ?? null;
+        $data['origem'] = $data['origem'] ?? 'manual';
+
+        if ($data['origem'] === 'externa') {
+            $data['fonte_formato'] = $data['fonte_formato'] ?? 'hostfile';
+            $data['fonte_externa'] = $data['fonte_externa'] ?? 'custom';
+            $data['sync_ativo'] = true;
+        } else {
+            $data['fonte_url'] = null;
+            $data['fonte_externa'] = null;
+        }
 
         return $data;
     }

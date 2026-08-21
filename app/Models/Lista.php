@@ -19,6 +19,8 @@ class Lista extends Model
         'status',
         'origem',
         'fonte_externa',
+        'fonte_url',
+        'fonte_formato',
         'sync_ativo',
         'last_sync_at',
     ];

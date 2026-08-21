@@ -44,14 +44,21 @@
             </span>
             <dl class="details-list" style="margin-top:14px">
                 <div><dt>Última sincronização</dt><dd>{{ optional($lista->last_sync_at)->format('d/m/Y H:i:s') ?? 'ainda não rodou' }}</dd></div>
+                <div><dt>Fonte</dt><dd style="word-break:break-all">{{ $lista->fonte_url ?? '—' }}</dd></div>
             </dl>
             <p style="color:var(--text-muted);font-size:11px;margin:10px 0 0">Esta lista é populada automaticamente por um feed externo. Domínios adicionados/removidos manualmente serão sobrescritos na próxima sincronização.</p>
             @if (auth()->user()->isAdmin())
-            <form action="{{ route('listas.toggle-sync', $lista) }}" method="POST" style="margin-top:12px">
-                @csrf
-                @method('PATCH')
-                <button type="submit" class="button button-secondary">{{ $lista->sync_ativo ? 'Pausar sincronização' : 'Reativar sincronização' }}</button>
-            </form>
+            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+                <form action="{{ route('listas.toggle-sync', $lista) }}" method="POST">
+                    @csrf
+                    @method('PATCH')
+                    <button type="submit" class="button button-secondary">{{ $lista->sync_ativo ? 'Pausar sincronização' : 'Reativar sincronização' }}</button>
+                </form>
+                <form action="{{ route('listas.sync-now', $lista) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="button button-primary">Sincronizar agora</button>
+                </form>
+            </div>
             @endif
         </div>
         @endif

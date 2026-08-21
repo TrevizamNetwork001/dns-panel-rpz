@@ -22,16 +22,20 @@ Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que ge
 4. A rota é pública (não exige login — o Unbound não tem sessão), mas exige token válido, servidor ativo **e empresa ativa**, e tem rate-limit (60 req/min por IP).
 5. Validado com `named-checkzone` (pacote `bind9-utils`) — sintaticamente correto mesmo com dezenas de milhares de domínios.
 
-## Listas externas (feeds públicos de blacklist)
+## Listas externas (sincronização de qualquer feed de blacklist)
 
-Além de listas manuais, o painel sincroniza automaticamente uma lista de **domínios maliciosos** a partir do feed público [URLhaus](https://urlhaus.abuse.ch/) (abuse.ch) — malware/phishing ativo, gratuito, sem chave de API.
+Além de listas manuais, o admin pode criar uma **Lista externa**: aponta uma URL (qualquer feed público ou privado de domínios maliciosos) e o painel sincroniza sozinho, periodicamente. Não é fixo num único provedor — dá pra apontar pra vários feeds diferentes, cada um sua própria lista.
 
-- Comando: `php artisan urlhaus:sync` (idempotente, seguro rodar a qualquer hora).
-- Agendado via `systemd timer` a cada 6h (`dns-panel-rpz-urlhaus.timer`) — não usa o scheduler do Laravel, mesmo padrão do backup.
-- A lista fica marcada como `origem = externa`, `fonte_externa = urlhaus`. Edição manual de domínios é bloqueada na UI e no controller (seria sobrescrita na próxima sync).
-- Admin pode pausar/reativar a sincronização (não some a lista, só para de atualizar) — botão "Pausar sync" em `/listas` ou na página da lista.
-- **Proteção contra feed quebrado**: se o URLhaus retornar menos de 100 domínios (sinal de formato mudado ou feed fora do ar), o comando aborta sem alterar a lista — evita esvaziar o bloqueio por engano.
+- Ao criar/editar uma lista, escolha "Origem: Externa", informe a **URL do feed** e o **formato**:
+  - `hostfile` — formato hosts file (`127.0.0.1 dominio.com` por linha), usado pelo [URLhaus](https://urlhaus.abuse.ch/) (abuse.ch) e outros feeds de threat intel.
+  - `plain` — um domínio por linha, sem prefixo.
+- Comando: `php artisan external:sync` — roda **todas** as listas externas ativas de uma vez (idempotente, seguro rodar a qualquer hora). Uma lista com feed quebrado não impede as outras de sincronizarem.
+- Agendado via `systemd timer` a cada 6h (`dns-panel-rpz-external-sync.timer`) — não usa o scheduler do Laravel, mesmo padrão do backup. Também dá pra forçar na hora pelo botão "Sincronizar agora" na página da lista.
+- Edição manual de domínios é bloqueada na UI e no controller pra listas externas (seria sobrescrita na próxima sync).
+- Admin pode pausar/reativar a sincronização por lista (não some a lista, só para de atualizar) — botão em `/listas` ou na página da lista.
+- **Proteção contra feed quebrado**: se um feed retornar menos de 100 domínios (sinal de formato mudado ou feed fora do ar), aquela lista específica é pulada sem ser alterada — evita esvaziar o bloqueio por engano. As outras listas continuam sincronizando normalmente.
 - Como qualquer lista de catálogo (`empresa_id = null`), fica disponível pra qualquer empresa vincular a um servidor normalmente.
+- Já vem uma lista pré-configurada com o feed do [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo, gratuito, sem chave de API) — pode editar a URL dela ou criar outras do zero.
 
 ## Entidades
 
@@ -101,7 +105,7 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - Config real do Nginx e dos timers ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
 - Backup diário do SQLite via `systemd timer` (03:30, retém 14 dias) — script em `scripts/backup-db.sh`.
 - Logs (`storage/logs/*.log`) rotacionam semanalmente via `logrotate` (retém 8 semanas, comprime) — config em `/etc/logrotate.d/dns-panel-rpz`.
-- Sync da lista URLhaus via `systemd timer` a cada 6h — script em `scripts/sync-urlhaus.sh`.
+- Sync das listas externas via `systemd timer` a cada 6h — script em `scripts/sync-external-listas.sh`.
 - Healthcheck (disco/certificado/site) via `systemd timer` a cada 30min — script em `scripts/health-check.sh`.
 - `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`) servido como `default_server` do Nginx, exibe a página "Esta página está bloqueada" para qualquer Host desconhecido (inclui o modo `redirect` do RPZ). O painel antigo (`dns-panel-central`) e este painel continuam com seus próprios vhosts nominais — só o catch-all mudou de dono.
 - Timezone da aplicação: `America/Sao_Paulo`.
@@ -163,12 +167,13 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-48 testes / 90 assertions cobrindo os pontos mais críticos:
+53 testes / 106 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade).
 - `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.
 - `tests/Feature/RoleAuthorizationTest.php` — isolamento admin vs cliente, inclusive entre empresas diferentes.
-- `tests/Feature/UrlhausSyncTest.php` — import, desativação de domínios que saíram do feed, proteção contra feed quebrado (< 100 domínios), pausa de sincronização, parsing de linhas inválidas/localhost.
+- `tests/Feature/ExternalListaSyncTest.php` — sincroniza múltiplas listas externas de uma vez, import, desativação de domínios que saíram do feed, feed quebrado não afeta as outras listas, pausa de sincronização, formatos `hostfile`/`plain`, parsing de linhas inválidas/localhost.
+- `tests/Feature/ListaCrudTest.php` — criação de lista manual e externa via HTTP real (POST), validação de URL obrigatória pra listas externas.
 - `tests/Unit/ServidorIpMatchesCidrTest.php`, `tests/Unit/AuditLogBucketTest.php` — lógica pura (CIDR matching, classificação de severidade).
 
 Usa banco SQLite em memória (`phpunit.xml`, `DB_DATABASE=:memory:`) — não toca no banco real. `Http::fake()` mockado nos testes que envolvem chamada externa (URLhaus).

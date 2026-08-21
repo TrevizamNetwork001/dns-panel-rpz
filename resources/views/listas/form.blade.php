@@ -45,7 +45,46 @@
                         <option value="inactive" @selected(old('status', $lista->status) === 'inactive')>Inativa</option>
                     </select>
                 </div>
+
+                <div class="field-group">
+                    <label for="origem">Origem</label>
+                    <select class="form-control" id="origem" name="origem">
+                        <option value="manual" @selected(old('origem', $lista->origem ?? 'manual') === 'manual')>Manual (domínios cadastrados aqui)</option>
+                        <option value="externa" @selected(old('origem', $lista->origem) === 'externa')>Externa (sincroniza de uma URL automaticamente)</option>
+                    </select>
+                </div>
+
+                <div class="field-group" id="campo-fonte-url">
+                    <label for="fonte_url">URL do feed</label>
+                    <input class="form-control" type="url" id="fonte_url" name="fonte_url" value="{{ old('fonte_url', $lista->fonte_url) }}" placeholder="https://exemplo.com/lista-de-bloqueio.txt">
+                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">Precisa ter pelo menos 100 domínios — feeds menores são rejeitados automaticamente (proteção contra feed fora do ar esvaziar a lista sem querer).</p>
+                </div>
+
+                <div class="field-group" id="campo-fonte-formato">
+                    <label for="fonte_formato">Formato do feed</label>
+                    <select class="form-control" id="fonte_formato" name="fonte_formato">
+                        <option value="hostfile" @selected(old('fonte_formato', $lista->fonte_formato ?? 'hostfile') === 'hostfile')>Hosts file (ex: "127.0.0.1 dominio.com" por linha)</option>
+                        <option value="plain" @selected(old('fonte_formato', $lista->fonte_formato) === 'plain')>Lista simples (um domínio por linha)</option>
+                    </select>
+                </div>
             </div>
+
+            <script>
+                (function () {
+                    var origemSelect = document.getElementById('origem');
+                    var campoUrl = document.getElementById('campo-fonte-url');
+                    var campoFormato = document.getElementById('campo-fonte-formato');
+
+                    function atualizar() {
+                        var externa = origemSelect.value === 'externa';
+                        campoUrl.style.display = externa ? '' : 'none';
+                        campoFormato.style.display = externa ? '' : 'none';
+                    }
+
+                    origemSelect.addEventListener('change', atualizar);
+                    atualizar();
+                })();
+            </script>
 
             @if ($lista->exists)
                 <div class="field-group" style="margin-top:18px">

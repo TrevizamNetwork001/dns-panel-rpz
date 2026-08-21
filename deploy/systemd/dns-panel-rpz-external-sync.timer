@@ -1,5 +1,5 @@
 [Unit]
-Description=Roda a sincronização da lista URLhaus do DNS Panel RPZ a cada 6 horas
+Description=Roda a sincronizacao das listas externas do DNS Panel RPZ a cada 6 horas
 
 [Timer]
 OnCalendar=*-*-* 00,06,12,18:15:00

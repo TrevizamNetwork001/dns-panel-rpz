@@ -52,6 +52,7 @@ Route::middleware('auth')->group(function () {
         Route::resource('licencas', LicencaController::class);
         Route::resource('listas', ListaController::class)->except(['index', 'show']);
         Route::patch('/listas/{lista}/toggle-sync', [ListaController::class, 'toggleSync'])->name('listas.toggle-sync');
+        Route::post('/listas/{lista}/sync-now', [ListaController::class, 'syncNow'])->name('listas.sync-now');
 
         Route::get('/listas/{lista}/dominios', [DominioController::class, 'index'])->name('listas.dominios.index');
         Route::post('/listas/{lista}/dominios', [DominioController::class, 'store'])->name('listas.dominios.store');

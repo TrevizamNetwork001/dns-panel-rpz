@@ -28,8 +28,14 @@ class ListaFactory extends Factory
         return $this->state(fn () => ['status' => 'inactive']);
     }
 
-    public function externa(string $fonte = 'urlhaus'): static
+    public function externa(string $fonte = 'urlhaus', ?string $url = null, string $formato = 'hostfile'): static
     {
-        return $this->state(fn () => ['origem' => 'externa', 'fonte_externa' => $fonte]);
+        return $this->state(fn () => [
+            'origem' => 'externa',
+            'fonte_externa' => $fonte,
+            'fonte_url' => $url ?? "https://{$fonte}.example/feed.txt",
+            'fonte_formato' => $formato,
+            'sync_ativo' => true,
+        ]);
     }
 }
