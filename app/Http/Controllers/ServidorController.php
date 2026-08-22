@@ -9,6 +9,7 @@ use App\Models\Servidor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ServidorController extends Controller
@@ -85,7 +86,9 @@ class ServidorController extends Controller
 
         $syncLogs = $servidor->syncLogs()->orderByDesc('id')->limit(30)->get();
 
-        return view('servidores.show', compact('servidor', 'listasDisponiveis', 'syncLogs'));
+        $atividadeListas = $this->atividadeListas($servidor);
+
+        return view('servidores.show', compact('servidor', 'listasDisponiveis', 'syncLogs', 'atividadeListas'));
     }
 
     public function edit(Servidor $servidor): View
@@ -200,6 +203,72 @@ class ServidorController extends Controller
         AuditLog::record('servidor.ips.removed', "IP {$cidr} removido do servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
 
         return back()->with('status', 'IP removido da lista de permitidos.');
+    }
+
+    /**
+     * Atividade recente (30 dias) das listas vinculadas a este servidor --
+     * pra o cliente entender por que a quantidade de bloqueios mudou, sem
+     * precisar navegar lista por lista. Agregado por dia via SQL, nao sofre
+     * o limite de linhas da tabela detalhada de cada lista.
+     *
+     * @return array<int, array{dia: string, lista_id: int, lista_nome: string, adicionados: int, removidos: int}>
+     */
+    private function atividadeListas(Servidor $servidor): array
+    {
+        $listas = $servidor->listas->keyBy('id');
+        $listaIds = $listas->keys();
+
+        if ($listaIds->isEmpty()) {
+            return [];
+        }
+
+        $desde = now()->subDays(30)->startOfDay();
+
+        $adicionadosPorDiaLista = DB::table('dominios')
+            ->selectRaw('lista_id, DATE(created_at) as dia, COUNT(*) as total')
+            ->whereIn('lista_id', $listaIds)
+            ->where('created_at', '>=', $desde)
+            ->groupBy('lista_id', 'dia')
+            ->get();
+
+        $removidosPorDiaLista = DB::table('dominios')
+            ->selectRaw('lista_id, DATE(updated_at) as dia, COUNT(*) as total')
+            ->whereIn('lista_id', $listaIds)
+            ->where('ativo', false)
+            ->where('updated_at', '>=', $desde)
+            ->groupBy('lista_id', 'dia')
+            ->get();
+
+        $eventos = [];
+
+        foreach ($adicionadosPorDiaLista as $row) {
+            $eventos["{$row->lista_id}|{$row->dia}"] = [
+                'dia' => $row->dia,
+                'lista_id' => $row->lista_id,
+                'lista_nome' => $listas[$row->lista_id]->nome,
+                'adicionados' => (int) $row->total,
+                'removidos' => 0,
+            ];
+        }
+
+        foreach ($removidosPorDiaLista as $row) {
+            $chave = "{$row->lista_id}|{$row->dia}";
+            if (isset($eventos[$chave])) {
+                $eventos[$chave]['removidos'] = (int) $row->total;
+            } else {
+                $eventos[$chave] = [
+                    'dia' => $row->dia,
+                    'lista_id' => $row->lista_id,
+                    'lista_nome' => $listas[$row->lista_id]->nome,
+                    'adicionados' => 0,
+                    'removidos' => (int) $row->total,
+                ];
+            }
+        }
+
+        usort($eventos, fn ($a, $b) => $b['dia'] <=> $a['dia'] ?: $a['lista_nome'] <=> $b['lista_nome']);
+
+        return array_slice(array_values($eventos), 0, 50);
     }
 
     private function listasParaEmpresa(?int $empresaId)

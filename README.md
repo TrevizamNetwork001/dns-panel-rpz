@@ -40,6 +40,7 @@ Além de listas manuais, o admin pode criar uma **Lista externa**: aponta uma UR
 - Já vêm quatro listas pré-configuradas: [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo), [ThreatFox](https://threatfox.abuse.ch/) (C2/botnet), [Phishing Army](https://phishing.army/) (phishing) — as três gratuitas e sem chave de API — e **Anatel** (bloqueio judicial/regulatório), mantida por um pipeline próprio (Python extrai domínios dos PDFs que a Anatel publica, monta um `.txt` em formato `local-zone`, sobe via FTP) — o painel só consome a URL, atualiza sozinho a cada 6h. Pode editar a URL delas ou criar outras do zero. Testado com URLhaus+ThreatFox+Phishing Army somadas (~245k domínios, ~492k linhas no zonefile) em ~1,3s sem estourar memória.
 - **Histórico de alterações** (`/listas/{id}/historico`, acessível a admin e cliente): mostra domínios adicionados/removidos num período (hoje / 7 dias / 30 dias), com data e hora de cada mudança. Em listas grandes (muitas mudanças no período), a tabela domínio-por-domínio fica escondida automaticamente — só o resumo numérico aparece, pra não travar a página com milhares de linhas. "Removido" aqui é desativado (`ativo=false`), não apagado do banco.
   - A mesma página tem um gráfico de barras (adicionados/removidos por dia, agregado via SQL — não sofre o limite de linhas da tabela detalhada), SVG inline sem biblioteca JS de gráfico, com tooltip nativo (`<title>`) ao passar o mouse na barra. Cores validadas com o `validate_palette.js` da skill `dataviz` (verde `#1f9d73` / âmbar `#b87b28` — tons mais escuros que os tokens de UI padrão `--green`/`--amber`, porque os originais são claros demais pra marca de gráfico em modo escuro).
+- **Atividade das listas vinculadas** (página do servidor, `/servidores/{id}`): painel com as mudanças (adicionados/removidos por dia) de todas as listas vinculadas àquele servidor, agregado nos últimos 30 dias — pra o cliente entender por que a contagem de bloqueios do seu servidor mudou, sem precisar abrir lista por lista. Cada linha linka pro histórico completo da lista correspondente. Isolado por servidor: só mostra atividade das listas de fato vinculadas a ele.
 
 ## Entidades
 
@@ -172,13 +173,15 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-63 testes / 125 assertions cobrindo os pontos mais críticos:
+67 testes / 135 assertions cobrindo os pontos mais críticos:
 
-- `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade).
+- `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
 - `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.
 - `tests/Feature/RoleAuthorizationTest.php` — isolamento admin vs cliente, inclusive entre empresas diferentes.
-- `tests/Feature/ExternalListaSyncTest.php` — sincroniza múltiplas listas externas de uma vez, import, desativação de domínios que saíram do feed, feed quebrado não afeta as outras listas, pausa de sincronização, formatos `hostfile`/`plain`, parsing de linhas inválidas/localhost.
+- `tests/Feature/ExternalListaSyncTest.php` — sincroniza múltiplas listas externas de uma vez, import, desativação de domínios que saíram do feed, feed quebrado não afeta as outras listas, pausa de sincronização, formatos `hostfile`/`plain`/`unbound_local_zone`, parsing de linhas inválidas/localhost.
 - `tests/Feature/ListaCrudTest.php` — criação de lista manual e externa via HTTP real (POST), validação de URL obrigatória pra listas externas.
+- `tests/Feature/ListaHistoryTest.php` — histórico de alterações por lista (acesso admin/cliente, domínios adicionados/removidos hoje, filtro de período, ocultação da tabela detalhada quando tem mudança demais).
+- `tests/Feature/ServidorListaAtividadeTest.php` — atividade agregada das listas vinculadas a um servidor (isolamento entre listas vinculadas e não vinculadas, acesso cliente ao próprio servidor).
 - `tests/Unit/ServidorIpMatchesCidrTest.php`, `tests/Unit/AuditLogBucketTest.php` — lógica pura (CIDR matching, classificação de severidade).
 
 Usa banco SQLite em memória (`phpunit.xml`, `DB_DATABASE=:memory:`) — não toca no banco real. `Http::fake()` mockado nos testes que envolvem chamada externa (URLhaus).

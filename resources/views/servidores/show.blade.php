@@ -186,6 +186,33 @@
                 <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 30 registros.</p>
             @endif
         </div>
+
+        <div class="panel details-card-wide">
+            <div class="panel-header"><h2>Atividade das listas vinculadas (últimos 30 dias)</h2></div>
+            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">Quando uma lista vinculada a este servidor ganha ou perde domínios, aparece aqui — pra entender por que o bloqueio mudou sem precisar abrir lista por lista. "Removido" é desativado, não apagado.</p>
+            @if (empty($atividadeListas))
+                <div class="empty-state"><span>Nenhuma mudança nas listas vinculadas nos últimos 30 dias.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Data</th><th>Lista</th><th>Adicionados</th><th>Removidos</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($atividadeListas as $evento)
+                                <tr>
+                                    <td class="table-mono">{{ \Illuminate\Support\Carbon::parse($evento['dia'])->format('d/m/Y') }}</td>
+                                    <td><a href="{{ route('listas.historico', $evento['lista_id']) }}" class="table-primary-link">{{ $evento['lista_nome'] }}</a></td>
+                                    <td class="table-mono">{{ $evento['adicionados'] > 0 ? '+' . $evento['adicionados'] : '-' }}</td>
+                                    <td class="table-mono">{{ $evento['removidos'] > 0 ? '-' . $evento['removidos'] : '-' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 50 eventos. Detalhe domínio-por-domínio disponível no histórico de cada lista.</p>
+            @endif
+        </div>
     </div>
 
     <script>
