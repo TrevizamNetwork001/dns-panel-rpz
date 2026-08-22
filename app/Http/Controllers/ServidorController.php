@@ -84,11 +84,9 @@ class ServidorController extends Controller
             ->orderBy('nome')
             ->get();
 
-        $syncLogs = $servidor->syncLogs()->orderByDesc('id')->limit(30)->get();
+        $logServidor = $this->logServidor($servidor);
 
-        $atividadeListas = $this->atividadeListas($servidor);
-
-        return view('servidores.show', compact('servidor', 'listasDisponiveis', 'syncLogs', 'atividadeListas'));
+        return view('servidores.show', compact('servidor', 'listasDisponiveis', 'logServidor'));
     }
 
     public function edit(Servidor $servidor): View
@@ -206,69 +204,75 @@ class ServidorController extends Controller
     }
 
     /**
-     * Atividade recente (30 dias) das listas vinculadas a este servidor --
-     * pra o cliente entender por que a quantidade de bloqueios mudou, sem
-     * precisar navegar lista por lista. Agregado por dia via SQL, nao sofre
-     * o limite de linhas da tabela detalhada de cada lista.
+     * Log unico do servidor (ultimos 30 dias), no mesmo espirito da pagina
+     * de Auditoria global mas escopado a este servidor: uma linha por
+     * evento, ordenado por data, misturando dois tipos --
+     *   - "sync": o Unbound do cliente veio buscar a zona (server_sync_logs)
+     *   - "lista": uma lista vinculada a este servidor ganhou/perdeu dominios
+     * Junto, da pra ver a causa e o efeito na mesma tabela: a lista muda
+     * num dia, e a proxima sincronizacao depois disso ja reflete a mudanca
+     * na contagem de dominios entregues.
      *
-     * @return array<int, array{dia: string, lista_id: int, lista_nome: string, adicionados: int, removidos: int}>
+     * @return array<int, array{timestamp: \Illuminate\Support\Carbon, tipo: string, detalhe: string, meta: string|null, lista_id: int|null}>
      */
-    private function atividadeListas(Servidor $servidor): array
+    private function logServidor(Servidor $servidor): array
     {
-        $listas = $servidor->listas->keyBy('id');
-        $listaIds = $listas->keys();
-
-        if ($listaIds->isEmpty()) {
-            return [];
-        }
-
         $desde = now()->subDays(30)->startOfDay();
-
-        $adicionadosPorDiaLista = DB::table('dominios')
-            ->selectRaw('lista_id, DATE(created_at) as dia, COUNT(*) as total')
-            ->whereIn('lista_id', $listaIds)
-            ->where('created_at', '>=', $desde)
-            ->groupBy('lista_id', 'dia')
-            ->get();
-
-        $removidosPorDiaLista = DB::table('dominios')
-            ->selectRaw('lista_id, DATE(updated_at) as dia, COUNT(*) as total')
-            ->whereIn('lista_id', $listaIds)
-            ->where('ativo', false)
-            ->where('updated_at', '>=', $desde)
-            ->groupBy('lista_id', 'dia')
-            ->get();
-
         $eventos = [];
 
-        foreach ($adicionadosPorDiaLista as $row) {
-            $eventos["{$row->lista_id}|{$row->dia}"] = [
-                'dia' => $row->dia,
-                'lista_id' => $row->lista_id,
-                'lista_nome' => $listas[$row->lista_id]->nome,
-                'adicionados' => (int) $row->total,
-                'removidos' => 0,
+        foreach ($servidor->syncLogs()->where('created_at', '>=', $desde)->orderByDesc('id')->limit(200)->get() as $log) {
+            $eventos[] = [
+                'timestamp' => $log->created_at,
+                'tipo' => 'sync',
+                'detalhe' => "Servidor sincronizou — {$log->dominios_count} domínios entregues",
+                'meta' => $log->ip_address,
+                'lista_id' => null,
             ];
         }
 
-        foreach ($removidosPorDiaLista as $row) {
-            $chave = "{$row->lista_id}|{$row->dia}";
-            if (isset($eventos[$chave])) {
-                $eventos[$chave]['removidos'] = (int) $row->total;
-            } else {
-                $eventos[$chave] = [
-                    'dia' => $row->dia,
+        $listas = $servidor->listas->keyBy('id');
+        $listaIds = $listas->keys();
+
+        if ($listaIds->isNotEmpty()) {
+            $adicionadosPorDiaLista = DB::table('dominios')
+                ->selectRaw('lista_id, DATE(created_at) as dia, COUNT(*) as total')
+                ->whereIn('lista_id', $listaIds)
+                ->where('created_at', '>=', $desde)
+                ->groupBy('lista_id', 'dia')
+                ->get();
+
+            $removidosPorDiaLista = DB::table('dominios')
+                ->selectRaw('lista_id, DATE(updated_at) as dia, COUNT(*) as total')
+                ->whereIn('lista_id', $listaIds)
+                ->where('ativo', false)
+                ->where('updated_at', '>=', $desde)
+                ->groupBy('lista_id', 'dia')
+                ->get();
+
+            foreach ($adicionadosPorDiaLista as $row) {
+                $eventos[] = [
+                    'timestamp' => \Illuminate\Support\Carbon::parse($row->dia)->endOfDay(),
+                    'tipo' => 'lista_add',
+                    'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" ganhou {$row->total} domínio(s)",
+                    'meta' => null,
                     'lista_id' => $row->lista_id,
-                    'lista_nome' => $listas[$row->lista_id]->nome,
-                    'adicionados' => 0,
-                    'removidos' => (int) $row->total,
+                ];
+            }
+
+            foreach ($removidosPorDiaLista as $row) {
+                $eventos[] = [
+                    'timestamp' => \Illuminate\Support\Carbon::parse($row->dia)->endOfDay(),
+                    'tipo' => 'lista_remove',
+                    'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" perdeu {$row->total} domínio(s)",
+                    'meta' => null,
+                    'lista_id' => $row->lista_id,
                 ];
             }
         }
 
-        usort($eventos, fn ($a, $b) => $b['dia'] <=> $a['dia'] ?: $a['lista_nome'] <=> $b['lista_nome']);
+        usort($eventos, fn ($a, $b) => $b['timestamp'] <=> $a['timestamp']);
 
-        return array_slice(array_values($eventos), 0, 50);
+        return array_slice($eventos, 0, 80);
     }
 
     private function listasParaEmpresa(?int $empresaId)

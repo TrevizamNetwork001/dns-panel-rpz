@@ -163,54 +163,58 @@
         </div>
 
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Histórico de sincronizações</h2></div>
-            @if ($syncLogs->isEmpty())
-                <div class="empty-state"><span>Este servidor ainda não sincronizou.</span></div>
+            <div class="panel-header">
+                <h2>Log do servidor (últimos 30 dias)</h2>
+                <span class="status-pill is-muted">Sincronizações + listas</span>
+            </div>
+            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
+                Uma linha por evento: quando o Unbound deste servidor buscou a zona (com quantos domínios foram entregues) e quando uma lista vinculada a ele ganhou/perdeu domínios — junto, dá pra ver a causa e o efeito: a lista muda, e a próxima sincronização depois já reflete isso na contagem entregue. "Perdeu" é desativado, não apagado do banco.
+            </p>
+            @if (empty($logServidor))
+                <div class="empty-state"><span>Nenhum evento nos últimos 30 dias — o servidor ainda não sincronizou e nenhuma lista vinculada mudou.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Data/hora</th><th>IP</th><th>Domínios entregues</th></tr>
+                            <tr><th>Data/hora</th><th>Tipo</th><th>Evento</th></tr>
                         </thead>
                         <tbody>
-                            @foreach ($syncLogs as $log)
+                            @foreach ($logServidor as $evento)
+                                @php
+                                    $pillClass = match($evento['tipo']) {
+                                        'sync' => 'is-info',
+                                        'lista_add' => 'is-active',
+                                        'lista_remove' => 'is-warning',
+                                        default => 'is-muted',
+                                    };
+                                    $pillLabel = match($evento['tipo']) {
+                                        'sync' => 'Sincronização',
+                                        'lista_add' => 'Lista +',
+                                        'lista_remove' => 'Lista -',
+                                        default => '-',
+                                    };
+                                @endphp
                                 <tr>
-                                    <td class="table-mono">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
-                                    <td class="table-mono">{{ $log->ip_address ?? '-' }}</td>
-                                    <td class="table-mono">{{ $log->dominios_count }}</td>
+                                    <td class="table-mono">
+                                        {{ $evento['timestamp']->format($evento['tipo'] === 'sync' ? 'd/m/Y H:i:s' : 'd/m/Y') }}
+                                    </td>
+                                    <td><span class="status-pill {{ $pillClass }}">{{ $pillLabel }}</span></td>
+                                    <td>
+                                        @if ($evento['lista_id'])
+                                            <a href="{{ route('listas.historico', $evento['lista_id']) }}" class="table-primary-link">{{ $evento['detalhe'] }}</a>
+                                        @else
+                                            {{ $evento['detalhe'] }}
+                                            @if ($evento['meta'])
+                                                <span class="table-mono" style="color:var(--text-muted)">— IP {{ $evento['meta'] }}</span>
+                                            @endif
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
-                <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 30 registros.</p>
-            @endif
-        </div>
-
-        <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Atividade das listas vinculadas (últimos 30 dias)</h2></div>
-            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">Quando uma lista vinculada a este servidor ganha ou perde domínios, aparece aqui — pra entender por que o bloqueio mudou sem precisar abrir lista por lista. "Removido" é desativado, não apagado.</p>
-            @if (empty($atividadeListas))
-                <div class="empty-state"><span>Nenhuma mudança nas listas vinculadas nos últimos 30 dias.</span></div>
-            @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Data</th><th>Lista</th><th>Adicionados</th><th>Removidos</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($atividadeListas as $evento)
-                                <tr>
-                                    <td class="table-mono">{{ \Illuminate\Support\Carbon::parse($evento['dia'])->format('d/m/Y') }}</td>
-                                    <td><a href="{{ route('listas.historico', $evento['lista_id']) }}" class="table-primary-link">{{ $evento['lista_nome'] }}</a></td>
-                                    <td class="table-mono">{{ $evento['adicionados'] > 0 ? '+' . $evento['adicionados'] : '-' }}</td>
-                                    <td class="table-mono">{{ $evento['removidos'] > 0 ? '-' . $evento['removidos'] : '-' }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 50 eventos. Detalhe domínio-por-domínio disponível no histórico de cada lista.</p>
+                <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 80 eventos. Detalhe domínio-por-domínio disponível no histórico de cada lista.</p>
             @endif
         </div>
     </div>
