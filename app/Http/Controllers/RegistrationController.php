@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\User;
+use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -23,7 +24,7 @@ class RegistrationController extends Controller
         return view('auth.register');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TelegramNotifier $telegram): RedirectResponse
     {
         $data = $request->validate([
             'empresa_nome' => ['required', 'string', 'max:255'],
@@ -67,6 +68,8 @@ class RegistrationController extends Controller
         $request->session()->regenerate();
 
         AuditLog::record('empresa.cadastro_publico', "Empresa \"{$empresa->nome}\" se cadastrou publicamente", $empresa->id);
+
+        $telegram->notifyCadastro($empresa->nome, $user->name, $user->email);
 
         return redirect()->route('dashboard')
             ->with('status', 'Cadastro recebido! Sua empresa está com aprovação pendente — assim que o administrador ativar sua licença, você poderá cadastrar servidores.');

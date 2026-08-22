@@ -1,0 +1,71 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Setting;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+
+class TelegramNotifier
+{
+    public function config(): array
+    {
+        return [
+            'ativo' => Setting::get('telegram_ativo', '1') === '1',
+            'bot_token' => Setting::get('telegram_bot_token') ?: config('services.telegram.bot_token'),
+            'chat_id' => Setting::get('telegram_chat_id') ?: config('services.telegram.cadastros_chat_id'),
+            'thread_id' => Setting::get('telegram_thread_id') ?: config('services.telegram.cadastros_thread_id'),
+        ];
+    }
+
+    public function notifyCadastro(string $empresaNome, string $responsavelNome, string $email): bool
+    {
+        $texto = "🆕 <b>Novo cadastro no painel RPZ</b>\n\n"
+            . "<b>Empresa:</b> " . e($empresaNome) . "\n"
+            . "<b>Responsável:</b> " . e($responsavelNome) . "\n"
+            . "<b>E-mail:</b> " . e($email) . "\n\n"
+            . 'Status: aguardando aprovação.';
+
+        return $this->send($texto);
+    }
+
+    public function sendTest(): bool
+    {
+        return $this->send('✅ Teste de conexão do painel RPZ. Se você está vendo isso, a integração funciona.');
+    }
+
+    private function send(string $texto): bool
+    {
+        $config = $this->config();
+
+        if (! $config['ativo'] || ! $config['bot_token'] || ! $config['chat_id']) {
+            return false;
+        }
+
+        $payload = [
+            'chat_id' => $config['chat_id'],
+            'text' => $texto,
+            'parse_mode' => 'HTML',
+        ];
+
+        if ($config['thread_id']) {
+            $payload['message_thread_id'] = $config['thread_id'];
+        }
+
+        try {
+            $response = Http::timeout(5)->post("https://api.telegram.org/bot{$config['bot_token']}/sendMessage", $payload);
+
+            if (! $response->successful()) {
+                Log::warning('Falha ao enviar notificação Telegram', ['response' => $response->body()]);
+
+                return false;
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Exceção ao enviar notificação Telegram', ['erro' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+}

@@ -55,6 +55,11 @@
                 <a href="{{ route('auditoria.index') }}" class="sidebar-link @if(request()->routeIs('auditoria.*')) is-active @endif">Auditoria</a>
                 <a href="{{ route('seguranca.index') }}" class="sidebar-link @if(request()->routeIs('seguranca.*')) is-active @endif">Segurança do servidor</a>
             </nav>
+
+            <p class="sidebar-section-label">Sistema</p>
+            <nav class="sidebar-nav">
+                <a href="{{ route('configuracoes.index') }}" class="sidebar-link @if(request()->routeIs('configuracoes.*')) is-active @endif">Configurações</a>
+            </nav>
             @endif
 
             <div class="sidebar-footer">
