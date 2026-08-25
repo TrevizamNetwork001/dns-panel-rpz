@@ -196,7 +196,7 @@ html[data-theme="light"] .login-card {
 }
 
 .sidebar-section-label {
-    padding: 24px 24px 9px;
+    padding: 15px 24px 6px;
     color: #526176;
     font-size: 10px;
     font-weight: 800;
@@ -204,22 +204,26 @@ html[data-theme="light"] .login-card {
     text-transform: uppercase;
 }
 
+.sidebar-section-label:first-of-type {
+    padding-top: 16px;
+}
+
 .sidebar-nav {
     display: grid;
-    gap: 4px;
+    gap: 2px;
     padding: 0 12px;
 }
 
 .sidebar-link {
     position: relative;
     display: flex;
-    min-height: 44px;
+    min-height: 36px;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     padding: 0 12px;
-    border-radius: 10px;
+    border-radius: 9px;
     color: #8797ab;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 600;
     transition: 160ms ease;
 }
@@ -227,6 +231,23 @@ html[data-theme="light"] .login-card {
 .sidebar-link:hover:not(.is-disabled) {
     background: var(--surface-soft);
     color: var(--text);
+}
+
+.sidebar-link.is-disabled {
+    color: #4c5a6e;
+    cursor: default;
+}
+
+.sidebar-badge-soon {
+    padding: 2px 6px;
+    margin-left: auto;
+    border-radius: 999px;
+    background: var(--surface-soft);
+    color: var(--text-muted);
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
 .sidebar-link.is-active {
@@ -470,6 +491,85 @@ html[data-theme="light"] .login-card {
     color: var(--danger);
 }
 
+.actions-menu {
+    position: relative;
+    display: inline-flex;
+}
+
+.actions-menu-toggle {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.actions-menu-toggle:hover,
+.actions-menu-toggle[aria-expanded="true"] {
+    border-color: var(--border-soft);
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+.actions-menu-dropdown {
+    position: fixed;
+    z-index: 90;
+    width: 190px;
+    padding: 6px;
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+}
+
+.actions-menu-dropdown[hidden] {
+    display: none;
+}
+
+.actions-menu-item {
+    display: flex;
+    width: 100%;
+    min-height: 34px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-soft);
+    cursor: pointer;
+    font: inherit;
+    font-size: 11.5px;
+    text-align: left;
+    text-decoration: none;
+}
+
+.actions-menu-item:hover {
+    background: var(--surface-soft);
+    color: var(--text);
+}
+
+.actions-menu-item-danger {
+    color: var(--danger);
+}
+
+.actions-menu-item-danger:hover {
+    background: rgba(240, 106, 122, 0.12);
+    color: var(--danger);
+}
+
+.actions-menu-divider {
+    height: 1px;
+    margin: 5px 4px;
+    background: var(--border-soft);
+}
+
 .user-avatar-large {
     width: 52px;
     height: 52px;
@@ -637,6 +737,12 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
     margin-bottom: 26px;
 }
 
+/* Cabecalho da Dashboard: mantem eyebrow/h1/subtitulo, so reduz o espaco
+   antes dos cards pra aproveitar melhor telas 1366x768. */
+.page-heading-dashboard {
+    margin-bottom: 18px;
+}
+
 .page-eyebrow {
     display: flex;
     align-items: center;
@@ -666,6 +772,25 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
     display: flex;
     align-items: center;
     gap: 9px;
+}
+
+/* Cabecalho compacto: telas CRUD de listagem (Empresas, Fontes, Licencas,
+   Usuarios, Endpoints RPZ). O dashboard mantem o .page-heading grande. */
+.page-heading-compact {
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.page-heading-compact h1 {
+    margin: 0 0 2px;
+    font-size: 20px;
+    letter-spacing: -0.02em;
+}
+
+.page-heading-compact p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 11.5px;
 }
 
 .metrics-grid {
@@ -753,6 +878,17 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
     font-size: 9px;
 }
 
+.metric-card-primary {
+    border-color: rgba(53, 211, 154, 0.32);
+    background:
+        linear-gradient(145deg, rgba(53, 211, 154, 0.06), transparent),
+        var(--surface);
+}
+
+.metric-card-primary .metric-value {
+    font-size: 32px;
+}
+
 .dashboard-grid {
     display: grid;
     grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
@@ -835,6 +971,12 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
 .button-secondary:hover,
 .button-ghost:hover {
     color: var(--text);
+}
+
+.is-settings-tab.is-active {
+    border-color: rgba(33, 199, 232, 0.4);
+    background: rgba(33, 199, 232, 0.1);
+    color: var(--cyan);
 }
 
 .button-ghost {
@@ -967,6 +1109,13 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
 .status-pill.is-muted {
     background: var(--surface-soft);
     color: var(--text-muted);
+}
+
+/* Usada so nas duas tabelas da Dashboard admin -- nao mexe no .status-pill
+   global porque ele tambem e usado na area do cliente (dashboard/cliente),
+   que nao deve ser alterada nesta rodada. */
+.status-pill-normal-case {
+    text-transform: none;
 }
 
 .pagination-simple {

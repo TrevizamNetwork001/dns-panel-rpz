@@ -21,8 +21,15 @@ class DashboardController extends Controller
         }
 
         $totalEmpresas = Empresa::where('status', 'active')->count();
-        $totalServidores = Servidor::where('status', 'active')->count();
-        $totalListas = Lista::where('status', 'active')->count();
+        $totalServidoresAtivos = Servidor::where('status', 'active')->count();
+        $totalServidoresTotal = Servidor::count();
+        $servidoresAtencao = Servidor::where('status', 'active')
+            ->where(function ($query) {
+                $query->whereNull('last_synced_at')->orWhere('last_synced_at', '<=', now()->subDays(2));
+            })
+            ->count();
+        $totalListasAtivas = Lista::where('status', 'active')->count();
+        $totalListasTotal = Lista::count();
         $totalDominios = Dominio::count();
         $totalDominiosAtivos = Dominio::where('ativo', true)->count();
 
@@ -43,8 +50,11 @@ class DashboardController extends Controller
 
         return view('dashboard.index', compact(
             'totalEmpresas',
-            'totalServidores',
-            'totalListas',
+            'totalServidoresAtivos',
+            'totalServidoresTotal',
+            'servidoresAtencao',
+            'totalListasAtivas',
+            'totalListasTotal',
             'totalDominios',
             'totalDominiosAtivos',
             'listas',
