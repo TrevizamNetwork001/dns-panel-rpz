@@ -56,7 +56,7 @@ class ListaController extends Controller
     {
         $this->authorizeAccess($lista);
 
-        $lista->load(['empresa', 'servidores.empresa', 'dominios']);
+        $lista->load(['empresa', 'servidores.empresa']);
 
         return view('listas.show', compact('lista'));
     }
