@@ -183,6 +183,17 @@
                     }
                 });
             }
+
+            var successAlert = document.querySelector('.alert-success');
+            if (successAlert) {
+                window.setTimeout(function () {
+                    successAlert.style.transition = 'opacity 0.4s ease';
+                    successAlert.style.opacity = '0';
+                    window.setTimeout(function () {
+                        successAlert.remove();
+                    }, 400);
+                }, 4000);
+            }
         })();
     </script>
 </body>
