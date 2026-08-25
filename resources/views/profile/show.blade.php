@@ -9,9 +9,6 @@
             <h1>Meu perfil</h1>
             <p>Consulte seus dados e personalize sua identificação na plataforma.</p>
         </div>
-        <div class="page-actions">
-            <a href="{{ route('profile.password') }}" class="button button-secondary">Alterar senha</a>
-        </div>
     </div>
 
     <div class="profile-layout">
