@@ -1,16 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'Servidores')
+@section('title', 'Endpoints RPZ')
 
 @section('content')
-    <div class="page-heading">
+    <div class="page-heading page-heading-compact">
         <div>
-            <div class="page-eyebrow">Gestão</div>
-            <h1>Servidores</h1>
-            <p>Servidores Unbound vinculados aos provedores.</p>
+            <h1>Endpoints RPZ</h1>
+            <p>{{ $servidores->total() }} cadastrados · {{ $servidoresAtivos }} ativos</p>
         </div>
         <div class="page-actions">
-            <a href="{{ route('servidores.create') }}" class="button button-primary">+ Novo servidor</a>
+            <a href="{{ route('servidores.create') }}" class="button button-primary">+ Novo endpoint</a>
         </div>
     </div>
 
@@ -19,8 +18,8 @@
             <div class="empty-state empty-state-large">
                 <div class="empty-state-icon">+</div>
                 <div>
-                    <strong>Nenhum servidor cadastrado</strong>
-                    <span>Cadastre o primeiro servidor Unbound para gerar o token do zonefile RPZ.</span>
+                    <strong>Nenhum endpoint cadastrado</strong>
+                    <span>Cadastre o primeiro endpoint RPZ para gerar o token do zonefile.</span>
                 </div>
             </div>
         @else
@@ -30,14 +29,15 @@
                         <tr>
                             <th>Nome</th>
                             <th>Empresa</th>
-                            <th>Listas</th>
+                            <th>Fontes habilitadas</th>
+                            <th>Última consulta</th>
                             <th>Status</th>
-                            <th>Última sincronização</th>
                             <th class="table-actions-column"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($servidores as $servidor)
+                            @php $dias = $servidor->diasSemSincronizar(); @endphp
                             <tr>
                                 <td><a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">{{ $servidor->nome }}</a></td>
                                 <td>{{ $servidor->empresa->nome }}</td>
@@ -45,7 +45,15 @@
                                     @if ($servidor->listas->isEmpty())
                                         <a href="{{ route('servidores.show', $servidor) }}" class="inline-link" style="color:var(--danger)">nenhuma — escolher</a>
                                     @else
-                                        <a href="{{ route('servidores.show', $servidor) }}" class="inline-link">{{ $servidor->listas->pluck('nome')->implode(', ') }}</a>
+                                        <a href="{{ route('servidores.show', $servidor) }}" class="inline-link" title="{{ $servidor->listas->pluck('nome')->join(', ') }}">{{ $servidor->listas->count() }} {{ $servidor->listas->count() === 1 ? 'fonte' : 'fontes' }}</a>
+                                    @endif
+                                </td>
+                                <td class="table-mono">
+                                    <div>{{ optional($servidor->last_synced_at)->format('d/m/Y H:i') ?? 'nunca' }}</div>
+                                    @if ($dias === null)
+                                        <span class="status-pill is-inactive" style="margin-top:4px">Sem consulta</span>
+                                    @elseif ($dias >= 2)
+                                        <span class="status-pill is-warning" style="margin-top:4px">Sem consulta há {{ $dias }} dias</span>
                                     @endif
                                 </td>
                                 <td>
@@ -53,24 +61,16 @@
                                         {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
                                     </span>
                                 </td>
-                                <td class="table-mono">
-                                    {{ optional($servidor->last_synced_at)->format('d/m/Y H:i') ?? 'nunca' }}
-                                    @php $dias = $servidor->diasSemSincronizar(); @endphp
-                                    @if ($dias === null)
-                                        <span class="status-pill is-inactive" style="margin-left:6px">sem sync</span>
-                                    @elseif ($dias >= 2)
-                                        <span class="status-pill is-warning" style="margin-left:6px">{{ $dias }}d sem sync</span>
-                                    @endif
-                                </td>
                                 <td>
-                                    <div class="table-actions">
-                                        <a href="{{ route('servidores.edit', $servidor) }}" class="table-action-link">Editar</a>
+                                    <x-actions-menu label="Ações do endpoint {{ $servidor->nome }}">
+                                        <a href="{{ route('servidores.edit', $servidor) }}" class="actions-menu-item">Editar</a>
+                                        <div class="actions-menu-divider"></div>
                                         <form action="{{ route('servidores.destroy', $servidor) }}" method="POST">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover servidor?')">Remover</button>
+                                            <button type="submit" class="actions-menu-item actions-menu-item-danger" onclick="return confirm('Remover endpoint?')">Remover</button>
                                         </form>
-                                    </div>
+                                    </x-actions-menu>
                                 </td>
                             </tr>
                         @endforeach

@@ -1083,7 +1083,6 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
     border-radius: 20px;
     font-size: 8px;
     font-weight: 800;
-    text-transform: uppercase;
 }
 
 .status-pill.is-active {
@@ -1111,9 +1110,9 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
     color: var(--text-muted);
 }
 
-/* Usada so nas duas tabelas da Dashboard admin -- nao mexe no .status-pill
-   global porque ele tambem e usado na area do cliente (dashboard/cliente),
-   que nao deve ser alterada nesta rodada. */
+/* Historico: .status-pill ja nao forca uppercase (removido abaixo), entao
+   esta classe virou no-op. Mantida so pra nao gerar diff nos templates que
+   ja a usam -- pode ser removida dos dois lugares numa limpeza futura. */
 .status-pill-normal-case {
     text-transform: none;
 }

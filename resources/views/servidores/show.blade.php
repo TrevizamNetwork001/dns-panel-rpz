@@ -12,7 +12,7 @@
 @section('content')
     <div class="page-heading">
         <div>
-            <div class="page-eyebrow">Servidor</div>
+            <div class="page-eyebrow">Endpoint RPZ</div>
             <h1>{{ $servidor->nome }}</h1>
             <p><a href="{{ route('empresas.show', $servidor->empresa) }}" class="inline-link">{{ $servidor->empresa->nome }}</a></p>
         </div>
@@ -100,27 +100,27 @@
         @endif
 
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Listas vinculadas ({{ $servidor->listas->count() }})</h2></div>
+            <div class="panel-header"><h2>Fontes vinculadas ({{ $servidor->listas->count() }})</h2></div>
             @if ($servidor->listas->isEmpty())
-                <div class="empty-state"><span>Nenhuma lista vinculada ainda.</span></div>
+                <div class="empty-state"><span>Nenhuma fonte vinculada ainda.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Lista</th><th>Tipo</th><th class="table-actions-column"></th></tr>
+                            <tr><th>Fonte</th><th>Tipo</th><th class="table-actions-column"></th></tr>
                         </thead>
                         <tbody>
                             @foreach ($servidor->listas as $lista)
                                 <tr>
                                     <td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td>
                                     <td>
-                                        <span class="status-pill is-inactive">{{ $lista->empresa_id ? 'Própria' : 'Catálogo' }}</span>
+                                        <span class="status-pill status-pill-normal-case {{ $lista->empresa_id ? 'is-active' : 'is-muted' }}">{{ $lista->empresa_id ? 'Própria' : 'Catálogo' }}</span>
                                     </td>
                                     <td>
                                         <form action="{{ route('servidores.listas.detach', [$servidor, $lista]) }}" method="POST">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover esta lista do servidor?')">Remover</button>
+                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover esta fonte do endpoint?')">Remover</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -132,21 +132,21 @@
         </div>
 
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Listas disponíveis para adicionar</h2></div>
+            <div class="panel-header"><h2>Fontes disponíveis para adicionar</h2></div>
             @if ($listasDisponiveis->isEmpty())
-                <div class="empty-state"><span>Nenhuma lista disponível no momento.</span></div>
+                <div class="empty-state"><span>Nenhuma fonte disponível no momento.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Lista</th><th>Tipo</th><th class="table-actions-column"></th></tr>
+                            <tr><th>Fonte</th><th>Tipo</th><th class="table-actions-column"></th></tr>
                         </thead>
                         <tbody>
                             @foreach ($listasDisponiveis as $lista)
                                 <tr>
                                     <td>{{ $lista->nome }}</td>
                                     <td>
-                                        <span class="status-pill is-inactive">{{ $lista->empresa_id ? 'Própria' : 'Catálogo' }}</span>
+                                        <span class="status-pill status-pill-normal-case {{ $lista->empresa_id ? 'is-active' : 'is-muted' }}">{{ $lista->empresa_id ? 'Própria' : 'Catálogo' }}</span>
                                     </td>
                                     <td>
                                         <form action="{{ route('servidores.listas.attach', [$servidor, $lista]) }}" method="POST">
@@ -189,8 +189,8 @@
                                     };
                                     $pillLabel = match($evento['tipo']) {
                                         'sync' => 'Sincronização',
-                                        'lista_add' => 'Lista +',
-                                        'lista_remove' => 'Lista -',
+                                        'lista_add' => 'Fonte +',
+                                        'lista_remove' => 'Fonte -',
                                         default => '-',
                                     };
                                 @endphp
@@ -214,7 +214,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 80 eventos. Detalhe domínio-por-domínio disponível no histórico de cada lista.</p>
+                <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 80 eventos. Detalhe domínio-por-domínio disponível no histórico de cada fonte.</p>
             @endif
         </div>
     </div>
