@@ -5,7 +5,7 @@
 @section('content')
     <div class="page-heading">
         <div>
-            <div class="page-eyebrow">Lista</div>
+            <div class="page-eyebrow">Fonte</div>
             <h1>Histórico de alterações</h1>
             <p><a href="{{ route('listas.show', $lista) }}" class="inline-link">&larr; {{ $lista->nome }}</a></p>
         </div>
@@ -80,7 +80,7 @@
                 <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#b87b28;display:inline-block"></span>Removidos</span>
             </div>
         </div>
-        <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" style="width:100%;height:auto;overflow:visible" role="img" aria-label="Domínios adicionados e removidos por dia">
+        <svg id="historico-chart" viewBox="0 0 {{ $chartW }} {{ $chartH }}" style="width:100%;height:auto;overflow:visible" role="img" aria-label="Domínios adicionados e removidos por dia">
             {{-- gridlines --}}
             @for ($g = 0; $g <= 5; $g++)
                 @php

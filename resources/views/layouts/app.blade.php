@@ -30,49 +30,71 @@
             <div id="sidebar-navigation">
                 <p class="sidebar-section-label">Visão geral</p>
                 <nav class="sidebar-nav">
-                    <a href="{{ route('dashboard') }}" class="sidebar-link @if(request()->routeIs('dashboard')) is-active @endif">Dashboard</a>
+                    <a href="{{ route('dashboard') }}" class="sidebar-link @if(request()->routeIs('dashboard')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</a>
                 </nav>
 
                 <p class="sidebar-section-label">Operação</p>
                 <nav class="sidebar-nav">
-                    <a href="{{ route('dominios.index') }}" class="sidebar-link @if(request()->routeIs('dominios.*') || request()->routeIs('consulta.*')) is-active @endif">Domínios</a>
-                    <a href="{{ route('listas.index') }}" class="sidebar-link @if(request()->routeIs('listas.*')) is-active @endif">Fontes</a>
-                    <span class="sidebar-link is-disabled" title="Em breve">Exceções <span class="sidebar-badge-soon">em breve</span></span>
-                    <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif">Endpoints RPZ</a>
+                    <a href="{{ route('dominios.index') }}" class="sidebar-link @if(request()->routeIs('dominios.*') || request()->routeIs('consulta.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/></svg>Domínios</a>
+                    <a href="{{ route('listas.index') }}" class="sidebar-link @if(request()->routeIs('listas.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg>Fontes</a>
+                    <span class="sidebar-link is-disabled" title="Em breve"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.5 5.5 13 13"/></svg>Exceções <span class="sidebar-badge-soon">em breve</span></span>
+                    <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg>Endpoints RPZ</a>
                 </nav>
 
                 <p class="sidebar-section-label">Gestão</p>
                 <nav class="sidebar-nav">
                     @if (auth()->user()->isAdmin())
-                    <a href="{{ route('empresas.index') }}" class="sidebar-link @if(request()->routeIs('empresas.*')) is-active @endif">Empresas</a>
+                    <a href="{{ route('empresas.index') }}" class="sidebar-link @if(request()->routeIs('empresas.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M18 21V9a1 1 0 0 0-1-1h-3"/><path d="M9 7h1"/><path d="M9 11h1"/><path d="M9 15h1"/></svg>Empresas</a>
                     @elseif (auth()->user()->empresa_id)
-                    <a href="{{ route('empresas.show', auth()->user()->empresa_id) }}" class="sidebar-link @if(request()->routeIs('empresas.*')) is-active @endif">Minha empresa</a>
+                    <a href="{{ route('empresas.show', auth()->user()->empresa_id) }}" class="sidebar-link @if(request()->routeIs('empresas.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M18 21V9a1 1 0 0 0-1-1h-3"/><path d="M9 7h1"/><path d="M9 11h1"/><path d="M9 15h1"/></svg>Minha empresa</a>
                     @endif
                     @if (auth()->user()->isAdmin())
-                    <a href="{{ route('licencas.index') }}" class="sidebar-link @if(request()->routeIs('licencas.*')) is-active @endif">Licenças</a>
-                    <a href="{{ route('usuarios.index') }}" class="sidebar-link @if(request()->routeIs('usuarios.*')) is-active @endif">Usuários</a>
+                    <a href="{{ route('licencas.index') }}" class="sidebar-link @if(request()->routeIs('licencas.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.5-8.5"/><path d="m16.5 6.5 2 2"/><path d="m14 9 2 2"/></svg>Licenças</a>
+                    <a href="{{ route('usuarios.index') }}" class="sidebar-link @if(request()->routeIs('usuarios.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg>Usuários</a>
                     @endif
-                    <a href="{{ route('sugestoes.index') }}" class="sidebar-link @if(request()->routeIs('sugestoes.*')) is-active @endif">Sugestões</a>
+                    <a href="{{ route('sugestoes.index') }}" class="sidebar-link @if(request()->routeIs('sugestoes.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 4-1.5 5.5-2 6.5h16c-.5-1-2-2.5-2-6.5Z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>Sugestões</a>
                 </nav>
 
                 @if (auth()->user()->isAdmin())
                 <p class="sidebar-section-label">Sistema</p>
                 <nav class="sidebar-nav">
-                    <a href="{{ route('auditoria.index') }}" class="sidebar-link @if(request()->routeIs('auditoria.*')) is-active @endif">Auditoria</a>
-                    <a href="{{ route('seguranca.index') }}" class="sidebar-link @if(request()->routeIs('seguranca.*')) is-active @endif">Segurança</a>
-                    <a href="{{ route('configuracoes.index') }}" class="sidebar-link @if(request()->routeIs('configuracoes.*')) is-active @endif">Configurações</a>
+                    <a href="{{ route('auditoria.index') }}" class="sidebar-link @if(request()->routeIs('auditoria.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>Auditoria</a>
+                    <a href="{{ route('seguranca.index') }}" class="sidebar-link @if(request()->routeIs('seguranca.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5V11c0 4.8 3.2 8.9 8 10 4.8-1.1 8-5.2 8-10V6.5Z"/></svg>Segurança</a>
+                    <a href="{{ route('configuracoes.index') }}" class="sidebar-link @if(request()->routeIs('configuracoes.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.37a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.63 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.63a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg>Configurações</a>
                 </nav>
                 @endif
             </div>
 
+            @php
+                $appVersion = json_decode(file_get_contents(base_path('composer.json')))->version ?? null;
+
+                // Ultimo resultado real do "php artisan health:check" (roda por timer,
+                // ver RUNBOOK.md) -- cacheado 5 min pra nao consultar a auditoria em
+                // toda carga de pagina (este rodape aparece em todas elas).
+                $ultimoHealthAction = \Illuminate\Support\Facades\Cache::remember('sidebar-health-status', 300, function () {
+                    return \App\Models\AuditLog::where('action', 'like', 'health.%')->orderByDesc('id')->value('action');
+                });
+                $ultimoHealth = $ultimoHealthAction !== null;
+                $sistemasOk = $ultimoHealthAction === 'health.ok';
+            @endphp
             <div class="sidebar-footer">
                 <div class="environment-status">
-                    <span class="status-dot"></span>
+                    <span class="status-dot @if($ultimoHealth && ! $sistemasOk) is-warning @endif"></span>
                     <div>
-                        <strong>RPZ Manager</strong>
-                        <span>Painel administrativo</span>
+                        <strong>DNS Panel RPZ</strong>
+                        @if ($ultimoHealth)
+                            <span>{{ $sistemasOk ? 'Todos os sistemas operacionais' : 'Alerta de saúde detectado' }}</span>
+                        @else
+                            <span>Aguardando primeira checagem</span>
+                        @endif
                     </div>
                 </div>
+                @if ($appVersion)
+                    <div class="sidebar-version">
+                        <span>v{{ $appVersion }}</span>
+                        <span class="sidebar-version-badge">Estável</span>
+                    </div>
+                @endif
             </div>
         </aside>
 
@@ -80,9 +102,9 @@
             <header class="app-topbar">
                 <button type="button" class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Abrir menu">&#9776;</button>
                 <div class="topbar-actions">
-                    <button type="button" class="topbar-icon-button theme-toggle" id="theme-toggle" aria-label="Alternar tema">
-                        <span class="theme-icon theme-icon-sun">&#9788;</span>
-                        <span class="theme-icon theme-icon-moon">&#9789;</span>
+                    <button type="button" class="theme-switch" id="theme-toggle" role="switch" aria-label="Alternar tema">
+                        <svg class="theme-switch-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v1.5M12 19.5V21M4.9 4.9l1.1 1.1M18 18l1.1 1.1M3 12h1.5M19.5 12H21M4.9 19.1 6 18M18 6l1.1-1.1"/></svg>
+                        <span class="theme-switch-thumb"></span>
                     </button>
 
                     <div class="account-menu">

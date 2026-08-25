@@ -14,7 +14,7 @@ class SugestaoDominioController extends Controller
 {
     private const DOMAIN_REGEX = '/^(?!-)[a-z0-9-]{1,63}(?<!-)(\\.[a-z0-9-]{1,63})*\\.[a-z]{2,63}$/i';
 
-    public function index(): View
+    public function index(Request $request): View
     {
         $user = Auth::user();
 
@@ -24,13 +24,20 @@ class SugestaoDominioController extends Controller
             $query->where('empresa_id', $user->empresa_id);
         }
 
-        $sugestoes = $query->paginate(20);
+        $statusFiltro = $request->query('status');
+        if (in_array($statusFiltro, ['pending', 'approved', 'rejected'], true)) {
+            $query->where('status', $statusFiltro);
+        } else {
+            $statusFiltro = null;
+        }
+
+        $sugestoes = $query->paginate(20)->withQueryString();
 
         $listasParaAprovar = $user->isAdmin()
             ? Lista::where('status', 'active')->orderBy('nome')->get()
             : collect();
 
-        return view('sugestoes.index', compact('sugestoes', 'listasParaAprovar'));
+        return view('sugestoes.index', compact('sugestoes', 'listasParaAprovar', 'statusFiltro'));
     }
 
     public function create(): View
@@ -83,7 +90,13 @@ class SugestaoDominioController extends Controller
         ]);
 
         $lista = Lista::findOrFail($data['lista_id']);
-        $lista->dominios()->firstOrCreate(['dominio' => $sugestao->dominio], ['ativo' => true]);
+        $dominio = $lista->dominios()->where('dominio', $sugestao->dominio)->first();
+
+        if ($dominio === null) {
+            $lista->dominios()->create(['dominio' => $sugestao->dominio, 'ativo' => true]);
+        } elseif (! $dominio->ativo) {
+            $dominio->update(['ativo' => true]);
+        }
 
         $sugestao->update([
             'status' => 'approved',

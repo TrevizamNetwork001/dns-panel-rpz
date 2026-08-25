@@ -147,7 +147,11 @@ class ListaHistoryTest extends TestCase
         $response->assertOk();
         $response->assertSee('Escala logarítmica');
 
-        preg_match_all('/<rect[^>]*height="([0-9.]+)"/', $response->getContent(), $matches);
+        // Escopado ao <svg id="historico-chart">...</svg> -- o restante da pagina
+        // (icones da sidebar, por exemplo) tambem pode conter <rect height="...">
+        // e nao deve entrar nessa medicao.
+        preg_match('/<svg id="historico-chart".*?<\/svg>/s', $response->getContent(), $svgMatch);
+        preg_match_all('/<rect[^>]*height="([0-9.]+)"/', $svgMatch[0] ?? '', $matches);
         $alturas = array_map('floatval', $matches[1]);
 
         $this->assertNotEmpty($alturas);
