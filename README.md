@@ -217,8 +217,3 @@ Lista completa: `php artisan route:list`.
 ## Identidade visual
 
 CSS em `public/assets/app.css` — subconjunto **copiado literalmente** (não reimplementado) do `app.css` real do IRCENTER: tokens de cor/tema dark-light, shell (sidebar/topbar), `.panel`, `.data-table`, `.status-pill`, formulários, dropdown de conta (`.account-menu`), seletor de avatar (`.avatar-picker`). Cache-busting automático via `?v={mtime}` no `<link>` — não precisa de hard refresh depois de mudanças no CSS.
-
-## Pendências conhecidas
-
-- **Notificação por Telegram** — hoje cobre só cadastro de empresa (ver seção "Notificação por Telegram" acima). Estender pra outros eventos (healthcheck, bans do fail2ban, sync quebrado) é próximo passo natural, reaproveitando o mesmo `TelegramNotifier`.
-- **Staging fixo** — decisão consciente de não manter uma VM de staging rodando 24/7 enquanto o projeto está em desenvolvimento (sem clientes reais dependendo dele ainda). O GitHub serve como staging sob demanda — ver seção "Subindo em uma VM nova" acima.
