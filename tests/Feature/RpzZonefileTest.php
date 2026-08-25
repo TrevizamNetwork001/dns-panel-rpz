@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Dominio;
 use App\Models\Empresa;
+use App\Models\Licenca;
 use App\Models\Lista;
 use App\Models\ServerAllowedIp;
 use App\Models\ServerSyncLog;
@@ -31,6 +32,23 @@ class RpzZonefileTest extends TestCase
     public function test_server_of_inactive_company_returns_404(): void
     {
         $empresa = Empresa::factory()->inactive()->create();
+        $servidor = Servidor::factory()->for($empresa)->create();
+
+        $this->get("/rpz/{$servidor->token}.zone")->assertStatus(404);
+    }
+
+    public function test_server_of_company_without_active_license_returns_404(): void
+    {
+        $empresa = Empresa::factory()->semLicencaAtiva()->create();
+        $servidor = Servidor::factory()->for($empresa)->create();
+
+        $this->get("/rpz/{$servidor->token}.zone")->assertStatus(404);
+    }
+
+    public function test_server_of_company_with_expired_license_returns_404(): void
+    {
+        $empresa = Empresa::factory()->semLicencaAtiva()->create();
+        Licenca::factory()->for($empresa)->expired()->create();
         $servidor = Servidor::factory()->for($empresa)->create();
 
         $this->get("/rpz/{$servidor->token}.zone")->assertStatus(404);

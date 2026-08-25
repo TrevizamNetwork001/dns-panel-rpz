@@ -36,4 +36,18 @@ class Empresa extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    /**
+     * Existe pelo menos uma licenca ativa e vigente (dentro de starts_at/expires_at)?
+     */
+    public function possuiLicencaAtiva(): bool
+    {
+        return $this->licencas()
+            ->where('status', 'active')
+            ->whereDate('starts_at', '<=', now())
+            ->where(function ($query) {
+                $query->whereNull('expires_at')->orWhereDate('expires_at', '>=', now());
+            })
+            ->exists();
+    }
 }

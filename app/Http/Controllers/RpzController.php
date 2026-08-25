@@ -21,9 +21,14 @@ class RpzController extends Controller
             ->whereHas('empresa', function ($query) {
                 $query->where('status', 'active');
             })
+            ->with('empresa')
             ->firstOrFail();
 
         if (! $servidor->ipAllowed($request->ip())) {
+            throw new NotFoundHttpException();
+        }
+
+        if (! $servidor->empresa->possuiLicencaAtiva()) {
             throw new NotFoundHttpException();
         }
 

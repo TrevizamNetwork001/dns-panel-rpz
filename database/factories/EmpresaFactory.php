@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Empresa;
+use App\Models\Licenca;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -22,6 +23,13 @@ class EmpresaFactory extends Factory
         ];
     }
 
+    public function configure(): static
+    {
+        return $this->afterCreating(function (Empresa $empresa) {
+            Licenca::factory()->for($empresa)->create();
+        });
+    }
+
     public function pending(): static
     {
         return $this->state(fn () => ['status' => 'pending']);
@@ -30,5 +38,12 @@ class EmpresaFactory extends Factory
     public function inactive(): static
     {
         return $this->state(fn () => ['status' => 'inactive']);
+    }
+
+    public function semLicencaAtiva(): static
+    {
+        return $this->afterCreating(function (Empresa $empresa) {
+            $empresa->licencas()->delete();
+        });
     }
 }
