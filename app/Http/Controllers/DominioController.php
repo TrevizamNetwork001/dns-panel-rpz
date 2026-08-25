@@ -35,9 +35,21 @@ class DominioController extends Controller
             return back()->withErrors(['dominio' => 'Domínio inválido.'])->withInput();
         }
 
-        $lista->dominios()->firstOrCreate(['dominio' => $normalized], ['ativo' => true]);
+        $dominio = $lista->dominios()->where('dominio', $normalized)->first();
 
-        return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio adicionado.');
+        if ($dominio === null) {
+            $lista->dominios()->create(['dominio' => $normalized, 'ativo' => true]);
+
+            return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio adicionado.');
+        }
+
+        if (! $dominio->ativo) {
+            $dominio->update(['ativo' => true]);
+
+            return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio já existia nesta fonte e estava inativo — foi reativado.');
+        }
+
+        return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio já cadastrado e ativo nesta fonte — nada foi alterado.');
     }
 
     public function bulkStore(Request $request, Lista $lista): RedirectResponse

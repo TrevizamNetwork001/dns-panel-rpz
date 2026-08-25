@@ -1118,6 +1118,29 @@ html[data-theme="light"] .avatar-option:has(input:checked) {
     text-transform: none;
 }
 
+/* Mini contadores compactos (ex: tela de Dominios) -- deliberadamente nao
+   sao cards grandes, so uma linha de chips acima da tabela/filtros. */
+.domain-counters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+
+.domain-counters span {
+    padding: 6px 12px;
+    border: 1px solid var(--border-soft);
+    border-radius: 20px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.domain-counters strong {
+    color: var(--text);
+    font-weight: 800;
+}
+
 .pagination-simple {
     display: flex;
     align-items: center;
