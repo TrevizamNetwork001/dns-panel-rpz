@@ -111,4 +111,51 @@ class ListaHistoryTest extends TestCase
         $response->assertSee('mostrando só o resumo');
         $response->assertDontSee('muitos-0.example');
     }
+
+    public function test_chart_keeps_small_days_visible_next_to_a_bulk_import_spike(): void
+    {
+        // Regressao: um import inicial de dezenas de milhares de dominios num
+        // unico dia esmagava a escala linear do grafico, deixando os dias
+        // seguintes (algumas centenas de dominios) com barra de altura ~0 --
+        // pareciam vazios mesmo tendo mudanca real. A escala log1p precisa
+        // manter esses dias com altura visivel.
+        $admin = User::factory()->admin()->create();
+        $lista = Lista::factory()->create();
+
+        $diaDoImport = now()->subDays(4);
+        $rows = [];
+        for ($i = 0; $i < 20000; $i++) {
+            $rows[] = [
+                'lista_id' => $lista->id,
+                'dominio' => "import-inicial-{$i}.example",
+                'ativo' => true,
+                'created_at' => $diaDoImport,
+                'updated_at' => $diaDoImport,
+            ];
+        }
+        foreach (array_chunk($rows, 1000) as $chunk) {
+            \Illuminate\Support\Facades\DB::table('dominios')->insert($chunk);
+        }
+
+        Dominio::factory()->for($lista)->count(50)->create([
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('listas.historico', $lista) . '?periodo=7dias');
+
+        $response->assertOk();
+        $response->assertSee('Escala logarítmica');
+
+        preg_match_all('/<rect[^>]*height="([0-9.]+)"/', $response->getContent(), $matches);
+        $alturas = array_map('floatval', $matches[1]);
+
+        $this->assertNotEmpty($alturas);
+        // plot area tem 180px de altura (chartH 220 - padT 12 - padB 28); o dia
+        // com 50 dominios precisa ficar bem acima de um squash quase-zero.
+        $this->assertTrue(
+            min($alturas) > 40,
+            'Esperava todas as barras com altura > 40px na escala log, menor altura foi ' . min($alturas)
+        );
+    }
 }

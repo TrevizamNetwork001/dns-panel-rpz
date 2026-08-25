@@ -54,13 +54,20 @@
         $plotH = $chartH - $padT - $padB;
 
         $maxValor = collect($diario)->flatMap(fn ($d) => [$d['adicionados'], $d['removidos']])->max() ?: 0;
-        $maxEixo = $maxValor === 0 ? 1 : (int) ceil($maxValor / 5) * 5;
+
+        // Escala logaritmica (log1p): um pico isolado de import inicial (dezenas
+        // de milhares de dominios num unico dia) nao pode esmagar os outros dias
+        // a zero visual numa escala linear. log1p aceita valor 0 sem quebrar.
+        $logMax = log(1 + max($maxValor, 1));
+        $usaEscalaLog = $maxValor > 0 && ($maxValor / max(1, collect($diario)->flatMap(fn ($d) => [$d['adicionados'], $d['removidos']])->filter(fn ($v) => $v > 0)->min() ?? 1)) > 20;
 
         $n = max(count($diario), 1);
         $groupW = $plotW / $n;
         $barW = min(24, ($groupW - 4) / 2);
 
-        $yFor = fn ($valor) => $padT + $plotH - ($maxEixo > 0 ? ($valor / $maxEixo) * $plotH : 0);
+        $yFor = $usaEscalaLog
+            ? fn ($valor) => $padT + $plotH - ($logMax > 0 ? (log(1 + max($valor, 0)) / $logMax) * $plotH : 0)
+            : fn ($valor) => $padT + $plotH - ($maxValor > 0 ? ($valor / $maxValor) * $plotH : 0);
 
         $mostrarLabelDia = fn ($i) => $n <= 10 || $i % (int) ceil($n / 10) === 0;
     @endphp
@@ -76,9 +83,15 @@
         <svg viewBox="0 0 {{ $chartW }} {{ $chartH }}" style="width:100%;height:auto;overflow:visible" role="img" aria-label="Domínios adicionados e removidos por dia">
             {{-- gridlines --}}
             @for ($g = 0; $g <= 5; $g++)
-                @php $gv = ($maxEixo / 5) * $g; @endphp
-                <line x1="{{ $padL }}" y1="{{ $yFor($gv) }}" x2="{{ $chartW - $padR }}" y2="{{ $yFor($gv) }}" stroke="var(--border)" stroke-width="1" />
-                <text x="{{ $padL - 8 }}" y="{{ $yFor($gv) + 3 }}" text-anchor="end" font-size="10" fill="var(--text-muted)">{{ number_format($gv, 0, ',', '.') }}</text>
+                @php
+                    $frac = $g / 5;
+                    $gy = $padT + $plotH - $frac * $plotH;
+                    $gv = $usaEscalaLog
+                        ? (int) round(exp($logMax * $frac) - 1)
+                        : (int) round($maxValor * $frac);
+                @endphp
+                <line x1="{{ $padL }}" y1="{{ $gy }}" x2="{{ $chartW - $padR }}" y2="{{ $gy }}" stroke="var(--border)" stroke-width="1" />
+                <text x="{{ $padL - 8 }}" y="{{ $gy + 3 }}" text-anchor="end" font-size="10" fill="var(--text-muted)">{{ number_format($gv, 0, ',', '.') }}</text>
             @endfor
 
             {{-- baseline --}}
@@ -110,7 +123,7 @@
                 @endif
             @endforeach
         </svg>
-        <p style="color:var(--text-muted);font-size:10px;margin-top:8px">Passe o mouse numa barra pra ver o valor exato. Sem barra = sem mudança naquele dia.</p>
+        <p style="color:var(--text-muted);font-size:10px;margin-top:8px">Passe o mouse numa barra pra ver o valor exato. Sem barra = sem mudança naquele dia.@if ($usaEscalaLog) Escala logarítmica — dias com poucas mudanças ficam maiores do que a proporção real com um pico isolado (ex: import inicial da lista).@endif</p>
     </div>
 
     @if (! $mostrarDetalhe)
