@@ -14,6 +14,10 @@
  @endif
 </div>
 
+@foreach($listas->where('anatel_pending_count','>',0) as $lista)
+<div class="panel"><div class="panel-header"><div><h2>Lote pendente · {{ $lista->nome }}</h2><p>{{ $lista->anatel_pending_count }} PDF(s) aguardando validação. A lista RPZ ainda não foi alterada.</p></div><a class="button button-primary" href="{{ route('anatel.batch',$lista) }}">Revisar lote e publicar</a></div></div>
+@endforeach
+
 @php $watch=array_values(array_filter(explode(',',request('watch','')),fn($id)=>ctype_digit($id))); @endphp
 @if($watch)
 <div class="panel" id="anatel-progress" data-ids="{{ implode(',',$watch) }}" data-url="{{ url('/anatel/imports') }}">
@@ -24,8 +28,8 @@
 <script>
 (()=>{const box=document.getElementById('anatel-progress'),ids=box.dataset.ids.split(','),bar=document.getElementById('progress-bar'),label=document.getElementById('progress-label'),result=document.getElementById('progress-result');
 async function poll(){const rows=await Promise.all(ids.map(id=>fetch(`${box.dataset.url}/${id}/status`,{headers:{Accept:'application/json'}}).then(r=>r.json())));const progress=Math.round(rows.reduce((n,r)=>n+Number(r.progress),0)/rows.length);bar.style.width=progress+'%';label.textContent=progress+'%';
-result.innerHTML=rows.map(r=>`<div style="margin-top:12px"><strong>${escapeHtml(r.filename)}</strong> — ${escapeHtml(r.status)}${r.status==='completed'?`<br>Concluído em ${r.finished_at}: <b>+${r.new}</b> novos, ${r.existing} existentes, ${r.reactivated} reativados, ${r.excluded} excluídos, ${r.invalid} inválidos. Total atual: <b>${r.total_active}</b>. Disponível para ${r.endpoints} endpoint(s) vinculado(s) na próxima sincronização. <a href="${r.new_url}">Ver novos domínios</a>`:''}</div>`).join('');
-if(rows.some(r=>!['completed','failed','blocked'].includes(r.status)))setTimeout(poll,1000);else setTimeout(()=>location.href='{{ route('anatel.dashboard') }}',5000);}
+result.innerHTML=rows.map(r=>`<div style="margin-top:12px"><strong>${escapeHtml(r.filename)}</strong> — ${escapeHtml(r.status)}${r.status==='awaiting_approval'?`<br>Prévia pronta: <b>+${r.new}</b> novos, ${r.existing} existentes, ${r.reactivated} reativados, ${r.excluded} excluídos e ${r.invalid} inválidos. <a class="button button-primary" href="${r.preview_url}">Revisar domínios</a>`:r.status==='completed'?`<br>Concluído em ${r.finished_at}. Total atual: <b>${r.total_active}</b>. Disponível para ${r.endpoints} endpoint(s).`:''}</div>`).join('');
+if(rows.some(r=>!['awaiting_approval','completed','failed','blocked','rejected'].includes(r.status)))setTimeout(poll,1000);}
 function escapeHtml(v){const d=document.createElement('div');d.textContent=String(v??'');return d.innerHTML;}poll().catch(()=>setTimeout(poll,2000));})();
 </script>
 @endif

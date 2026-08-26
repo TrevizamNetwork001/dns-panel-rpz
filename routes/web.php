@@ -55,6 +55,14 @@ Route::middleware('auth')->group(function () {
         Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');
         Route::post('/anatel/imports', [AnatelDashboardController::class, 'store'])->name('anatel.dashboard.store');
         Route::get('/anatel/imports/{import}/status', [AnatelDashboardController::class, 'status'])->name('anatel.dashboard.status');
+        Route::get('/anatel/imports/{import}/preview', [AnatelDashboardController::class, 'preview'])->name('anatel.preview');
+        Route::post('/anatel/imports/{import}/approve', [AnatelDashboardController::class, 'approve'])->name('anatel.approve');
+        Route::post('/anatel/imports/{import}/reject', [AnatelDashboardController::class, 'reject'])->name('anatel.reject');
+        Route::delete('/anatel/imports/{import}', [AnatelDashboardController::class, 'destroyPreview'])->name('anatel.preview.destroy');
+        Route::get('/anatel/imports/{import}/preview.txt', [AnatelDashboardController::class, 'downloadPreview'])->name('anatel.preview.download');
+        Route::get('/anatel/listas/{lista}/batch', [AnatelDashboardController::class, 'batchPreview'])->name('anatel.batch');
+        Route::post('/anatel/listas/{lista}/batch/publish', [AnatelDashboardController::class, 'publishBatch'])->name('anatel.batch.publish');
+        Route::post('/anatel/listas/{lista}/batch/reject', [AnatelDashboardController::class, 'rejectBatch'])->name('anatel.batch.reject');
         Route::resource('empresas', EmpresaController::class)->except(['show']);
         Route::resource('licencas', LicencaController::class);
         Route::resource('listas', ListaController::class)->except(['index', 'show']);
