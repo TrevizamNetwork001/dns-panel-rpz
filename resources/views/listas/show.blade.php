@@ -67,15 +67,9 @@
 
         @if ($lista->isAnatel())
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Importar PDFs da ANATEL</h2><div><a href="{{ route('anatel.exclusions',$lista) }}" class="button button-secondary">Exclusões</a> <a href="{{ route('anatel.history',$lista) }}" class="button button-secondary">Histórico</a></div></div>
+            <div class="panel-header"><h2>ANATEL / PDF</h2><div><a href="{{ route('anatel.exclusions',$lista) }}" class="button button-secondary">Exclusões</a> <a href="{{ route('anatel.history',$lista) }}" class="button button-secondary">Histórico</a></div></div>
             <p>{{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios ativos. A importação é incremental e nunca remove domínios ausentes de um PDF novo.</p>
-            @if(auth()->user()->isAdmin())
-            <form action="{{ route('anatel.imports.store',$lista) }}" method="POST" enctype="multipart/form-data">@csrf
-                <input class="form-control" type="file" name="pdfs[]" accept="application/pdf,.pdf" multiple required>
-                <p style="color:var(--text-muted);font-size:10px">Até {{ config('anatel.max_files') }} PDFs, {{ (int)(config('anatel.max_pdf_kb')/1024) }} MB cada. Armazenamento privado e deduplicação SHA-256.</p>
-                <button class="button button-primary" type="submit">Importar PDF</button>
-            </form>
-            @endif
+            @if(auth()->user()->isAdmin()) <a class="button button-primary" href="{{ route('anatel.dashboard') }}">Importar PDFs</a> @endif
         </div>
         @endif
 

@@ -11,6 +11,7 @@
         </div>
         <div class="page-actions">
             @if (auth()->user()->isAdmin())
+            <a href="{{ route('anatel.dashboard') }}" class="button button-secondary">Importar PDFs ANATEL</a>
             <a href="{{ route('listas.create') }}" class="button button-primary">+ Nova lista</a>
             @endif
         </div>

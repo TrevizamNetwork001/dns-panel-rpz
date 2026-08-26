@@ -21,6 +21,7 @@ cp /etc/logrotate.d/dns-panel-rpz deploy/logrotate/dns-panel-rpz
 - `nginx/dns-blocked-page.conf` — vhost `default_server` (catch-all) que serve a página estática "Esta página está bloqueada" (`/opt/dns-blocked-page`) para qualquer Host desconhecido — usado pelo modo `redirect` do RPZ. Reutiliza o certificado do Certbot de `rpz.trevizamnetwork.com.br`.
 - `systemd/dns-panel-rpz-backup.service` + `.timer` — backup diário do SQLite (03:30, retém 14 dias em `database/backups/`).
 - `systemd/dns-panel-rpz-external-sync.service` + `.timer` — sincroniza todas as listas externas ativas a cada 6h (`php artisan external:sync`, URL/formato configurável por lista).
+- `systemd/dns-panel-rpz-queue.service` — worker persistente da fila usada pela extração de PDFs ANATEL e pelo progresso da interface.
 - `fail2ban/jail.local` — jail do SSH (backend systemd/journal, 5 tentativas em 10min → ban de 1h) + hook customizado.
 - `fail2ban/dns-panel-hook.conf` — action do fail2ban que chama `php artisan security:log-ban` a cada ban/unban, alimentando a página `/seguranca` do painel.
 - `systemd/dns-panel-rpz-healthcheck.service` + `.timer` — healthcheck (disco, certificado TLS, disponibilidade do site) a cada 30min, rodando como root (`php artisan health:check`).

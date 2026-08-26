@@ -11,6 +11,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile as HttpUploadedFile;
+use Illuminate\Support\Facades\Queue;
+use App\Jobs\ProcessAnatelImport;
+use App\Services\AnatelImporter;
 use Tests\TestCase;
 
 class AnatelIntegrationTest extends TestCase
@@ -39,4 +42,6 @@ class AnatelIntegrationTest extends TestCase
  public function test_legacy_exclude_import_classifies_exact_regex_and_duplicates():void{$tmp=tempnam(sys_get_temp_dir(),'exclude_');file_put_contents($tmp,"xplus.biz\n^bad[0-9]+\\.example$\nxplus.biz\n[\n");$file=new HttpUploadedFile($tmp,'exclude_list.txt','text/plain',null,true);$this->actingAs($this->admin)->post(route('anatel.exclusions.legacy',$this->lista),['exclude_list'=>$file])->assertRedirect();$this->assertDatabaseHas('anatel_exclusions',['type'=>'exact','value'=>'xplus.biz']);$this->assertDatabaseHas('anatel_exclusions',['type'=>'regex','value'=>'^bad[0-9]+\\.example$']);$this->assertSame(2,$this->lista->anatelExclusions()->count());}
  public function test_rpz_uses_only_active_anatel_domains():void{$server=Servidor::factory()->create();$server->listas()->attach($this->lista);Dominio::factory()->for($this->lista)->create(['dominio'=>'ativo.example']);Dominio::factory()->for($this->lista)->inativo()->create(['dominio'=>'inativo.example']);$content=$this->get("/rpz/{$server->token}.zone")->getContent();$this->assertStringContainsString('ativo.example CNAME',$content);$this->assertStringNotContainsString('inativo.example',$content);}
  public function test_editing_paused_external_list_does_not_resume_sync():void{$external=Lista::factory()->externa()->create(['sync_ativo'=>false]);$this->actingAs($this->admin)->put("/listas/{$external->id}",['nome'=>'Renomeada','status'=>'active','origem'=>'externa','fonte_url'=>$external->fonte_url,'fonte_formato'=>'hostfile'])->assertRedirect();$this->assertFalse($external->fresh()->sync_ativo);}
+ public function test_central_upload_queues_import_for_selected_list():void{Queue::fake();$this->actingAs($this->admin)->post(route('anatel.dashboard.store'),['lista_id'=>$this->lista->id,'pdfs'=>[$this->pdf()]])->assertRedirect();$this->assertDatabaseHas('anatel_imports',['lista_id'=>$this->lista->id,'status'=>'pending','progress'=>0]);Queue::assertPushed(ProcessAnatelImport::class);}
+ public function test_queued_job_updates_progress_and_completes_import():void{$this->fakeExtractor(['fila.example']);$file=$this->pdf();$path=$file->storeAs('2026/08','job.pdf','anatel');$import=AnatelImport::create(['lista_id'=>$this->lista->id,'user_id'=>$this->admin->id,'original_filename'=>'job.pdf','storage_path'=>$path,'sha256'=>str_repeat('a',64),'size_bytes'=>100,'status'=>'pending','progress'=>0]);$job=new ProcessAnatelImport($import->id);$job->handle($this->app->make(AnatelPdfExtractor::class),$this->app->make(AnatelImporter::class));$this->assertDatabaseHas('anatel_imports',['id'=>$import->id,'status'=>'completed','progress'=>100,'new_count'=>1]);$this->assertDatabaseHas('dominios',['lista_id'=>$this->lista->id,'dominio'=>'fila.example','ativo'=>1]);}
 }

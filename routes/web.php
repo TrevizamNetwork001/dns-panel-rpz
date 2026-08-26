@@ -17,6 +17,7 @@ use App\Http\Controllers\RpzController;
 use App\Http\Controllers\SegurancaController;
 use App\Http\Controllers\AnatelController;
 use App\Http\Controllers\AnatelImportController;
+use App\Http\Controllers\AnatelDashboardController;
 use App\Http\Controllers\ServidorController;
 use Illuminate\Support\Facades\Route;
 
@@ -51,6 +52,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/consulta', [ConsultaController::class, 'index'])->name('consulta.index');
 
     Route::middleware('admin')->group(function () {
+        Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');
+        Route::post('/anatel/imports', [AnatelDashboardController::class, 'store'])->name('anatel.dashboard.store');
+        Route::get('/anatel/imports/{import}/status', [AnatelDashboardController::class, 'status'])->name('anatel.dashboard.status');
         Route::resource('empresas', EmpresaController::class)->except(['show']);
         Route::resource('licencas', LicencaController::class);
         Route::resource('listas', ListaController::class)->except(['index', 'show']);
