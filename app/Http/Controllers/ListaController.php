@@ -34,6 +34,9 @@ class ListaController extends Controller
     public function create(): View
     {
         $lista = new Lista();
+        if (request('origem') === 'anatel') {
+            $lista->forceFill(['nome' => 'ANATEL', 'origem' => 'anatel', 'status' => 'active']);
+        }
         $empresas = Empresa::orderBy('nome')->get();
 
         return view('listas.form', compact('lista', 'empresas'));

@@ -4,7 +4,7 @@
 <div class="page-heading"><div><div class="page-eyebrow">ANATEL</div><h1>Importar PDFs</h1><p>Atualize uma lista; endpoints já vinculados recebem os domínios na próxima sincronização.</p></div></div>
 <div class="panel">
  @if($listas->isEmpty())
-  <div class="empty-state"><span>Crie primeiro uma fonte do tipo ANATEL / PDF.</span></div>
+  <div class="empty-state"><span>Crie primeiro uma fonte do tipo ANATEL / PDF.</span><a href="{{ route('listas.create',['origem'=>'anatel']) }}" class="button button-primary">Criar fonte ANATEL</a></div>
  @else
  <form action="{{ route('anatel.dashboard.store') }}" method="POST" enctype="multipart/form-data">@csrf
   <div class="form-grid"><div class="field-group"><label for="lista_id">Lista de destino</label><select class="form-control" id="lista_id" name="lista_id" required>@foreach($listas as $lista)<option value="{{ $lista->id }}">{{ $lista->nome }} — {{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios — {{ $lista->servidores_count }} endpoint(s)</option>@endforeach</select></div>
