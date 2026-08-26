@@ -102,8 +102,11 @@
             <header class="app-topbar">
                 <button type="button" class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Abrir menu">&#9776;</button>
                 <div class="topbar-actions">
-                    <button type="button" class="theme-switch" id="theme-toggle" role="switch" aria-label="Alternar tema">
-                        <svg class="theme-switch-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v1.5M12 19.5V21M4.9 4.9l1.1 1.1M18 18l1.1 1.1M3 12h1.5M19.5 12H21M4.9 19.1 6 18M18 6l1.1-1.1"/></svg>
+                    <button type="button" class="theme-switch @if(request()->routeIs('dashboard') && auth()->user()->isAdmin()) is-dashboard-theme-switch @endif" id="theme-toggle" role="switch" aria-label="Alternar entre tema claro e escuro">
+                        <svg class="theme-switch-icon theme-switch-sun" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v1.5M12 19.5V21M4.9 4.9l1.1 1.1M18 18l1.1 1.1M3 12h1.5M19.5 12H21M4.9 19.1 6 18M18 6l1.1-1.1"/></svg>
+                        @if(request()->routeIs('dashboard') && auth()->user()->isAdmin())
+                            <svg class="theme-switch-icon theme-switch-moon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15.2A8.5 8.5 0 0 1 8.8 4a8.5 8.5 0 1 0 11.2 11.2Z"/></svg>
+                        @endif
                         <span class="theme-switch-thumb"></span>
                     </button>
 

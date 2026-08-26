@@ -3,11 +3,12 @@
 @section('title', 'Dashboard')
 
 @section('content')
+<div class="admin-dashboard">
     <div class="page-heading page-heading-dashboard">
         <div>
             <div class="page-eyebrow">Central de operações</div>
-            <h1>Visão geral</h1>
-            <p>Panorama central da distribuição RPZ com métricas, fontes e estado dos endpoints.</p>
+            <h1>Dashboard RPZ</h1>
+            <p>Panorama central da distribuição, fontes e endpoints.</p>
         </div>
     </div>
 
@@ -27,14 +28,13 @@
             </div>
             <div class="metric-value-row">
                 <div class="metric-value">{{ number_format($totalDominiosAtivos, 0, ',', '.') }}</div>
-                <svg class="metric-sparkline" viewBox="0 0 145 58" role="img" aria-label="Tendência crescente"><defs><linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".2"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><path class="sparkline-fill" d="M2 47 18 40 34 30 50 34 66 20 82 28 98 15 114 17 130 5 143 1V58H2Z"/><path d="M2 47 18 40 34 30 50 34 66 20 82 28 98 15 114 17 130 5 143 1"/></svg>
             </div>
             <div class="metric-footer"><span>{{ number_format($totalDominios, 0, ',', '.') }} cadastrados no total ({{ number_format($totalDominiosInativos, 0, ',', '.') }} inativos)</span></div>
         </div>
 
         <div class="metric-card">
             <div class="metric-card-header">
-                <div class="metric-card-title"><div class="metric-icon violet"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></div><span class="metric-label">Fontes ativas</span></div>
+                <div class="metric-card-title"><div class="metric-icon violet"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></div><span class="metric-label">{{ $totalListasAtivas === 1 ? 'Fonte ativa' : 'Fontes ativas' }}</span></div>
             </div>
             <div class="metric-value">{{ number_format($totalListasAtivas, 0, ',', '.') }} de {{ number_format($totalListasTotal, 0, ',', '.') }}</div>
             <div class="metric-footer"><span>{{ $percentFontes }}% das fontes habilitadas</span></div>
@@ -43,9 +43,9 @@
 
         <div class="metric-card">
             <div class="metric-card-header">
-                <div class="metric-card-title"><div class="metric-icon green"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg></div><span class="metric-label">Endpoints RPZ</span></div>
+                <div class="metric-card-title"><div class="metric-icon green"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg></div><span class="metric-label">{{ $totalServidoresAtivos === 1 ? 'Endpoint RPZ' : 'Endpoints RPZ' }}</span></div>
             </div>
-            <div class="metric-value">{{ number_format($totalServidoresAtivos, 0, ',', '.') }} <span class="metric-value-suffix">ativos</span></div>
+            <div class="metric-value">{{ number_format($totalServidoresAtivos, 0, ',', '.') }} <span class="metric-value-suffix">{{ $totalServidoresAtivos === 1 ? 'ativo' : 'ativos' }}</span></div>
             <div class="metric-footer">
                 <span>
                     @if ($servidoresAtencao > 0)
@@ -62,10 +62,10 @@
 
         <div class="metric-card">
             <div class="metric-card-header">
-                <div class="metric-card-title"><div class="metric-icon cyan"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M18 21V9a1 1 0 0 0-1-1h-3"/><path d="M9 7h1"/><path d="M9 11h1"/><path d="M9 15h1"/></svg></div><span class="metric-label">Empresas</span></div>
+                <div class="metric-card-title"><div class="metric-icon cyan"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M18 21V9a1 1 0 0 0-1-1h-3"/><path d="M9 7h1"/><path d="M9 11h1"/><path d="M9 15h1"/></svg></div><span class="metric-label">{{ $totalEmpresas === 1 ? 'Empresa' : 'Empresas' }}</span></div>
             </div>
-            <div class="metric-value">{{ number_format($totalEmpresas, 0, ',', '.') }} <span class="metric-value-suffix">ativas</span></div>
-            <div class="metric-footer"><span>{{ number_format($totalEmpresasTotal - $totalEmpresas, 0, ',', '.') }} inativas</span></div>
+            <div class="metric-value">{{ number_format($totalEmpresas, 0, ',', '.') }} <span class="metric-value-suffix">{{ $totalEmpresas === 1 ? 'ativa' : 'ativas' }}</span></div>
+            <div class="metric-footer"><span>{{ number_format($totalEmpresasTotal - $totalEmpresas, 0, ',', '.') }} {{ ($totalEmpresasTotal - $totalEmpresas) === 1 ? 'inativa' : 'inativas' }}</span></div>
             <div class="metric-progress"><div class="metric-progress-bar cyan" style="width:{{ $percentEmpresas }}%"></div></div>
         </div>
     </div>
@@ -80,7 +80,15 @@
                 <div class="empty-state"><span>Nenhuma fonte cadastrada ainda.</span></div>
             @else
                 <div class="table-responsive">
-                    <table class="data-table">
+                    <table class="data-table dashboard-sources-table">
+                        <colgroup>
+                            <col class="source-name-column">
+                            <col class="source-type-column">
+                            <col class="source-scope-column">
+                            <col class="source-count-column">
+                            <col class="source-updated-column">
+                            <col class="source-status-column">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th>Nome</th>
@@ -94,7 +102,7 @@
                         <tbody>
                             @foreach ($listas->take(4) as $lista)
                                 @php
-                                    $tipo = $lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo');
+                                    $tipo = $lista->isAnatel() ? 'Catálogo' : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'));
                                     $tipoClasse = match ($tipo) {
                                         'Externa' => 'is-info',
                                         'Própria' => 'is-active',
@@ -104,7 +112,7 @@
                                     $fonteAtiva = $lista->status === 'active';
                                 @endphp
                                 <tr>
-                                    <td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td>
+                                    <td class="source-name-cell"><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td>
                                     <td><span class="status-pill status-pill-normal-case {{ $tipoClasse }}">{{ $tipo }}</span></td>
                                     <td>{{ $lista->empresa?->nome ?? 'Global' }}</td>
                                     <td class="table-mono">{{ number_format($lista->dominios_ativos_count, 0, ',', '.') }}</td>
@@ -147,7 +155,7 @@
                             @foreach ($servidores->take(4) as $servidor)
                                 @php
                                     $dias = $servidor->diasSemSincronizar();
-                                    $statusLabel = $dias === null ? 'Offline' : ($dias >= 2 ? 'Atenção' : 'Normal');
+                                    $statusLabel = $dias === null ? 'Sem consulta' : ($dias >= 2 ? 'Atenção' : 'Normal');
                                     $statusClasse = $dias === null ? 'is-inactive' : ($dias >= 2 ? 'is-warning' : 'is-active');
                                 @endphp
                                 <tr>
@@ -163,6 +171,11 @@
                 @if ($servidores->count() > 4)
                     <p class="dashboard-table-footer">Mostrando 4 de {{ $servidores->count() }} endpoints</p>
                 @endif
+                <div class="endpoint-summary" aria-label="Resumo do estado dos endpoints">
+                    <span><i class="summary-dot is-normal"></i><strong>{{ number_format($resumoEndpoints['normal'], 0, ',', '.') }}</strong> Normal</span>
+                    <span><i class="summary-dot is-warning"></i><strong>{{ number_format($resumoEndpoints['atencao'], 0, ',', '.') }}</strong> Atenção</span>
+                    <span><i class="summary-dot is-muted"></i><strong>{{ number_format($resumoEndpoints['sem_consulta'], 0, ',', '.') }}</strong> Sem consulta</span>
+                </div>
             @endif
         </div>
     </div>
@@ -203,4 +216,5 @@
             </div>
         @endif
     </div>
+</div>
 @endsection

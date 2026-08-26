@@ -52,6 +52,16 @@ class DashboardController extends Controller
             ->take(10)
             ->get();
 
+        $resumoEndpoints = [
+            'normal' => Servidor::whereNotNull('last_synced_at')
+                ->where('last_synced_at', '>', now()->subDays(2))
+                ->count(),
+            'atencao' => Servidor::whereNotNull('last_synced_at')
+                ->where('last_synced_at', '<=', now()->subDays(2))
+                ->count(),
+            'sem_consulta' => Servidor::whereNull('last_synced_at')->count(),
+        ];
+
         $totalEmpresasTotal = Empresa::count();
 
         $atividadeRecente = $this->atividadeRecente();
@@ -68,6 +78,7 @@ class DashboardController extends Controller
             'totalDominiosAtivos',
             'listas',
             'servidores',
+            'resumoEndpoints',
             'atividadeRecente',
         ));
     }
@@ -196,13 +207,13 @@ class DashboardController extends Controller
                     'titulo' => 'Endpoint consultou RPZ',
                     'icone' => 'endpoint',
                     'cor' => 'violet',
-                    'descricao' => "{$nome} consultou o RPZ com sucesso ({$log->dominios_count} domínios entregues)",
+                    'descricao' => "{$nome} consultou o RPZ com sucesso (".number_format($log->dominios_count, 0, ',', '.').' domínios entregues)',
                 ];
             });
 
         return $auditoria->concat($sincronizacoes)
             ->sortByDesc('timestamp')
-            ->take(8)
+            ->take(5)
             ->values();
     }
 
