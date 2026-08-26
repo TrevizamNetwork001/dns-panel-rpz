@@ -27,4 +27,21 @@ class Licenca extends Model
     {
         return $this->belongsTo(Empresa::class);
     }
+
+    public function expirationSummary(): ?string
+    {
+        if ($this->expires_at === null) {
+            return null;
+        }
+
+        $days = (int) today()->startOfDay()->diffInDays($this->expires_at->startOfDay(), false);
+
+        return match (true) {
+            $days > 1 => "{$days} dias restantes",
+            $days === 1 => '1 dia restante',
+            $days === 0 => 'Expira hoje',
+            $days === -1 => 'Expirada há 1 dia',
+            default => 'Expirada há '.abs($days).' dias',
+        };
+    }
 }

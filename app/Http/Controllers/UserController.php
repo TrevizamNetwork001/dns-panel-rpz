@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -56,6 +57,10 @@ class UserController extends Controller
     {
         $data = $this->validated($request, $usuario);
 
+        if ($usuario->isAdmin() && $data['role'] === 'cliente' && User::where('role', 'admin')->count() <= 1) {
+            return back()->withErrors(['role' => 'Não é possível rebaixar o último administrador.']);
+        }
+
         $usuario->update($data);
 
         AuditLog::record('user.updated', "Usuário {$usuario->email} atualizado", $usuario->empresa_id, 'user', $usuario->id);
@@ -94,13 +99,13 @@ class UserController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email' . ($usuario ? ",{$usuario->id}" : '')],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'.($usuario ? ",{$usuario->id}" : '')],
             'role' => ['required', 'in:admin,cliente'],
             'empresa_id' => ['nullable', 'exists:empresas,id'],
         ]);
 
         if ($data['role'] === 'cliente' && ! $data['empresa_id']) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'empresa_id' => 'Usuário cliente precisa estar vinculado a uma empresa.',
             ]);
         }

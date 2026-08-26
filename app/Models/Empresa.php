@@ -37,6 +37,23 @@ class Empresa extends Model
         return $this->hasMany(User::class);
     }
 
+    public function documentoFormatado(): ?string
+    {
+        if ($this->documento === null || $this->documento === '') {
+            return null;
+        }
+
+        $documento = trim($this->documento);
+
+        if (! preg_match('/^(?:\d{14}|\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})$/', $documento)) {
+            return $this->documento;
+        }
+
+        $digits = preg_replace('/\D/', '', $documento);
+
+        return preg_replace('/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/', '$1.$2.$3/$4-$5', $digits);
+    }
+
     /**
      * Existe pelo menos uma licenca ativa e vigente (dentro de starts_at/expires_at)?
      */

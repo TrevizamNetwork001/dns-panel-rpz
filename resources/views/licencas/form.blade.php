@@ -39,7 +39,7 @@
                 </div>
 
                 <div class="field-group">
-                    <label for="max_servidores">Máximo de servidores</label>
+                    <label for="max_servidores">Máximo de Endpoints RPZ</label>
                     <input class="form-control" type="number" id="max_servidores" name="max_servidores" min="1" value="{{ old('max_servidores', $licenca->max_servidores ?? 1) }}" required>
                 </div>
 

@@ -3,11 +3,10 @@
 @section('title', 'Licenças')
 
 @section('content')
-    <div class="page-heading">
+    <div class="page-heading page-heading-compact">
         <div>
-            <div class="page-eyebrow">Gestão</div>
             <h1>Licenças</h1>
-            <p>Licenças ativas por empresa.</p>
+            <p>{{ $licencas->total() }} cadastradas</p>
         </div>
         <div class="page-actions">
             <a href="{{ route('licencas.create') }}" class="button button-primary">+ Nova licença</a>
@@ -20,7 +19,7 @@
                 <div class="empty-state-icon">+</div>
                 <div>
                     <strong>Nenhuma licença cadastrada</strong>
-                    <span>Cadastre a primeira licença para liberar o cadastro de servidores da empresa.</span>
+                    <span>Cadastre a primeira licença para liberar o cadastro de endpoints da empresa.</span>
                 </div>
             </div>
         @else
@@ -29,34 +28,48 @@
                     <thead>
                         <tr>
                             <th>Empresa</th>
-                            <th>Início</th>
-                            <th>Expiração</th>
-                            <th>Máx. servidores</th>
+                            <th>Validade</th>
+                            <th>Uso</th>
                             <th>Status</th>
                             <th class="table-actions-column"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($licencas as $licenca)
+                            @php
+                                $statusLabel = match ($licenca->status) {
+                                    'active' => 'Ativa',
+                                    'inactive' => 'Inativa',
+                                    'expired' => 'Expirada',
+                                    default => ucfirst($licenca->status),
+                                };
+                                $statusClasse = match ($licenca->status) {
+                                    'active' => 'is-active',
+                                    'expired' => 'is-inactive',
+                                    default => 'is-muted',
+                                };
+                                $usoAtual = $licenca->empresa?->servidores_count ?? 0;
+                            @endphp
                             <tr>
                                 <td>{{ $licenca->empresa->nome }}</td>
-                                <td>{{ $licenca->starts_at->format('d/m/Y') }}</td>
-                                <td>{{ optional($licenca->expires_at)->format('d/m/Y') ?? '-' }}</td>
-                                <td>{{ $licenca->max_servidores }}</td>
                                 <td>
-                                    <span class="status-pill @if($licenca->status === 'active') is-active @else is-inactive @endif">
-                                        {{ $licenca->status }}
-                                    </span>
+                                    <div class="table-mono">{{ $licenca->starts_at->format('d/m/Y') }} → {{ optional($licenca->expires_at)->format('d/m/Y') ?? 'sem prazo' }}</div>
+                                    @if ($licenca->expirationSummary() !== null)
+                                        <span class="table-secondary-text">{{ $licenca->expirationSummary() }}</span>
+                                    @endif
                                 </td>
+                                <td class="table-mono">{{ $usoAtual }} de {{ $licenca->max_servidores }} {{ $licenca->max_servidores === 1 ? 'endpoint utilizado' : 'endpoints utilizados' }}</td>
+                                <td><span class="status-pill {{ $statusClasse }}">{{ $statusLabel }}</span></td>
                                 <td>
-                                    <div class="table-actions">
-                                        <a href="{{ route('licencas.edit', $licenca) }}" class="table-action-link">Editar</a>
+                                    <x-actions-menu label="Ações da licença de {{ $licenca->empresa->nome }}">
+                                        <a href="{{ route('licencas.edit', $licenca) }}" class="actions-menu-item">Editar</a>
+                                        <div class="actions-menu-divider"></div>
                                         <form action="{{ route('licencas.destroy', $licenca) }}" method="POST">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover licença?')">Remover</button>
+                                            <button type="submit" class="actions-menu-item actions-menu-item-danger" onclick="return confirm('Remover licença?')">Remover</button>
                                         </form>
-                                    </div>
+                                    </x-actions-menu>
                                 </td>
                             </tr>
                         @endforeach

@@ -13,9 +13,10 @@ class EmpresaController extends Controller
 {
     public function index(): View
     {
-        $empresas = Empresa::orderBy('nome')->paginate(20);
+        $empresasAtivas = Empresa::where('status', 'active')->count();
+        $empresas = Empresa::withCount('servidores')->orderBy('nome')->paginate(20);
 
-        return view('empresas.index', compact('empresas'));
+        return view('empresas.index', compact('empresas', 'empresasAtivas'));
     }
 
     public function create(): View

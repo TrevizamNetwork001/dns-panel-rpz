@@ -13,7 +13,9 @@ class LicencaController extends Controller
 {
     public function index(): View
     {
-        $licencas = Licenca::with('empresa')->orderByDesc('id')->paginate(20);
+        $licencas = Licenca::with(['empresa' => fn ($q) => $q->withCount('servidores')])
+            ->orderByDesc('id')
+            ->paginate(20);
 
         return view('licencas.index', compact('licencas'));
     }
