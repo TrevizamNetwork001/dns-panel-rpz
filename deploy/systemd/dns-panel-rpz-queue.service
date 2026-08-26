@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=devops
+User=www-data
 Group=www-data
 WorkingDirectory=/opt/dns-panel-rpz
 ExecStart=/usr/bin/php /opt/dns-panel-rpz/artisan queue:work database --sleep=1 --tries=1 --timeout=180
