@@ -107,8 +107,8 @@
                         <span class="theme-switch-thumb"></span>
                     </button>
 
-                    <div class="account-menu">
-                        <button type="button" class="account-menu-toggle user-menu" id="account-menu-toggle" data-actions-menu-toggle aria-controls="account-menu-dropdown" aria-haspopup="true" aria-expanded="false">
+                    <details class="account-menu">
+                        <summary class="account-menu-toggle user-menu" aria-label="Abrir menu da conta">
                             <span class="user-avatar @if(auth()->user()->avatar) has-symbol @endif">
                                 @if (auth()->user()->avatarSymbol())
                                     <span class="user-avatar-symbol">{{ auth()->user()->avatarSymbol() }}</span>
@@ -121,8 +121,8 @@
                                 <span>{{ auth()->user()->isAdmin() ? 'Administrador' : 'Cliente' }}</span>
                             </span>
                             <span class="account-menu-chevron">&#9662;</span>
-                        </button>
-                        <div class="account-menu-dropdown" id="account-menu-dropdown" data-actions-menu-dropdown hidden>
+                        </summary>
+                        <div class="account-menu-dropdown">
                             <div class="account-menu-header">
                                 <strong>{{ auth()->user()->name }}</strong>
                                 <span>{{ auth()->user()->email }}</span>
@@ -135,7 +135,7 @@
                                 <button type="submit" class="account-menu-item account-menu-logout" style="width:100%">Sair</button>
                             </form>
                         </div>
-                    </div>
+                    </details>
                 </div>
             </header>
 

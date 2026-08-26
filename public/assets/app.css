@@ -433,10 +433,15 @@ html[data-theme="light"] .login-card {
     background: transparent;
     cursor: pointer;
     text-align: left;
+    list-style: none;
+}
+
+.account-menu-toggle::-webkit-details-marker {
+    display: none;
 }
 
 .account-menu-toggle:hover,
-.account-menu-toggle[aria-expanded="true"] {
+.account-menu[open] .account-menu-toggle {
     border-color: var(--border-soft);
     background: var(--surface);
 }
@@ -448,15 +453,14 @@ html[data-theme="light"] .login-card {
     transition: transform 150ms ease;
 }
 
-.account-menu-toggle[aria-expanded="true"] .account-menu-chevron {
+.account-menu[open] .account-menu-chevron {
     transform: rotate(180deg);
 }
 
 .account-menu-dropdown {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: auto;
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
     z-index: 80;
     width: 230px;
     padding: 8px;
@@ -464,10 +468,6 @@ html[data-theme="light"] .login-card {
     border-radius: 12px;
     background: var(--surface);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
-}
-
-.account-menu-dropdown[hidden] {
-    display: none;
 }
 
 .account-menu-header {
