@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ServidorController extends Controller
@@ -24,9 +25,10 @@ class ServidorController extends Controller
             $query->where('empresa_id', $user->empresa_id);
         }
 
+        $servidoresAtivos = (clone $query)->where('status', 'active')->count();
         $servidores = $query->paginate(20);
 
-        return view('servidores.index', compact('servidores'));
+        return view('servidores.index', compact('servidores', 'servidoresAtivos'));
     }
 
     public function create(): View
@@ -53,6 +55,8 @@ class ServidorController extends Controller
     {
         $user = Auth::user();
         $data = $this->validated($request, $user);
+        $listaIds = $data['lista_ids'] ?? [];
+        unset($data['lista_ids']);
 
         if ($user->isCliente()) {
             $data['empresa_id'] = $user->empresa_id;
@@ -63,7 +67,7 @@ class ServidorController extends Controller
         }
 
         $servidor = Servidor::create($data);
-        $servidor->listas()->sync($request->input('lista_ids', []));
+        $servidor->listas()->sync($listaIds);
 
         AuditLog::record('servidor.created', "Servidor \"{$servidor->nome}\" criado", $servidor->empresa_id, 'servidor', $servidor->id);
 
@@ -107,13 +111,15 @@ class ServidorController extends Controller
 
         $user = Auth::user();
         $data = $this->validated($request, $user);
+        $listaIds = $data['lista_ids'] ?? [];
+        unset($data['lista_ids']);
 
         if ($user->isCliente()) {
             $data['empresa_id'] = $user->empresa_id;
         }
 
         $servidor->update($data);
-        $servidor->listas()->sync($request->input('lista_ids', []));
+        $servidor->listas()->sync($listaIds);
 
         AuditLog::record('servidor.updated', "Servidor \"{$servidor->nome}\" atualizado", $servidor->empresa_id, 'servidor', $servidor->id);
 
@@ -334,6 +340,8 @@ class ServidorController extends Controller
 
     private function validated(Request $request, $user): array
     {
+        $empresaId = $user->isAdmin() ? $request->input('empresa_id') : $user->empresa_id;
+
         $rules = [
             'nome' => ['required', 'string', 'max:255'],
             'status' => ['required', 'in:active,inactive'],
@@ -341,6 +349,17 @@ class ServidorController extends Controller
             'bloqueio_modo' => ['required', 'in:nxdomain,redirect'],
             'ip_v4' => ['nullable', 'ip'],
             'ip_v6' => ['nullable', 'ip'],
+            'lista_ids' => ['nullable', 'array'],
+            'lista_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('listas', 'id')->where(function ($query) use ($empresaId) {
+                    $query->where('status', 'active')
+                        ->where(function ($scope) use ($empresaId) {
+                            $scope->whereNull('empresa_id')->orWhere('empresa_id', $empresaId);
+                        });
+                }),
+            ],
         ];
 
         if ($user->isAdmin()) {

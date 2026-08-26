@@ -7,6 +7,7 @@
     $rpzUrl = url('/rpz/' . $servidor->token . '.zone');
     $rpzZoneName = $panelHost;
     $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
+    $diasSemConsulta = $servidor->diasSemSincronizar();
 @endphp
 
 @section('content')
@@ -24,14 +25,46 @@
     <div class="details-grid">
         <div class="panel">
             <div class="panel-header"><h2>Status</h2></div>
-            <span class="status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
-                {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
-            </span>
+            @if (auth()->user()->isAdmin())
+                @php
+                    $estadoOperacional = $diasSemConsulta === null ? 'Sem consulta' : ($diasSemConsulta >= 2 ? 'Atenção' : 'Normal');
+                    $classeOperacional = $diasSemConsulta === null ? 'is-muted' : ($diasSemConsulta >= 2 ? 'is-warning' : 'is-active');
+                @endphp
+                <div class="endpoint-detail-statuses">
+                    <div><span>Status cadastral</span><strong class="status-pill {{ $servidor->status === 'active' ? 'is-active' : 'is-inactive' }}">{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}</strong></div>
+                    <div><span>Estado operacional</span><strong class="status-pill {{ $classeOperacional }}">{{ $estadoOperacional }}</strong></div>
+                </div>
+            @else
+                <span class="status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
+                    {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
+                </span>
+            @endif
             <dl class="details-list" style="margin-top:14px">
-                <div><dt>Última sincronização</dt><dd>{{ optional($servidor->last_synced_at)->format('d/m/Y H:i:s') ?? 'nunca' }}</dd></div>
+                <div><dt>Última consulta</dt><dd>{{ auth()->user()->isAdmin() ? \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) : (optional($servidor->last_synced_at)->format('d/m/Y H:i:s') ?? 'nunca') }}</dd></div>
                 <div><dt>Modo de bloqueio</dt><dd>{{ $servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN' }}</dd></div>
             </dl>
         </div>
+
+        @if (auth()->user()->isAdmin())
+        <div class="panel details-card-wide admin-endpoint-access">
+            <div class="panel-header"><h2>Acesso RPZ</h2></div>
+            <div class="field-group">
+                <label>URL RPZ</label>
+                <div class="endpoint-secret-row">
+                    <input class="endpoint-code-field" id="detail-rpz-url" type="text" value="{{ $rpzUrl }}" readonly spellcheck="false">
+                    <button type="button" class="button button-secondary" data-endpoint-copy="detail-rpz-url" aria-live="polite">Copiar</button>
+                </div>
+            </div>
+            <div class="field-group" style="margin-top:14px">
+                <label>Token</label>
+                <div class="endpoint-secret-row">
+                    <code class="endpoint-code-field endpoint-token-field" id="detail-token-value">••••••••••••••••••••••••••••</code>
+                    <button type="button" class="button button-secondary" id="detail-token-toggle">Mostrar</button>
+                    <button type="button" class="button button-secondary" data-endpoint-copy="detail-token-value" aria-live="polite">Copiar</button>
+                </div>
+            </div>
+        </div>
+        @endif
 
         <div class="panel details-card-wide">
             <div class="panel-header">
@@ -41,7 +74,11 @@
             <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
                 Cole este bloco no <code>unbound.conf</code> do servidor do cliente, <strong>depois</strong> do fim do bloco <code>server:</code> (antes dele, se usar <code>hyperlocal</code>). O Unbound vai buscar a zona periodicamente sozinho — não precisa de agente nem SSH. Antes de reiniciar o serviço, rode <code>unbound-checkconf</code> para garantir que a configuração está correta.
             </p>
-            <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $configSnippet }}</pre>
+            @if (auth()->user()->isAdmin())
+                <pre class="endpoint-config-snippet" id="config-snippet">{{ str_replace($servidor->token, '••••••••••••', $configSnippet) }}</pre>
+            @else
+                <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $configSnippet }}</pre>
+            @endif
             <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $rpzUrl }}</code></p>
         </div>
 
@@ -111,10 +148,11 @@
                         </thead>
                         <tbody>
                             @foreach ($servidor->listas as $lista)
+                                @php $tipoFonte = auth()->user()->isAdmin() ? ($lista->isAnatel() ? 'Catálogo / Importação ANATEL' : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'))) : ($lista->empresa_id ? 'Própria' : 'Catálogo'); @endphp
                                 <tr>
                                     <td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td>
                                     <td>
-                                        <span class="status-pill status-pill-normal-case {{ $lista->empresa_id ? 'is-active' : 'is-muted' }}">{{ $lista->empresa_id ? 'Própria' : 'Catálogo' }}</span>
+                                        <span class="status-pill status-pill-normal-case {{ auth()->user()->isAdmin() && $lista->isExterna() ? 'is-info' : ($lista->empresa_id ? 'is-active' : 'is-muted') }}">{{ $tipoFonte }}</span>
                                     </td>
                                     <td>
                                         <form action="{{ route('servidores.listas.detach', [$servidor, $lista]) }}" method="POST">
@@ -143,10 +181,11 @@
                         </thead>
                         <tbody>
                             @foreach ($listasDisponiveis as $lista)
+                                @php $tipoFonte = auth()->user()->isAdmin() ? ($lista->isAnatel() ? 'Catálogo / Importação ANATEL' : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'))) : ($lista->empresa_id ? 'Própria' : 'Catálogo'); @endphp
                                 <tr>
                                     <td>{{ $lista->nome }}</td>
                                     <td>
-                                        <span class="status-pill status-pill-normal-case {{ $lista->empresa_id ? 'is-active' : 'is-muted' }}">{{ $lista->empresa_id ? 'Própria' : 'Catálogo' }}</span>
+                                        <span class="status-pill status-pill-normal-case {{ auth()->user()->isAdmin() && $lista->isExterna() ? 'is-info' : ($lista->empresa_id ? 'is-active' : 'is-muted') }}">{{ $tipoFonte }}</span>
                                     </td>
                                     <td>
                                         <form action="{{ route('servidores.listas.attach', [$servidor, $lista]) }}" method="POST">
@@ -221,17 +260,44 @@
 
     <script>
         (function () {
+            var detailEndpointToken = @json(auth()->user()->isAdmin() ? $servidor->token : null);
+            var endpointConfigSnippet = @json($configSnippet);
             var btn = document.getElementById('copy-config-btn');
-            if (!btn) return;
-            btn.addEventListener('click', function () {
-                var target = document.getElementById(btn.dataset.copyTarget);
-                if (!target) return;
-                navigator.clipboard.writeText(target.textContent).then(function () {
-                    var original = btn.textContent;
-                    btn.textContent = 'Copiado!';
-                    setTimeout(function () { btn.textContent = original; }, 1500);
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    navigator.clipboard.writeText(endpointConfigSnippet).then(function () {
+                        var original = btn.textContent;
+                        btn.textContent = 'Copiado!';
+                        setTimeout(function () { btn.textContent = original; }, 1500);
+                    });
+                });
+            }
+
+            document.querySelectorAll('[data-endpoint-copy]').forEach(function (copyButton) {
+                copyButton.addEventListener('click', function () {
+                    var target = document.getElementById(copyButton.dataset.endpointCopy);
+                    if (!target) return;
+                    var copyValue = target.id === 'detail-token-value' && detailEndpointToken
+                        ? detailEndpointToken
+                        : ('value' in target ? target.value : target.textContent).trim();
+                    navigator.clipboard.writeText(copyValue).then(function () {
+                        var original = copyButton.textContent;
+                        copyButton.textContent = 'Copiado!';
+                        setTimeout(function () { copyButton.textContent = original; }, 1500);
+                    });
                 });
             });
+
+            var tokenToggle = document.getElementById('detail-token-toggle');
+            var tokenValue = document.getElementById('detail-token-value');
+            if (tokenToggle && tokenValue && detailEndpointToken) {
+                var detailTokenVisible = false;
+                tokenToggle.addEventListener('click', function () {
+                    detailTokenVisible = !detailTokenVisible;
+                    tokenValue.textContent = detailTokenVisible ? detailEndpointToken : '••••••••••••••••••••••••••••';
+                    tokenToggle.textContent = detailTokenVisible ? 'Ocultar' : 'Mostrar';
+                });
+            }
         })();
     </script>
 @endsection

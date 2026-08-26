@@ -1456,6 +1456,163 @@ html[data-theme="light"] .theme-switch-thumb {
     opacity: 0.45;
 }
 
+/* ---------- Endpoints RPZ / acabamento administrativo ---------- */
+
+.admin-endpoints-table .endpoint-status-stack {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.admin-endpoints-table th {
+    padding-top: 11px;
+    padding-bottom: 11px;
+}
+
+.admin-endpoints-table td {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.admin-endpoints-table .endpoint-status-stack small {
+    color: var(--text-muted);
+    font-size: 8.5px;
+    white-space: nowrap;
+}
+
+.admin-endpoint-form .endpoint-static-field,
+.endpoint-code-field {
+    display: flex;
+    width: 100%;
+    min-height: 42px;
+    align-items: center;
+    padding: 0 13px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    color: var(--text-soft);
+}
+
+.admin-endpoint-form .endpoint-static-field {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.endpoint-code-field {
+    min-width: 0;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+input.endpoint-code-field {
+    outline: none;
+}
+
+input.endpoint-code-field:focus {
+    border-color: rgba(33, 199, 232, 0.55);
+}
+
+.endpoint-secret-row {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.endpoint-secret-row .endpoint-code-field {
+    flex: 1;
+}
+
+.endpoint-token-field {
+    width: auto;
+}
+
+.endpoint-form-note {
+    margin: 8px 0 0;
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.endpoint-sources-heading {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.endpoint-sources-heading #fontes-selecionadas-count {
+    padding-left: 14px;
+    border-left: 1px solid var(--border-soft);
+    white-space: nowrap;
+}
+
+.endpoint-selection-action {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.endpoint-detail-statuses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.endpoint-detail-statuses > div {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.endpoint-detail-statuses > div > span {
+    color: var(--text-muted);
+    font-size: 9px;
+}
+
+.endpoint-config-snippet {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow-x: auto;
+    background: var(--surface-soft);
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    white-space: pre;
+}
+
+@media (max-width: 640px) {
+    .endpoint-secret-row {
+        align-items: stretch;
+        flex-wrap: wrap;
+    }
+
+    .endpoint-secret-row .endpoint-code-field {
+        flex-basis: 100%;
+    }
+
+    .endpoint-sources-heading {
+        width: 100%;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+    }
+
+    .endpoint-sources-heading #fontes-selecionadas-count {
+        width: 100%;
+        padding-left: 0;
+        border-left: 0;
+    }
+}
+
 .admin-domains-pagination .pagination-simple {
     gap: 8px;
     justify-content: center;

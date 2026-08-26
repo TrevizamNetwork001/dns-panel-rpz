@@ -13,7 +13,7 @@
         </div>
     </div>
 
-    <div class="panel">
+    <div class="panel @if(auth()->user()->isAdmin()) admin-endpoints-page @endif">
         @if ($servidores->isEmpty())
             <div class="empty-state empty-state-large">
                 <div class="empty-state-icon">+</div>
@@ -24,7 +24,7 @@
             </div>
         @else
             <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table @if(auth()->user()->isAdmin()) admin-endpoints-table @endif">
                     <thead>
                         <tr>
                             <th>Nome</th>
@@ -49,20 +49,38 @@
                                     @endif
                                 </td>
                                 <td class="table-mono">
-                                    <div>{{ optional($servidor->last_synced_at)->format('d/m/Y H:i') ?? 'nunca' }}</div>
-                                    @if ($dias === null)
-                                        <span class="status-pill is-inactive" style="margin-top:4px">Sem consulta</span>
-                                    @elseif ($dias >= 2)
-                                        <span class="status-pill is-warning" style="margin-top:4px">Sem consulta há {{ $dias }} dias</span>
+                                    @if (auth()->user()->isAdmin())
+                                        {{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}
+                                    @else
+                                        <div>{{ optional($servidor->last_synced_at)->format('d/m/Y H:i') ?? 'nunca' }}</div>
+                                        @if ($dias === null)
+                                            <span class="status-pill is-inactive" style="margin-top:4px">Sem consulta</span>
+                                        @elseif ($dias >= 2)
+                                            <span class="status-pill is-warning" style="margin-top:4px">Sem consulta há {{ $dias }} dias</span>
+                                        @endif
                                     @endif
                                 </td>
                                 <td>
-                                    <span class="status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
-                                        {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
-                                    </span>
+                                    @if (auth()->user()->isAdmin())
+                                        @php
+                                            $estadoLabel = $dias === null ? 'Sem consulta' : ($dias >= 2 ? 'Atenção' : 'Normal');
+                                            $estadoClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active');
+                                        @endphp
+                                        <div class="endpoint-status-stack">
+                                            <span class="status-pill {{ $estadoClasse }}">{{ $estadoLabel }}</span>
+                                            <small>{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }} no painel</small>
+                                        </div>
+                                    @else
+                                        <span class="status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
+                                            {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
+                                        </span>
+                                    @endif
                                 </td>
                                 <td>
                                     <x-actions-menu label="Ações do endpoint {{ $servidor->nome }}">
+                                        @if (auth()->user()->isAdmin())
+                                            <a href="{{ route('servidores.show', $servidor) }}" class="actions-menu-item">Ver detalhes</a>
+                                        @endif
                                         <a href="{{ route('servidores.edit', $servidor) }}" class="actions-menu-item">Editar</a>
                                         <div class="actions-menu-divider"></div>
                                         <form action="{{ route('servidores.destroy', $servidor) }}" method="POST">

@@ -1,0 +1,148 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Empresa;
+use App\Models\Lista;
+use App\Models\Servidor;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+class AdminEndpointsPresentationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_admin_listing_shows_relative_consultation_operational_and_registration_statuses(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create();
+
+        Servidor::factory()->for($empresa)->create(['nome' => 'normal-rpz', 'last_synced_at' => now(), 'status' => 'active']);
+        Servidor::factory()->for($empresa)->create(['nome' => 'atencao-rpz', 'last_synced_at' => now()->subDays(3), 'status' => 'active']);
+        Servidor::factory()->for($empresa)->inactive()->create(['nome' => 'sem-consulta-rpz', 'last_synced_at' => null]);
+
+        $response = $this->actingAs($admin)->get(route('servidores.index'));
+
+        $response->assertOk()
+            ->assertSee('agora mesmo')
+            ->assertSee('há 3 dias')
+            ->assertSee('Normal')
+            ->assertSee('Atenção')
+            ->assertSee('Sem consulta')
+            ->assertSee('Ativo no painel')
+            ->assertSee('Inativo no painel')
+            ->assertSee('Ver detalhes')
+            ->assertSee('actions-menu-item-danger');
+    }
+
+    public function test_admin_form_has_static_dns_secure_access_controls_and_real_source_types(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create();
+        $servidor = Servidor::factory()->for($empresa)->create(['tipo_dns' => 'unbound']);
+        Lista::factory()->anatel()->create(['nome' => 'ANATEL']);
+        Lista::factory()->externa('anatel-proprio')->create(['nome' => 'Anatel']);
+
+        $response = $this->actingAs($admin)->get(route('servidores.edit', $servidor));
+
+        $response->assertOk()
+            ->assertSee('endpoint-static-field')
+            ->assertSee('name="tipo_dns" value="unbound"', false)
+            ->assertDontSee('BIND9 (em breve)')
+            ->assertSee('id="rpz-url-value" type="text"', false)
+            ->assertSee('readonly', false)
+            ->assertSee('••••••••••••••••••••••••••••')
+            ->assertSee('id="token-value"', false)
+            ->assertDontSee('id="token-masked"', false)
+            ->assertSee('Mostrar')
+            ->assertSee('Copiar')
+            ->assertSee('Selecionar todas')
+            ->assertSee('Limpar seleção')
+            ->assertSee('Catálogo / Importação ANATEL')
+            ->assertSeeInOrder(['ANATEL', 'Catálogo / Importação ANATEL', 'Anatel', 'Externa'])
+            ->assertDontSee('Estável')
+            ->assertSee('marcadas === 1 ? \'selecionada\' : \'selecionadas\'', false);
+
+        $this->assertSame(1, substr_count($response->getContent(), 'id="token-value"'));
+    }
+
+    public function test_admin_detail_prioritizes_operational_state_access_and_masked_config(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $servidor = Servidor::factory()->create(['last_synced_at' => null]);
+
+        $response = $this->actingAs($admin)->get(route('servidores.show', $servidor));
+
+        $response->assertOk()
+            ->assertSee('Status cadastral')
+            ->assertSee('Estado operacional')
+            ->assertSee('Última consulta')
+            ->assertSee('Acesso RPZ')
+            ->assertSee('detail-rpz-url')
+            ->assertSee('detail-token-value')
+            ->assertDontSee('detail-token-masked')
+            ->assertSee('••••••••••••')
+            ->assertSee('Configuração do Unbound');
+
+        $this->assertSame(1, substr_count($response->getContent(), 'id="detail-token-value"'));
+    }
+
+    public function test_endpoint_form_rejects_a_source_from_another_company(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create();
+        $outraEmpresa = Empresa::factory()->create();
+        $servidor = Servidor::factory()->for($empresa)->create();
+        $fonteAlheia = Lista::factory()->create(['empresa_id' => $outraEmpresa->id]);
+
+        $this->actingAs($admin)->put(route('servidores.update', $servidor), [
+            'empresa_id' => $empresa->id,
+            'nome' => $servidor->nome,
+            'status' => 'active',
+            'tipo_dns' => 'unbound',
+            'bloqueio_modo' => 'nxdomain',
+            'lista_ids' => [$fonteAlheia->id],
+        ])->assertSessionHasErrors('lista_ids.0');
+
+        $this->assertFalse($servidor->listas()->whereKey($fonteAlheia->id)->exists());
+    }
+
+    public function test_endpoint_listing_keeps_a_bounded_query_count(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create();
+        $lista = Lista::factory()->create();
+
+        Servidor::factory()->for($empresa)->count(20)->create()->each(fn (Servidor $servidor) => $servidor->listas()->attach($lista));
+
+        $queries = 0;
+        DB::listen(function () use (&$queries) {
+            $queries++;
+        });
+
+        $this->actingAs($admin)->get(route('servidores.index'))->assertOk();
+
+        $this->assertLessThan(15, $queries, 'A listagem deve carregar empresas e fontes com eager loading.');
+    }
+
+    public function test_client_keeps_existing_dns_selector_and_does_not_receive_admin_access_panel(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        $servidor = Servidor::factory()->for($empresa)->create();
+
+        $this->actingAs($cliente)->get(route('servidores.edit', $servidor))
+            ->assertOk()
+            ->assertSee('BIND9 (em breve)')
+            ->assertSee('Estável')
+            ->assertDontSee('endpoint-static-field')
+            ->assertDontSee('Selecionar todas');
+
+        $this->actingAs($cliente)->get(route('servidores.show', $servidor))
+            ->assertOk()
+            ->assertDontSee('admin-endpoint-access')
+            ->assertDontSee('Status cadastral');
+    }
+}

@@ -92,7 +92,9 @@
                 @if ($appVersion)
                     <div class="sidebar-version">
                         <span>v{{ $appVersion }}</span>
-                        <span class="sidebar-version-badge">Estável</span>
+                        @unless (auth()->user()->isAdmin() && request()->routeIs('servidores.*'))
+                            <span class="sidebar-version-badge">Estável</span>
+                        @endunless
                     </div>
                 @endif
             </div>
