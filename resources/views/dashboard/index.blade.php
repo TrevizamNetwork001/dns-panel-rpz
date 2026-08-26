@@ -43,7 +43,7 @@
 
         <div class="metric-card">
             <div class="metric-card-header">
-                <div class="metric-card-title"><div class="metric-icon green"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg></div><span class="metric-label">{{ $totalServidoresAtivos === 1 ? 'Endpoint RPZ' : 'Endpoints RPZ' }}</span></div>
+                <div class="metric-card-title"><div class="metric-icon green"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg></div><span class="metric-label">Endpoints RPZ</span></div>
             </div>
             <div class="metric-value">{{ number_format($totalServidoresAtivos, 0, ',', '.') }} <span class="metric-value-suffix">{{ $totalServidoresAtivos === 1 ? 'ativo' : 'ativos' }}</span></div>
             <div class="metric-footer">
@@ -79,7 +79,7 @@
             @if ($listas->isEmpty())
                 <div class="empty-state"><span>Nenhuma fonte cadastrada ainda.</span></div>
             @else
-                <div class="table-responsive">
+                <div class="table-responsive dashboard-sources-table-wrap">
                     <table class="data-table dashboard-sources-table">
                         <colgroup>
                             <col class="source-name-column">
