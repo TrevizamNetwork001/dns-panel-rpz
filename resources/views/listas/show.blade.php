@@ -16,6 +16,7 @@
                 @if ($lista->isExterna())
                     <span class="status-pill is-info">fonte externa: {{ $lista->fonte_externa }}</span>
                 @endif
+                @if ($lista->isAnatel()) <span class="status-pill is-info">Fonte oficial · PDF</span> @endif
                 @if ($lista->descricao)
                     &middot; {{ $lista->descricao }}
                 @endif
@@ -64,6 +65,20 @@
         </div>
         @endif
 
+        @if ($lista->isAnatel())
+        <div class="panel details-card-wide">
+            <div class="panel-header"><h2>Importar PDFs da ANATEL</h2><div><a href="{{ route('anatel.exclusions',$lista) }}" class="button button-secondary">Exclusões</a> <a href="{{ route('anatel.history',$lista) }}" class="button button-secondary">Histórico</a></div></div>
+            <p>{{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios ativos. A importação é incremental e nunca remove domínios ausentes de um PDF novo.</p>
+            @if(auth()->user()->isAdmin())
+            <form action="{{ route('anatel.imports.store',$lista) }}" method="POST" enctype="multipart/form-data">@csrf
+                <input class="form-control" type="file" name="pdfs[]" accept="application/pdf,.pdf" multiple required>
+                <p style="color:var(--text-muted);font-size:10px">Até {{ config('anatel.max_files') }} PDFs, {{ (int)(config('anatel.max_pdf_kb')/1024) }} MB cada. Armazenamento privado e deduplicação SHA-256.</p>
+                <button class="button button-primary" type="submit">Importar PDF</button>
+            </form>
+            @endif
+        </div>
+        @endif
+
         <div class="panel">
             <div class="panel-header"><h2>Servidores vinculados</h2></div>
             @if ($lista->servidores->isEmpty())
@@ -90,12 +105,12 @@
 
         <div class="panel details-card-wide">
             <div class="panel-header">
-                <h2>Domínios ({{ $lista->dominios()->count() }})</h2>
+                <h2>Domínios ({{ $lista->dominios_count }})</h2>
                 @if (auth()->user()->isAdmin())
                 <a href="{{ route('listas.dominios.index', $lista) }}" class="button button-primary">{{ $lista->isExterna() ? 'Ver domínios' : 'Gerenciar domínios' }}</a>
                 @endif
             </div>
-            @if ($lista->dominios()->count() === 0)
+            @if ($lista->dominios_count === 0)
                 <div class="empty-state"><span>Nenhum domínio cadastrado nesta lista ainda.</span></div>
             @else
                 <div class="table-responsive">
@@ -117,8 +132,8 @@
                         </tbody>
                     </table>
                 </div>
-                @if ($lista->dominios()->count() > 10)
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:12px">mostrando os primeiros 10 de {{ $lista->dominios()->count() }} domínios &mdash; use "{{ $lista->isExterna() ? 'Ver domínios' : 'Gerenciar domínios' }}" para ver todos.</p>
+                @if ($lista->dominios_count > 10)
+                    <p style="color:var(--text-muted);font-size:10px;margin-top:12px">mostrando os primeiros 10 de {{ $lista->dominios_count }} domínios &mdash; use "{{ $lista->isExterna() ? 'Ver domínios' : 'Gerenciar domínios' }}" para ver todos.</p>
                 @endif
             @endif
         </div>

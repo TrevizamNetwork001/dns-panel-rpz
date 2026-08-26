@@ -14,7 +14,7 @@ class ExternalListaSyncer
 
     private const CHUNK_SIZE = 400;
 
-    private const DOMAIN_REGEX = '/^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63})*\.[a-z]{2,63}$/';
+    public function __construct(private DomainNormalizer $normalizer) {}
 
     /**
      * @return array{status: string, total?: int, adicionados?: int, removidos?: int, motivo?: string}
@@ -214,17 +214,6 @@ class ExternalListaSyncer
 
     private function normalize(string $value): ?string
     {
-        $dominio = strtolower(trim($value));
-        $dominio = rtrim($dominio, '.');
-
-        if ($dominio === '' || $dominio === 'localhost') {
-            return null;
-        }
-
-        if (! preg_match(self::DOMAIN_REGEX, $dominio)) {
-            return null;
-        }
-
-        return $dominio;
+        return $this->normalizer->normalize($value, false);
     }
 }

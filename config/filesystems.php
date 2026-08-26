@@ -38,6 +38,14 @@ return [
             'report' => false,
         ],
 
+        'anatel' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/anatel'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

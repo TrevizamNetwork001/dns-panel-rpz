@@ -51,6 +51,7 @@
                     <select class="form-control" id="origem" name="origem">
                         <option value="manual" @selected(old('origem', $lista->origem ?? 'manual') === 'manual')>Manual (domínios cadastrados aqui)</option>
                         <option value="externa" @selected(old('origem', $lista->origem) === 'externa')>Externa (sincroniza de uma URL automaticamente)</option>
+                        <option value="anatel" @selected(old('origem', $lista->origem) === 'anatel')>ANATEL / PDF (importação incremental)</option>
                     </select>
                 </div>
 

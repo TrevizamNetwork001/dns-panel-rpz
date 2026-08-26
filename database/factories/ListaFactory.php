@@ -38,4 +38,9 @@ class ListaFactory extends Factory
             'sync_ativo' => true,
         ]);
     }
+
+    public function anatel(): static
+    {
+        return $this->state(fn () => ['nome' => 'ANATEL', 'origem' => 'anatel', 'fonte_externa' => null, 'fonte_url' => null, 'sync_ativo' => false]);
+    }
 }

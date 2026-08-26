@@ -57,6 +57,8 @@ class ListaController extends Controller
         $this->authorizeAccess($lista);
 
         $lista->load(['empresa', 'servidores.empresa']);
+        $lista->loadCount(['dominios', 'dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)]);
+        if ($lista->isAnatel()) $lista->load(['anatelImports' => fn ($q) => $q->latest()->limit(5)]);
 
         return view('listas.show', compact('lista'));
     }
@@ -230,7 +232,7 @@ class ListaController extends Controller
             'nome' => ['required', 'string', 'max:255'],
             'descricao' => ['nullable', 'string'],
             'status' => ['required', 'in:active,inactive'],
-            'origem' => ['nullable', 'in:manual,externa'],
+            'origem' => ['nullable', 'in:manual,externa,anatel'],
             'fonte_url' => ['nullable', 'url', 'max:500', 'required_if:origem,externa'],
             'fonte_formato' => ['nullable', 'in:hostfile,plain,unbound_local_zone'],
         ]);
@@ -241,7 +243,9 @@ class ListaController extends Controller
         if ($data['origem'] === 'externa') {
             $data['fonte_formato'] = $data['fonte_formato'] ?? 'hostfile';
             $data['fonte_externa'] = $data['fonte_externa'] ?? 'custom';
-            $data['sync_ativo'] = true;
+            if (! $request->route('lista')?->exists) {
+                $data['sync_ativo'] = true;
+            }
         } else {
             $data['fonte_url'] = null;
             $data['fonte_externa'] = null;

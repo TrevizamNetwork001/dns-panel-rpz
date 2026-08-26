@@ -14,6 +14,8 @@ class Dominio extends Model
         'lista_id',
         'dominio',
         'ativo',
+        'inactive_reason',
+        'last_anatel_import_id',
     ];
 
     protected $casts = [

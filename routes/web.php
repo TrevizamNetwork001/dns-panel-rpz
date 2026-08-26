@@ -15,6 +15,8 @@ use App\Http\Controllers\SugestaoDominioController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\RpzController;
 use App\Http\Controllers\SegurancaController;
+use App\Http\Controllers\AnatelController;
+use App\Http\Controllers\AnatelImportController;
 use App\Http\Controllers\ServidorController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,6 +56,14 @@ Route::middleware('auth')->group(function () {
         Route::resource('listas', ListaController::class)->except(['index', 'show']);
         Route::patch('/listas/{lista}/toggle-sync', [ListaController::class, 'toggleSync'])->name('listas.toggle-sync');
         Route::post('/listas/{lista}/sync-now', [ListaController::class, 'syncNow'])->name('listas.sync-now');
+        Route::post('/listas/{lista}/anatel/imports', [AnatelImportController::class, 'store'])->name('anatel.imports.store');
+        Route::get('/listas/{lista}/anatel/history', [AnatelController::class, 'history'])->name('anatel.history');
+        Route::get('/listas/{lista}/anatel/imports/{import}/new.txt', [AnatelImportController::class, 'downloadNew'])->name('anatel.imports.new');
+        Route::get('/listas/{lista}/anatel/exclusions', [AnatelController::class, 'exclusions'])->name('anatel.exclusions');
+        Route::post('/listas/{lista}/anatel/exclusions', [AnatelController::class, 'storeExclusion'])->name('anatel.exclusions.store');
+        Route::patch('/listas/{lista}/anatel/exclusions/{exclusion}', [AnatelController::class, 'toggleExclusion'])->name('anatel.exclusions.toggle');
+        Route::delete('/listas/{lista}/anatel/exclusions/{exclusion}', [AnatelController::class, 'destroyExclusion'])->name('anatel.exclusions.destroy');
+        Route::post('/listas/{lista}/anatel/exclusions/legacy', [AnatelController::class, 'importLegacy'])->name('anatel.exclusions.legacy');
 
         Route::get('/listas/{lista}/dominios', [DominioController::class, 'index'])->name('listas.dominios.index');
         Route::post('/listas/{lista}/dominios', [DominioController::class, 'store'])->name('listas.dominios.store');

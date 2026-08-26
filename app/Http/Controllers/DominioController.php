@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Dominio;
 use App\Models\Lista;
+use App\Services\DomainNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DominioController extends Controller
 {
-    private const DOMAIN_REGEX = '/^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63})*\.[a-z]{2,63}$/i';
+    public function __construct(private DomainNormalizer $normalizer) {}
 
     public function index(Lista $lista): View
     {
@@ -21,7 +22,7 @@ class DominioController extends Controller
 
     public function store(Request $request, Lista $lista): RedirectResponse
     {
-        if ($lista->isExterna()) {
+        if ($lista->isManaged()) {
             return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
         }
 
@@ -29,7 +30,7 @@ class DominioController extends Controller
             'dominio' => ['required', 'string', 'max:255'],
         ]);
 
-        $normalized = $this->normalize($data['dominio']);
+        $normalized = $this->normalizer->normalize($data['dominio']);
 
         if ($normalized === null) {
             return back()->withErrors(['dominio' => 'Domínio inválido.'])->withInput();
@@ -54,7 +55,7 @@ class DominioController extends Controller
 
     public function bulkStore(Request $request, Lista $lista): RedirectResponse
     {
-        if ($lista->isExterna()) {
+        if ($lista->isManaged()) {
             return back()->withErrors(['dominios' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
         }
 
@@ -71,7 +72,7 @@ class DominioController extends Controller
         $existing = $lista->dominios()->pluck('dominio')->flip();
 
         foreach (array_unique($lines) as $line) {
-            $normalized = $this->normalize($line);
+            $normalized = $this->normalizer->normalize($line);
 
             if ($normalized === null) {
                 $invalid++;
@@ -94,7 +95,7 @@ class DominioController extends Controller
 
     public function toggle(Dominio $dominio): RedirectResponse
     {
-        if ($dominio->lista->isExterna()) {
+        if ($dominio->lista->isManaged()) {
             return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
         }
 
@@ -105,7 +106,7 @@ class DominioController extends Controller
 
     public function destroy(Dominio $dominio): RedirectResponse
     {
-        if ($dominio->lista->isExterna()) {
+        if ($dominio->lista->isManaged()) {
             return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
         }
 
@@ -115,15 +116,4 @@ class DominioController extends Controller
         return redirect()->route('listas.dominios.index', $listaId)->with('status', 'Domínio removido.');
     }
 
-    private function normalize(string $value): ?string
-    {
-        $value = strtolower(trim($value));
-        $value = rtrim($value, '.');
-
-        if ($value === '' || ! preg_match(self::DOMAIN_REGEX, $value)) {
-            return null;
-        }
-
-        return $value;
-    }
 }
