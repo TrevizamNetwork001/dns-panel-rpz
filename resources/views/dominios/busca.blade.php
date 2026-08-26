@@ -95,7 +95,7 @@
                     <dd><span class="status-pill status-pill-normal-case is-active">Ativo</span></dd>
                 </div>
             </dl>
-            @if (auth()->user()->isAdmin() && $unicoMatch && ! $unicoMatch['lista']->isExterna())
+            @if (auth()->user()->isAdmin() && $unicoMatch && ! $unicoMatch['lista']->isManaged())
                 <div class="form-actions" style="justify-content:flex-start;border-top:0;padding-top:10px;margin-top:4px">
                     <form action="{{ route('dominios.toggle', $unicoMatch['id']) }}" method="POST">
                         @csrf
@@ -203,7 +203,7 @@
                                         <x-actions-menu label="Ações do domínio {{ $linha->dominio }}">
                                             @if ($unicaFonte)
                                                 <a href="{{ route('listas.show', $unicaFonte->lista_id) }}" class="actions-menu-item">Ver fonte</a>
-                                                @if ($unicaFonte->lista && ! $unicaFonte->lista->isExterna())
+                                                @if ($unicaFonte->lista && ! $unicaFonte->lista->isManaged())
                                                     <form action="{{ route('dominios.toggle', $unicaFonte->id) }}" method="POST">
                                                         @csrf
                                                         @method('PATCH')
@@ -236,7 +236,13 @@
         @endif
     </div>
 
-    {{ $dominios->links() }}
+    @if (auth()->user()->isAdmin())
+        <div class="admin-domains-pagination">
+            {{ $dominios->links('pagination.simple-compact') }}
+        </div>
+    @else
+        {{ $dominios->links() }}
+    @endif
 
     @if (auth()->user()->isAdmin() && $fontesManuais->isNotEmpty())
         <script>
