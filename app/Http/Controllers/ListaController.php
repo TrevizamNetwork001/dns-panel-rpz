@@ -52,6 +52,11 @@ class ListaController extends Controller
 
         AuditLog::record('lista.created', "Lista \"{$lista->nome}\" criada", $lista->empresa_id, 'lista', $lista->id);
 
+        if ($lista->isAnatel()) {
+            return redirect()->route('anatel.dashboard', ['lista' => $lista->id])
+                ->with('status', 'Fonte ANATEL criada. Selecione os PDFs para iniciar a importação.');
+        }
+
         return redirect()->route('listas.show', $lista)->with('status', 'Lista criada com sucesso.');
     }
 
@@ -87,6 +92,11 @@ class ListaController extends Controller
         $lista->servidores()->sync($servidorIds);
 
         AuditLog::record('lista.updated', "Lista \"{$lista->nome}\" atualizada", $lista->empresa_id, 'lista', $lista->id);
+
+        if ($lista->isAnatel()) {
+            return redirect()->route('anatel.dashboard', ['lista' => $lista->id])
+                ->with('status', 'Fonte ANATEL atualizada. Selecione os PDFs para iniciar a importação.');
+        }
 
         return redirect()->route('listas.show', $lista)->with('status', 'Lista atualizada com sucesso.');
     }

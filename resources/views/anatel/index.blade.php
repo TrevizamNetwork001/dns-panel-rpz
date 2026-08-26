@@ -7,7 +7,7 @@
   <div class="empty-state"><span>Crie primeiro uma fonte do tipo ANATEL / PDF.</span><a href="{{ route('listas.create',['origem'=>'anatel']) }}" class="button button-primary">Criar fonte ANATEL</a></div>
  @else
  <form action="{{ route('anatel.dashboard.store') }}" method="POST" enctype="multipart/form-data">@csrf
-  <div class="form-grid"><div class="field-group"><label for="lista_id">Lista de destino</label><select class="form-control" id="lista_id" name="lista_id" required>@foreach($listas as $lista)<option value="{{ $lista->id }}">{{ $lista->nome }} — {{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios — {{ $lista->servidores_count }} endpoint(s)</option>@endforeach</select></div>
+  <div class="form-grid"><div class="field-group"><label for="lista_id">Lista de destino</label><select class="form-control" id="lista_id" name="lista_id" required>@foreach($listas as $lista)<option value="{{ $lista->id }}" @selected((int)request('lista')===$lista->id)>{{ $lista->nome }} — {{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios — {{ $lista->servidores_count }} endpoint(s)</option>@endforeach</select></div>
   <div class="field-group"><label for="pdfs">PDFs</label><input class="form-control" id="pdfs" type="file" name="pdfs[]" accept="application/pdf,.pdf" multiple required><small>Até {{ config('anatel.max_files') }} PDFs, {{ (int)(config('anatel.max_pdf_kb')/1024) }} MB cada.</small></div></div>
   <button class="button button-primary" type="submit">Iniciar importação</button>
  </form>
