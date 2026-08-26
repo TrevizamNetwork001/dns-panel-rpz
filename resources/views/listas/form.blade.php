@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
-@section('title', $lista->exists ? 'Editar lista' : 'Nova lista')
+@section('title', $lista->exists ? 'Editar fonte' : 'Nova fonte')
 
 @section('content')
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Gestão</div>
-            <h1>{{ $lista->exists ? 'Editar lista' : 'Nova lista' }}</h1>
+            <h1>{{ $lista->exists ? 'Editar fonte' : 'Nova fonte' }}</h1>
         </div>
     </div>
 
-    <div class="panel form-panel">
+    <div class="panel form-panel @if(auth()->user()->isAdmin()) admin-fontes-form @endif">
         <form action="{{ $lista->exists ? route('listas.update', $lista) : route('listas.store') }}" method="POST">
             @csrf
             @if ($lista->exists)
@@ -21,7 +21,7 @@
                 <div class="field-group">
                     <label for="empresa_id">Empresa</label>
                     <select class="form-control" id="empresa_id" name="empresa_id">
-                        <option value="" @selected(old('empresa_id', $lista->empresa_id) === null)>— Lista de catálogo (todas as empresas) —</option>
+                        <option value="" @selected(old('empresa_id', $lista->empresa_id) === null)>— Fonte de catálogo (todas as empresas) —</option>
                         @foreach ($empresas as $empresa)
                             <option value="{{ $empresa->id }}" @selected(old('empresa_id', $lista->empresa_id) == $empresa->id)>{{ $empresa->nome }}</option>
                         @endforeach
@@ -35,7 +35,7 @@
 
                 <div class="field-group field-span-2">
                     <label for="descricao">Descrição</label>
-                    <textarea class="form-control" id="descricao" name="descricao">{{ old('descricao', $lista->descricao) }}</textarea>
+                    <textarea class="form-control admin-fontes-description" id="descricao" name="descricao" rows="3">{{ old('descricao', $lista->descricao) }}</textarea>
                 </div>
 
                 <div class="field-group">
@@ -58,7 +58,7 @@
                 <div class="field-group" id="campo-fonte-url">
                     <label for="fonte_url">URL do feed</label>
                     <input class="form-control" type="url" id="fonte_url" name="fonte_url" value="{{ old('fonte_url', $lista->fonte_url) }}" placeholder="https://exemplo.com/lista-de-bloqueio.txt">
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">Precisa ter pelo menos 100 domínios — feeds menores são rejeitados automaticamente (proteção contra feed fora do ar esvaziar a lista sem querer).</p>
+                    <p class="admin-fontes-note">Feeds externos precisam atingir o mínimo de 100 domínios para evitar substituição por conteúdo incompleto.</p>
                 </div>
 
                 <div class="field-group" id="campo-fonte-formato">
@@ -90,10 +90,12 @@
 
             @if ($lista->exists)
                 <div class="field-group" style="margin-top:18px">
-                    <label>
-                        Servidores vinculados
+                    <label class="admin-fontes-section-label">
+                        <span>Endpoints RPZ vinculados</span>
                         @if (! $lista->empresa_id)
-                            <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0">— lista de catálogo, mostrando servidores de todas as empresas</span>
+                            <small>Fonte de catálogo: a distribuição pode incluir endpoints de todas as empresas.</small>
+                        @else
+                            <small>Endpoints que recebem esta fonte na política RPZ.</small>
                         @endif
                     </label>
                     <div style="display:grid;gap:8px">
@@ -109,12 +111,12 @@
                                 </div>
                             </label>
                         @empty
-                            <p style="color:var(--text-muted);font-size:11px">Nenhum servidor disponível para vincular.</p>
+                            <p style="color:var(--text-muted);font-size:11px">Nenhum endpoint disponível para vincular.</p>
                         @endforelse
                     </div>
                 </div>
             @else
-                <p style="color:var(--text-muted);font-size:11px;margin-top:14px">Salve a lista para poder vincular servidores.</p>
+                <p style="color:var(--text-muted);font-size:11px;margin-top:14px">Salve a fonte para poder vincular endpoints RPZ.</p>
             @endif
 
             <div class="form-actions">

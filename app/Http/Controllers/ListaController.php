@@ -18,7 +18,9 @@ class ListaController extends Controller
     {
         $user = Auth::user();
 
-        $query = Lista::with('empresa')->orderByDesc('id');
+        $query = Lista::with('empresa')
+            ->withCount(['dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)])
+            ->orderByDesc('id');
 
         if ($user->isCliente()) {
             $query->where(function ($q) use ($user) {
@@ -26,9 +28,10 @@ class ListaController extends Controller
             });
         }
 
+        $listasAtivas = (clone $query)->where('status', 'active')->count();
         $listas = $query->paginate(20);
 
-        return view('listas.index', compact('listas'));
+        return view('listas.index', compact('listas', 'listasAtivas'));
     }
 
     public function create(): View
@@ -66,9 +69,14 @@ class ListaController extends Controller
 
         $lista->load(['empresa', 'servidores.empresa']);
         $lista->loadCount(['dominios', 'dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)]);
+        $dominiosPreview = $lista->dominios()
+            ->select(['id', 'lista_id', 'dominio', 'ativo'])
+            ->orderBy('dominio')
+            ->limit(10)
+            ->get();
         if ($lista->isAnatel()) $lista->load(['anatelImports' => fn ($q) => $q->latest()->limit(5)]);
 
-        return view('listas.show', compact('lista'));
+        return view('listas.show', compact('lista', 'dominiosPreview'));
     }
 
     public function edit(Lista $lista): View

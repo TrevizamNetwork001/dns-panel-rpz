@@ -5,9 +5,9 @@
 @section('content')
     <div class="page-heading">
         <div>
-            <div class="page-eyebrow">Lista</div>
+            <div class="page-eyebrow">Fonte</div>
             <h1>Domínios de {{ $lista->nome }}</h1>
-            <p><a href="{{ route('listas.show', $lista) }}" class="inline-link">&larr; voltar para a lista</a></p>
+            <p><a href="{{ route('listas.show', $lista) }}" class="inline-link">&larr; voltar para a fonte</a></p>
         </div>
     </div>
 
@@ -98,8 +98,8 @@
                     </tbody>
                 </table>
             </div>
-            <div class="pagination-simple">
-                {{ $dominios->links() }}
+            <div class="admin-domains-pagination">
+                {{ $dominios->appends(request()->query())->links('pagination.simple-compact') }}
             </div>
         @endif
     </div>

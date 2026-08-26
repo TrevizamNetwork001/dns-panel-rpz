@@ -65,8 +65,8 @@ class ListaCrudTest extends TestCase
     {
         // Regressao: ListaController::show fazia $lista->load([..., 'dominios']),
         // hidratando todos os dominios como models Eloquent na memoria. A view so
-        // usa $lista->dominios()->count() e ->take(10)->get() (queries proprias,
-        // ignoram o eager load), entao pra listas grandes (feeds externos com
+        // usa contagens agregadas e uma query de preview limitada a 10 registros,
+        // então pra listas grandes (feeds externos com
         // dezenas de milhares de dominios) isso estourava o memory_limit e
         // devolvia 500. Reproduzido em producao na lista #10 (157k dominios).
         $admin = User::factory()->admin()->create();
@@ -95,6 +95,6 @@ class ListaCrudTest extends TestCase
         }
 
         $response->assertStatus(200);
-        $response->assertSee('Domínios (50000)');
+        $response->assertSee('Domínios (50.000)');
     }
 }

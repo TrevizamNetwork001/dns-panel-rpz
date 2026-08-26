@@ -3,20 +3,32 @@
 @section('title', $lista->nome)
 
 @section('content')
-    <div class="page-heading">
+    <div class="page-heading @if(auth()->user()->isAdmin()) admin-fontes-heading @endif">
         <div>
-            <div class="page-eyebrow">Lista</div>
+            <div class="page-eyebrow">Fonte</div>
             <h1>{{ $lista->nome }}</h1>
-            <p>
+            <p @class(['admin-fontes-heading-meta' => auth()->user()->isAdmin()])>
                 @if ($lista->empresa)
                     <a href="{{ route('empresas.show', $lista->empresa) }}" class="inline-link">{{ $lista->empresa->nome }}</a>
                 @else
-                    <span class="status-pill is-active">Catálogo — todas as empresas</span>
+                    @if (auth()->user()->isAdmin())
+                        <span>Catálogo — todas as empresas</span>
+                    @else
+                        <span class="status-pill is-active">Catálogo — todas as empresas</span>
+                    @endif
                 @endif
                 @if ($lista->isExterna())
-                    <span class="status-pill is-info">fonte externa: {{ $lista->fonte_externa }}</span>
+                    @if (auth()->user()->isAdmin())
+                        <span>Externa</span>
+                    @else
+                        <span class="status-pill is-info">fonte externa: {{ $lista->fonte_externa }}</span>
+                    @endif
                 @endif
-                @if ($lista->isAnatel()) <span class="status-pill is-info">Fonte oficial · PDF</span> @endif
+                @if ($lista->isAnatel())
+                    @if (auth()->user()->isAdmin()) <span>Catálogo / Importação ANATEL</span>
+                    @else <span class="status-pill is-info">Fonte oficial · PDF</span>
+                    @endif
+                @endif
                 @if ($lista->descricao)
                     &middot; {{ $lista->descricao }}
                 @endif
@@ -30,12 +42,26 @@
         </div>
     </div>
 
-    <div class="details-grid">
-        <div class="panel">
-            <div class="panel-header"><h2>Status</h2></div>
-            <span class="status-pill @if($lista->status === 'active') is-active @else is-inactive @endif">
-                {{ $lista->status === 'active' ? 'Ativa' : 'Inativa' }}
-            </span>
+    <div class="details-grid @if(auth()->user()->isAdmin()) admin-fontes-details @endif">
+        <div @class(['panel', 'admin-fontes-summary' => auth()->user()->isAdmin()])>
+            <div class="panel-header"><h2>{{ auth()->user()->isAdmin() ? 'Resumo operacional' : 'Status' }}</h2></div>
+            @if (auth()->user()->isAdmin())
+            @php
+                $tipo = $lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo');
+                $ultimaAtualizacao = $lista->last_sync_at ?? $lista->updated_at;
+            @endphp
+            <dl class="details-list">
+                <div><dt>Status</dt><dd><span class="status-pill @if($lista->status === 'active') is-active @else is-inactive @endif">{{ $lista->status === 'active' ? 'Ativa' : 'Inativa' }}</span></dd></div>
+                <div><dt>Tipo</dt><dd>{{ $tipo }}</dd></div>
+                <div><dt>Escopo</dt><dd>{{ $lista->empresa?->nome ?? 'Catálogo / todas as empresas' }}</dd></div>
+                <div><dt>Domínios ativos</dt><dd class="table-mono">{{ number_format($lista->dominios_ativos_count, 0, ',', '.') }}</dd></div>
+                <div><dt>Última atualização</dt><dd><time datetime="{{ $ultimaAtualizacao?->toIso8601String() }}" title="{{ $ultimaAtualizacao?->format('d/m/Y H:i:s') ?? 'Sem atualização' }}">{{ \App\Http\Controllers\DashboardController::relativoPt($ultimaAtualizacao) }}</time></dd></div>
+            </dl>
+            @else
+                <span class="status-pill @if($lista->status === 'active') is-active @else is-inactive @endif">
+                    {{ $lista->status === 'active' ? 'Ativa' : 'Inativa' }}
+                </span>
+            @endif
         </div>
 
         @if ($lista->isExterna())
@@ -45,7 +71,7 @@
                 {{ $lista->sync_ativo ? 'Ativa' : 'Pausada' }}
             </span>
             <dl class="details-list" style="margin-top:14px">
-                <div><dt>Última sincronização</dt><dd>{{ optional($lista->last_sync_at)->format('d/m/Y H:i:s') ?? 'ainda não rodou' }}</dd></div>
+                <div><dt>Última sincronização</dt><dd><time datetime="{{ $lista->last_sync_at?->toIso8601String() }}" title="{{ $lista->last_sync_at?->format('d/m/Y H:i:s') ?? 'Ainda não executada' }}">{{ \App\Http\Controllers\DashboardController::relativoPt($lista->last_sync_at) }}</time></dd></div>
                 <div><dt>Fonte</dt><dd style="word-break:break-all">{{ $lista->fonte_url ?? '—' }}</dd></div>
             </dl>
             <p style="color:var(--text-muted);font-size:11px;margin:10px 0 0">Esta lista é populada automaticamente por um feed externo. Domínios adicionados/removidos manualmente serão sobrescritos na próxima sincronização.</p>
@@ -74,9 +100,9 @@
         @endif
 
         <div class="panel">
-            <div class="panel-header"><h2>Servidores vinculados</h2></div>
+            <div class="panel-header"><h2>Endpoints RPZ vinculados</h2></div>
             @if ($lista->servidores->isEmpty())
-                <div class="empty-state"><span>Nenhum servidor vinculado.</span></div>
+                <div class="empty-state"><span>Nenhum endpoint vinculado.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
@@ -99,7 +125,7 @@
 
         <div class="panel details-card-wide">
             <div class="panel-header">
-                <h2>Domínios ({{ $lista->dominios_count }})</h2>
+                <h2>Domínios ({{ auth()->user()->isAdmin() ? number_format($lista->dominios_count, 0, ',', '.') : $lista->dominios_count }})</h2>
                 @if (auth()->user()->isAdmin())
                 <a href="{{ route('listas.dominios.index', $lista) }}" class="button button-primary">{{ $lista->isExterna() ? 'Ver domínios' : 'Gerenciar domínios' }}</a>
                 @endif
@@ -113,7 +139,7 @@
                             <tr><th>Domínio</th><th>Status</th></tr>
                         </thead>
                         <tbody>
-                            @foreach ($lista->dominios()->orderBy('dominio')->take(10)->get() as $dominio)
+                            @foreach ($dominiosPreview as $dominio)
                                 <tr>
                                     <td class="table-mono">{{ $dominio->dominio }}</td>
                                     <td>
@@ -127,7 +153,7 @@
                     </table>
                 </div>
                 @if ($lista->dominios_count > 10)
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:12px">mostrando os primeiros 10 de {{ $lista->dominios_count }} domínios &mdash; use "{{ $lista->isExterna() ? 'Ver domínios' : 'Gerenciar domínios' }}" para ver todos.</p>
+                    <p @class(['admin-fontes-preview-note' => auth()->user()->isAdmin()]) style="@if(! auth()->user()->isAdmin()) color:var(--text-muted);font-size:10px;margin-top:12px @endif">mostrando os primeiros 10 de {{ auth()->user()->isAdmin() ? number_format($lista->dominios_count, 0, ',', '.') : $lista->dominios_count }} domínios &mdash; use "{{ $lista->isExterna() ? 'Ver domínios' : 'Gerenciar domínios' }}" para ver todos.</p>
                 @endif
             @endif
         </div>
