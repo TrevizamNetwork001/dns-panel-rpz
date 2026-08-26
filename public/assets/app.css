@@ -4,12 +4,12 @@
 
 :root {
     color-scheme: dark;
-    --background: #070b14;
-    --surface: #0d131f;
-    --surface-soft: #111926;
+    --background: #06111e;
+    --surface: #0b1827;
+    --surface-soft: #0e1d2d;
     --surface-raised: #151e2d;
     --border: #202b3d;
-    --border-soft: #182233;
+    --border-soft: #192b3d;
     --text: #f3f7fb;
     --text-soft: #9aa9bd;
     --text-muted: #8494a9;
@@ -19,7 +19,7 @@
     --amber: #f5ad45;
     --green: #35d39a;
     --danger: #f06a7a;
-    --sidebar-width: 258px;
+    --sidebar-width: 276px;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -40,7 +40,7 @@ body {
 body {
     margin: 0;
     background:
-        radial-gradient(circle at 78% -10%, rgba(33, 199, 232, 0.08), transparent 34rem),
+        radial-gradient(circle at 72% -12%, rgba(22, 164, 209, 0.09), transparent 42rem),
         var(--background);
     color: var(--text);
 }
@@ -157,12 +157,12 @@ html[data-theme="light"] .login-card {
     flex-direction: column;
     border-right: 1px solid var(--border-soft);
     overflow-y: auto;
-    background: rgba(9, 14, 24, 0.98);
+    background: rgba(5, 16, 28, 0.98);
 }
 
 .sidebar-brand {
     display: flex;
-    min-height: 82px;
+    min-height: 70px;
     align-items: center;
     gap: 12px;
     padding: 0 22px;
@@ -171,8 +171,8 @@ html[data-theme="light"] .login-card {
 
 .brand-mark {
     display: grid;
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     place-items: center;
     border: 1px solid rgba(33, 199, 232, 0.38);
     border-radius: 11px;
@@ -355,13 +355,13 @@ html[data-theme="light"] .login-card {
     top: 0;
     z-index: 15;
     display: flex;
-    min-height: 82px;
+    min-height: 70px;
     align-items: center;
     justify-content: space-between;
     gap: 24px;
     padding: 0 30px;
     border-bottom: 1px solid var(--border-soft);
-    background: rgba(7, 11, 20, 0.9);
+    background: rgba(6, 17, 30, 0.9);
     backdrop-filter: blur(18px);
 }
 
@@ -863,7 +863,8 @@ html[data-theme="light"] .theme-switch-thumb {
 
 .metric-card {
     min-width: 0;
-    padding: 18px;
+    min-height: 176px;
+    padding: 20px 22px;
     border: 1px solid var(--border-soft);
     border-radius: 14px;
     background:
@@ -876,6 +877,12 @@ html[data-theme="light"] .theme-switch-thumb {
     display: flex;
     align-items: center;
     justify-content: space-between;
+}
+
+.metric-card-title {
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 
 .metric-icon {
@@ -918,33 +925,58 @@ html[data-theme="light"] .theme-switch-thumb {
 }
 
 .metric-value {
-    margin-top: 19px;
-    font-size: 28px;
+    margin-top: 17px;
+    font-size: 30px;
     font-weight: 800;
     letter-spacing: -0.04em;
 }
 
 .metric-label {
-    margin-top: 2px;
-    color: var(--text-soft);
+    color: #b7c9dd;
     font-size: 12px;
     font-weight: 600;
 }
 
+.metric-value-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.metric-sparkline {
+    width: 140px;
+    max-width: 43%;
+    margin-bottom: 2px;
+    overflow: visible;
+    color: var(--cyan);
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.5;
+}
+
+.metric-sparkline .sparkline-fill {
+    fill: url(#spark-fill);
+    stroke: none;
+}
+
 .metric-footer {
     gap: 8px;
-    margin-top: 17px;
-    padding-top: 13px;
-    border-top: 1px solid var(--border-soft);
+    margin-top: 11px;
+    padding-top: 0;
+    border-top: 0;
     color: var(--text-muted);
     font-size: 9px;
 }
 
 .metric-card-primary {
-    border-color: rgba(53, 211, 154, 0.32);
+    border-color: rgba(33, 199, 232, 0.9);
     background:
-        linear-gradient(145deg, rgba(53, 211, 154, 0.06), transparent),
+        linear-gradient(145deg, rgba(33, 199, 232, 0.06), transparent),
         var(--surface);
+    box-shadow: 0 0 18px rgba(33, 199, 232, 0.12), inset 0 0 22px rgba(33, 199, 232, 0.025);
 }
 
 .metric-card-primary .metric-value {
@@ -1047,7 +1079,7 @@ html[data-theme="light"] .theme-switch-thumb {
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
+    grid-template-columns: minmax(0, 1.15fr) minmax(380px, 1fr);
     gap: 14px;
     margin-top: 14px;
 }

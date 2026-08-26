@@ -23,29 +23,29 @@
     <div class="metrics-grid">
         <div class="metric-card metric-card-primary">
             <div class="metric-card-header">
-                <div class="metric-icon green"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m5.5 5.5 13 13"/></svg></div>
+                <div class="metric-card-title"><div class="metric-icon cyan"><svg class="ui-icon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6.5V11c0 4.8 3.2 8.9 8 10 4.8-1.1 8-5.2 8-10V6.5Z"/><path d="M12 7v10"/></svg></div><span class="metric-label">Domínios bloqueados</span></div>
             </div>
-            <div class="metric-value">{{ number_format($totalDominiosAtivos, 0, ',', '.') }}</div>
-            <div class="metric-label">Domínios bloqueados</div>
+            <div class="metric-value-row">
+                <div class="metric-value">{{ number_format($totalDominiosAtivos, 0, ',', '.') }}</div>
+                <svg class="metric-sparkline" viewBox="0 0 145 58" role="img" aria-label="Tendência crescente"><defs><linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".2"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs><path class="sparkline-fill" d="M2 47 18 40 34 30 50 34 66 20 82 28 98 15 114 17 130 5 143 1V58H2Z"/><path d="M2 47 18 40 34 30 50 34 66 20 82 28 98 15 114 17 130 5 143 1"/></svg>
+            </div>
             <div class="metric-footer"><span>{{ number_format($totalDominios, 0, ',', '.') }} cadastrados no total ({{ number_format($totalDominiosInativos, 0, ',', '.') }} inativos)</span></div>
         </div>
 
         <div class="metric-card">
             <div class="metric-card-header">
-                <div class="metric-icon amber"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg></div>
+                <div class="metric-card-title"><div class="metric-icon violet"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg></div><span class="metric-label">Fontes ativas</span></div>
             </div>
             <div class="metric-value">{{ number_format($totalListasAtivas, 0, ',', '.') }} de {{ number_format($totalListasTotal, 0, ',', '.') }}</div>
-            <div class="metric-label">Fontes ativas</div>
             <div class="metric-footer"><span>{{ $percentFontes }}% das fontes habilitadas</span></div>
             <div class="metric-progress"><div class="metric-progress-bar cyan" style="width:{{ $percentFontes }}%"></div></div>
         </div>
 
         <div class="metric-card">
             <div class="metric-card-header">
-                <div class="metric-icon violet"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg></div>
+                <div class="metric-card-title"><div class="metric-icon green"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg></div><span class="metric-label">Endpoints RPZ</span></div>
             </div>
             <div class="metric-value">{{ number_format($totalServidoresAtivos, 0, ',', '.') }} <span class="metric-value-suffix">ativos</span></div>
-            <div class="metric-label">Endpoints RPZ</div>
             <div class="metric-footer">
                 <span>
                     @if ($servidoresAtencao > 0)
@@ -62,10 +62,9 @@
 
         <div class="metric-card">
             <div class="metric-card-header">
-                <div class="metric-icon cyan"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M18 21V9a1 1 0 0 0-1-1h-3"/><path d="M9 7h1"/><path d="M9 11h1"/><path d="M9 15h1"/></svg></div>
+                <div class="metric-card-title"><div class="metric-icon cyan"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6 21V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v16"/><path d="M18 21V9a1 1 0 0 0-1-1h-3"/><path d="M9 7h1"/><path d="M9 11h1"/><path d="M9 15h1"/></svg></div><span class="metric-label">Empresas</span></div>
             </div>
             <div class="metric-value">{{ number_format($totalEmpresas, 0, ',', '.') }} <span class="metric-value-suffix">ativas</span></div>
-            <div class="metric-label">Empresas</div>
             <div class="metric-footer"><span>{{ number_format($totalEmpresasTotal - $totalEmpresas, 0, ',', '.') }} inativas</span></div>
             <div class="metric-progress"><div class="metric-progress-bar cyan" style="width:{{ $percentEmpresas }}%"></div></div>
         </div>
