@@ -39,7 +39,7 @@
                         <div><dt>Empresa</dt><dd><a href="{{ route('empresas.show', auth()->user()->empresa) }}" class="inline-link">{{ auth()->user()->empresa->nome }}</a></dd></div>
                     @endif
                     <div><dt>Conta criada em</dt><dd>{{ auth()->user()->created_at->format('d/m/Y H:i') }}</dd></div>
-                    <div><dt>Última atualização</dt><dd>{{ auth()->user()->updated_at->diffForHumans() }}</dd></div>
+                    <div><dt>Última atualização</dt><dd>{{ auth()->user()->updated_at->locale('pt_BR')->diffForHumans() }}</dd></div>
                 </dl>
             </div>
         </div>
