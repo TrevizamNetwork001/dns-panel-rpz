@@ -58,6 +58,7 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user();
+        $user->forceFill(['last_login_at' => now()])->saveQuietly();
         AuditLog::record('auth.login', "Login de {$user->email}", $user->empresa_id);
 
         return redirect()->intended(route('dashboard'));

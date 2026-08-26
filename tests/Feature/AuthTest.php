@@ -24,6 +24,7 @@ class AuthTest extends TestCase
 
         $response->assertRedirect(route('dashboard'));
         $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->fresh()->last_login_at);
     }
 
     public function test_login_with_invalid_password_fails(): void
