@@ -127,7 +127,7 @@ class AdminEndpointsPresentationTest extends TestCase
         $this->assertLessThan(15, $queries, 'A listagem deve carregar empresas e fontes com eager loading.');
     }
 
-    public function test_client_keeps_existing_dns_selector_and_does_not_receive_admin_access_panel(): void
+    public function test_client_uses_static_dns_field_and_does_not_receive_admin_access_panel(): void
     {
         $empresa = Empresa::factory()->create();
         $cliente = User::factory()->cliente($empresa)->create();
@@ -135,9 +135,10 @@ class AdminEndpointsPresentationTest extends TestCase
 
         $this->actingAs($cliente)->get(route('servidores.edit', $servidor))
             ->assertOk()
-            ->assertSee('BIND9 (em breve)')
-            ->assertSee('Estável')
-            ->assertDontSee('endpoint-static-field')
+            ->assertSee('endpoint-static-field')
+            ->assertSee('name="tipo_dns" value="unbound"', false)
+            ->assertDontSee('BIND9 (em breve)')
+            ->assertDontSee('Estável')
             ->assertDontSee('Selecionar todas');
 
         $this->actingAs($cliente)->get(route('servidores.show', $servidor))

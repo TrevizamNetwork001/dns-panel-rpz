@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
-@section('title', $servidor->exists ? 'Editar endpoint RPZ' : 'Novo endpoint RPZ')
+@section('title', auth()->user()->isAdmin()
+    ? ($servidor->exists ? 'Editar endpoint RPZ' : 'Novo endpoint RPZ')
+    : ($servidor->exists ? 'Editar servidor' : 'Novo servidor'))
 
 @php
     $rpzUrl = $servidor->exists ? url('/rpz/' . $servidor->token . '.zone') : null;
@@ -10,7 +12,9 @@
     <div @if(auth()->user()->isAdmin()) class="admin-endpoint-form" @endif>
     <div class="page-heading page-heading-compact">
         <div>
-            <h1>{{ $servidor->exists ? 'Editar endpoint RPZ' : 'Novo endpoint RPZ' }}</h1>
+            <h1>{{ auth()->user()->isAdmin()
+                ? ($servidor->exists ? 'Editar endpoint RPZ' : 'Novo endpoint RPZ')
+                : ($servidor->exists ? 'Editar servidor' : 'Novo servidor') }}</h1>
         </div>
     </div>
 
@@ -64,7 +68,7 @@
         </div>
 
         <div class="panel form-panel" style="margin-bottom:14px">
-            <div class="panel-header"><h2>Configuração RPZ</h2></div>
+            <div class="panel-header"><h2>{{ auth()->user()->isAdmin() ? 'Configuração RPZ' : 'Configuração do servidor' }}</h2></div>
             <div class="form-grid">
                 <div class="field-group">
                     <label for="tipo_dns">Tipo de DNS</label>
@@ -73,12 +77,9 @@
                         <input type="hidden" id="tipo_dns" name="tipo_dns" value="{{ $tipoDnsAtual }}">
                         <div class="endpoint-static-field">{{ match($tipoDnsAtual) { 'bind9' => 'BIND9', 'outro' => 'Outro', default => 'Unbound' } }}</div>
                     @else
-                        <select class="form-control" id="tipo_dns" name="tipo_dns">
-                            <option value="unbound" @selected(old('tipo_dns', $servidor->tipo_dns ?? 'unbound') === 'unbound')>Unbound</option>
-                            <option value="bind9" @selected(old('tipo_dns', $servidor->tipo_dns) === 'bind9')>BIND9 (em breve)</option>
-                            <option value="outro" @selected(old('tipo_dns', $servidor->tipo_dns) === 'outro')>Outro</option>
-                        </select>
-                        <p style="color:var(--text-muted);font-size:10px;margin-top:6px">Hoje o painel só gera zonefile no formato RPZ padrão (funciona com Unbound). BIND9 é suporte futuro.</p>
+                        @php $tipoDnsAtual = old('tipo_dns', $servidor->tipo_dns ?? 'unbound'); @endphp
+                        <input type="hidden" id="tipo_dns" name="tipo_dns" value="{{ $tipoDnsAtual }}">
+                        <div class="endpoint-static-field">{{ match($tipoDnsAtual) { 'bind9' => 'BIND9', 'outro' => 'Outro', default => 'Unbound' } }}</div>
                     @endif
                 </div>
 
@@ -104,7 +105,7 @@
             @if (auth()->user()->isAdmin())
                 <p class="endpoint-form-note">IPv4 e IPv6 são informativos e não controlam restrição de acesso ao feed RPZ.</p>
             @else
-                <p style="color:var(--text-muted);font-size:10px;margin-top:6px">IPv4/IPv6 são só informativos por enquanto — não alimentam a restrição de IP automaticamente.</p>
+                <p style="color:var(--text-muted);font-size:10px;margin-top:6px">IPv4 e IPv6 são informativos e não controlam o acesso ao feed RPZ.</p>
             @endif
         </div>
 
@@ -132,7 +133,7 @@
                         <button type="button" class="button button-secondary" id="token-toggle-btn">Mostrar</button>
                         <button type="button" class="button button-secondary" data-copy-target="token-value" aria-live="polite">Copiar</button>
                     </div>
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">O token dá acesso à zona RPZ deste endpoint. Não compartilhe fora do que for necessário.</p>
+                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">O token dá acesso à zona RPZ {{ auth()->user()->isAdmin() ? 'deste endpoint' : 'deste servidor' }}. Não compartilhe fora do que for necessário.</p>
                 </div>
             </div>
         @else
@@ -142,7 +143,7 @@
         @if (isset($listasDisponiveis) && $listasDisponiveis->isNotEmpty())
             <div class="panel form-panel" style="margin-bottom:14px" id="fontes-habilitadas-panel">
                 <div class="panel-header">
-                    <h2>Fontes habilitadas</h2>
+                    <h2>{{ auth()->user()->isAdmin() ? 'Fontes habilitadas' : 'Listas habilitadas' }}</h2>
                     <div class="endpoint-sources-heading">
                         @if (auth()->user()->isAdmin())
                             <button type="button" class="inline-link endpoint-selection-action" id="fontes-selecionar-todas">Selecionar todas</button>
@@ -151,20 +152,23 @@
                         <span id="fontes-selecionadas-count"></span>
                     </div>
                 </div>
-                <input type="text" class="form-control" id="fontes-filtro" placeholder="Pesquisar fontes..." style="margin-bottom:10px">
+                <input type="text" class="form-control" id="fontes-filtro" placeholder="{{ auth()->user()->isAdmin() ? 'Pesquisar fontes...' : 'Pesquisar listas...' }}" style="margin-bottom:10px">
                 <div style="display:grid;gap:6px;max-height:340px;overflow-y:auto">
                     @foreach ($listasDisponiveis as $lista)
                         @php
                             $tipoFonte = $lista->isAnatel()
                                 ? 'Catálogo / Importação ANATEL'
                                 : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'));
+                            $tipoListaCliente = $lista->isExterna()
+                                ? 'Externa'
+                                : ($lista->empresa_id ? 'Própria' : 'Catálogo');
                         @endphp
                         <label class="checkbox-label" data-fonte-nome="{{ strtolower($lista->nome) }}">
                             <input type="checkbox" name="lista_ids[]" value="{{ $lista->id }}" data-fonte-checkbox
                                 @checked($servidor->exists && $servidor->listas->contains($lista->id))>
                             <div>
                                 <strong>{{ $lista->nome }}</strong>
-                                <small>{{ auth()->user()->isAdmin() ? $tipoFonte : ($lista->empresa_id ? 'Própria' : 'Catálogo') }}</small>
+                                <small>{{ auth()->user()->isAdmin() ? $tipoFonte : $tipoListaCliente }}</small>
                             </div>
                         </label>
                     @endforeach
