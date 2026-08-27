@@ -95,7 +95,7 @@ class AdminDomainsPresentationTest extends TestCase
             ->assertDontSee('Remover este domínio?');
     }
 
-    public function test_client_keeps_the_existing_default_pagination_view(): void
+    public function test_client_uses_the_compact_pagination_view(): void
     {
         $cliente = User::factory()->cliente()->create();
         $lista = Lista::factory()->create(['empresa_id' => null]);
@@ -106,6 +106,11 @@ class AdminDomainsPresentationTest extends TestCase
 
         $this->actingAs($cliente)->get(route('dominios.index'))
             ->assertOk()
-            ->assertDontSee('admin-domains-pagination');
+            ->assertSee('admin-domains-pagination')
+            ->assertSee('Anterior')
+            ->assertSee('Página 1')
+            ->assertSee('Próxima')
+            ->assertDontSee('Previous')
+            ->assertDontSee('Next');
     }
 }

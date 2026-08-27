@@ -4,6 +4,7 @@
 
 @section('content')
     @php
+        $isAdmin = auth()->user()->isAdmin();
         $fontesManuais = $fontesDisponiveis->where('origem', '!=', 'externa');
         $queryBase = array_filter([
             'dominio' => $termoOriginal !== '' ? $termoOriginal : null,
@@ -16,7 +17,7 @@
     <div class="page-heading page-heading-compact">
         <div>
             <h1>Domínios</h1>
-            <p>Central de bloqueios RPZ — pesquise, analise e gerencie os domínios distribuídos pelas fontes RPZ.</p>
+            <p>{{ $isAdmin ? 'Central de bloqueios RPZ — pesquise, analise e gerencie os domínios distribuídos pelas fontes RPZ.' : 'Pesquise e consulte os domínios distribuídos pelas listas da sua empresa.' }}</p>
         </div>
         @if (auth()->user()->isAdmin() && $fontesManuais->isNotEmpty())
             <div class="page-actions">
@@ -75,7 +76,7 @@
             </div>
             <dl class="details-list">
                 <div>
-                    <dt>Fontes</dt>
+                    <dt>{{ $isAdmin ? 'Fontes' : 'Listas' }}</dt>
                     <dd>
                         @foreach ($resultadoExato['fontes'] as $fonte)
                             <a href="{{ route('listas.show', $fonte) }}" class="table-primary-link">{{ $fonte->nome }}</a>@if (! $loop->last), @endif
@@ -131,9 +132,9 @@
                 @if ($statusFiltro)
                     <input type="hidden" name="status" value="{{ $statusFiltro }}">
                 @endif
-                <label for="fonte_id" style="font-size:11px;color:var(--text-muted)">Fonte</label>
+                <label for="fonte_id" style="font-size:11px;color:var(--text-muted)">{{ $isAdmin ? 'Fonte' : 'Lista' }}</label>
                 <select name="fonte_id" id="fonte_id" class="form-control" style="min-width:190px" onchange="this.form.submit()">
-                    <option value="">Todas as fontes</option>
+                    <option value="">{{ $isAdmin ? 'Todas as fontes' : 'Todas as listas' }}</option>
                     @foreach ($fontesDisponiveis as $fonte)
                         <option value="{{ $fonte->id }}" @selected($fonteId === $fonte->id)>{{ $fonte->nome }}</option>
                     @endforeach
@@ -152,7 +153,7 @@
                         <span>Tente outro trecho do domínio ou limpe a busca.</span>
                     @elseif ($temFiltroAtivo)
                         <strong>Nenhum domínio corresponde aos filtros selecionados</strong>
-                        <span>Tente ajustar o status ou a fonte selecionada.</span>
+                        <span>Tente ajustar o status ou a {{ $isAdmin ? 'fonte' : 'lista' }} selecionada.</span>
                     @else
                         <strong>Pesquise um domínio ou utilize os filtros para explorar a base RPZ</strong>
                         <span>A listagem completa aparece aqui, paginada.</span>
@@ -165,7 +166,7 @@
                     <thead>
                         <tr>
                             <th>Domínio</th>
-                            <th>Fontes</th>
+                            <th>{{ $isAdmin ? 'Fontes' : 'Listas' }}</th>
                             <th>Status</th>
                             <th>Adicionado em</th>
                             <th>Atualizado em</th>
@@ -223,9 +224,9 @@
                                             @endif
                                         </x-actions-menu>
                                     @elseif ($unicaFonte)
-                                        <a href="{{ route('listas.show', $unicaFonte->lista_id) }}" class="table-action-link">Ver fonte</a>
+                                        <a href="{{ route('listas.show', $unicaFonte->lista_id) }}" class="table-action-link">Ver lista</a>
                                     @else
-                                        <span class="table-secondary-text">{{ $fontesLinha->count() }} fontes</span>
+                                        <span class="table-secondary-text">{{ $fontesLinha->count() }} listas</span>
                                     @endif
                                 </td>
                             </tr>
@@ -236,13 +237,9 @@
         @endif
     </div>
 
-    @if (auth()->user()->isAdmin())
-        <div class="admin-domains-pagination">
-            {{ $dominios->links('pagination.simple-compact') }}
-        </div>
-    @else
-        {{ $dominios->links() }}
-    @endif
+    <div class="admin-domains-pagination">
+        {{ $dominios->links('pagination.simple-compact') }}
+    </div>
 
     @if (auth()->user()->isAdmin() && $fontesManuais->isNotEmpty())
         <script>
