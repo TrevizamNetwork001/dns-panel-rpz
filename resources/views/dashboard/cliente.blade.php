@@ -19,11 +19,9 @@
                 </div>
                 <span class="metric-state">total</span>
             </div>
-            <div class="metric-value">{{ $totalServidores }}</div>
-            <div class="metric-label">Servidores</div>
-            <div class="metric-footer">
-                <span>{{ $totalServidores }}/{{ $capacidadeLicenca }} usados da licença</span>
-            </div>
+            <div class="metric-value">{{ number_format($totalDominiosAtivos, 0, ',', '.') }}</div>
+            <div class="metric-label">Domínios bloqueados</div>
+            <div class="metric-footer"><span>Nos seus servidores</span></div>
         </div>
 
         <div class="metric-card">
@@ -33,9 +31,9 @@
                 </div>
                 <span class="metric-state">total</span>
             </div>
-            <div class="metric-value">{{ $totalListas }}</div>
+            <div class="metric-value">{{ number_format($totalListas, 0, ',', '.') }}</div>
             <div class="metric-label">Listas disponíveis</div>
-            <div class="metric-footer"><span>Catálogo + próprias</span></div>
+            <div class="metric-footer"><span>{{ $totalListas === 1 ? '1 disponível' : number_format($totalListas, 0, ',', '.').' disponíveis' }}</span></div>
         </div>
 
         <div class="metric-card">
@@ -45,9 +43,9 @@
                 </div>
                 <span class="metric-state">total</span>
             </div>
-            <div class="metric-value">{{ $totalDominiosAtivos }}</div>
-            <div class="metric-label">Domínios bloqueados</div>
-            <div class="metric-footer"><span>Nos seus servidores</span></div>
+            <div class="metric-value">{{ number_format($totalServidores, 0, ',', '.') }}</div>
+            <div class="metric-label">{{ $totalServidores === 1 ? 'Servidor em uso' : 'Servidores em uso' }}</div>
+            <div class="metric-footer"><span>{{ number_format($totalServidores, 0, ',', '.') }} de {{ number_format($capacidadeLicenca, 0, ',', '.') }} {{ $totalServidores === 1 ? 'usado' : 'usados' }} da licença</span></div>
         </div>
 
         <div class="metric-card">
@@ -57,9 +55,9 @@
                 </div>
                 <span class="metric-state">licença</span>
             </div>
-            <div class="metric-value">{{ $capacidadeLicenca }}</div>
-            <div class="metric-label">Servidores contratados</div>
-            <div class="metric-footer"><span>Limite atual da sua licença</span></div>
+            <div class="metric-value">{{ number_format($capacidadeLicenca, 0, ',', '.') }}</div>
+            <div class="metric-label">{{ $capacidadeLicenca === 1 ? 'Servidor contratado' : 'Servidores contratados' }}</div>
+            <div class="metric-footer"><span>{{ number_format(max(0, $capacidadeLicenca - $totalServidores), 0, ',', '.') }} {{ max(0, $capacidadeLicenca - $totalServidores) === 1 ? 'disponível' : 'disponíveis' }}</span></div>
         </div>
     </div>
 
@@ -78,7 +76,7 @@
                             @foreach ($listas as $lista)
                                 <tr>
                                     <td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td>
-                                    <td class="table-mono">{{ $lista->dominios_ativos_count }}</td>
+                                    <td class="table-mono">{{ number_format($lista->dominios_ativos_count, 0, ',', '.') }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -95,19 +93,19 @@
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Servidor</th><th>Última sync</th></tr>
+                            <tr><th>Servidor</th><th>Última sincronização</th><th>Status</th></tr>
                         </thead>
                         <tbody>
                             @foreach ($servidores as $servidor)
                                 <tr>
                                     <td><a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">{{ $servidor->nome }}</a></td>
-                                    <td class="table-mono">
-                                        @if ($servidor->last_synced_at)
-                                            {{ $servidor->last_synced_at->diffForHumans() }}
-                                        @else
-                                            nunca
-                                        @endif
-                                    </td>
+                                    @php
+                                        $dias = $servidor->diasSemSincronizar();
+                                        $estadoLabel = $dias === null ? 'Sem sincronização' : ($dias >= 2 ? 'Atenção' : 'Normal');
+                                        $estadoClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active');
+                                    @endphp
+                                    <td class="table-mono">{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</td>
+                                    <td><span class="status-pill {{ $estadoClasse }}">{{ $estadoLabel }}</span></td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -116,12 +114,17 @@
             @endif
         </div>
 
-        @if ($sugestoesRecentes->isNotEmpty())
         <div class="panel details-card-wide">
             <div class="panel-header">
                 <h2>Minhas sugestões de domínio</h2>
-                <a href="{{ route('sugestoes.index') }}" class="table-action-link">Ver todas</a>
+                <div class="table-actions">
+                    <a href="{{ route('sugestoes.index') }}" class="table-action-link">Ver todas</a>
+                    <a href="{{ route('sugestoes.create') }}" class="button button-primary">+ Sugerir domínio</a>
+                </div>
             </div>
+            @if ($sugestoesRecentes->isEmpty())
+                <div class="empty-state"><span>Nenhuma sugestão enviada ainda.</span></div>
+            @else
             <div class="table-responsive">
                 <table class="data-table">
                     <thead>
@@ -145,7 +148,7 @@
                     </tbody>
                 </table>
             </div>
+            @endif
         </div>
-        @endif
     </div>
 @endsection
