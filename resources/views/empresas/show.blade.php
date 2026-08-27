@@ -3,11 +3,26 @@
 @section('title', $empresa->nome)
 
 @section('content')
+    @php
+        $isAdmin = auth()->user()->isAdmin();
+        $servidoresUtilizados = $empresa->servidores->count();
+    @endphp
+
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Empresa</div>
             <h1>{{ $empresa->nome }}</h1>
-            <p>{{ $empresa->documento ?? 'sem documento' }} &middot; {{ $empresa->email_contato ?? 'sem e-mail' }}</p>
+            @if ($isAdmin)
+                <p>{{ $empresa->documento ?? 'sem documento' }} &middot; {{ $empresa->email_contato ?? 'sem e-mail' }}</p>
+            @else
+                <p style="display:flex;gap:6px 18px;flex-wrap:wrap;align-items:center">
+                    <span><strong>Documento</strong> <span class="table-mono">{{ $empresa->documentoFormatado() ?? 'sem documento' }}</span></span>
+                    <span style="overflow-wrap:anywhere"><strong>E-mail de contato</strong> {{ $empresa->email_contato ?? 'sem e-mail' }}</span>
+                    <span class="status-pill {{ $empresa->status === 'active' ? 'is-active' : 'is-inactive' }}">
+                        {{ $empresa->status === 'active' ? 'Ativa' : 'Inativa' }}
+                    </span>
+                </p>
+            @endif
         </div>
         <div class="page-actions">
             @if (auth()->user()->isAdmin())<a href="{{ route('empresas.edit', $empresa) }}" class="button button-secondary">Editar</a>@endif
@@ -15,12 +30,14 @@
     </div>
 
     <div class="details-grid">
+        @if ($isAdmin)
         <div class="panel">
             <div class="panel-header"><h2>Status</h2></div>
             <span class="status-pill @if($empresa->status === 'active') is-active @else is-inactive @endif">
                 {{ $empresa->status === 'active' ? 'Ativa' : 'Inativa' }}
             </span>
         </div>
+        @endif
 
         <div class="panel details-card-wide">
             <div class="panel-header"><h2>Servidores</h2></div>
@@ -84,25 +101,42 @@
         @endif
 
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Licenças</h2></div>
+            <div class="panel-header"><h2>{{ ! $isAdmin && $empresa->licencas->count() === 1 ? 'Licença' : 'Licenças' }}</h2></div>
             @if ($empresa->licencas->isEmpty())
                 <div class="empty-state"><span>Nenhuma licença cadastrada.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Início</th><th>Expiração</th><th>Status</th></tr>
+                            <tr>
+                                <th>Início</th><th>Expiração</th><th>Status</th>
+                                @if (! $isAdmin)<th>Validade</th><th>Uso</th>@endif
+                            </tr>
                         </thead>
                         <tbody>
                             @foreach ($empresa->licencas as $licenca)
+                                @php
+                                    $statusLabel = match ($licenca->status) {
+                                        'active' => 'Ativa',
+                                        'inactive' => 'Inativa',
+                                        'expired' => 'Expirada',
+                                        default => ucfirst($licenca->status),
+                                    };
+                                @endphp
                                 <tr>
                                     <td>{{ $licenca->starts_at->format('d/m/Y') }}</td>
                                     <td>{{ optional($licenca->expires_at)->format('d/m/Y') ?? 'sem expiração' }}</td>
                                     <td>
                                         <span class="status-pill @if($licenca->status === 'active') is-active @else is-inactive @endif">
-                                            {{ $licenca->status }}
+                                            {{ $isAdmin ? $licenca->status : $statusLabel }}
                                         </span>
                                     </td>
+                                    @if (! $isAdmin)
+                                        <td>{{ $licenca->expirationSummary() ?? 'Sem expiração' }}</td>
+                                        <td>
+                                            {{ $servidoresUtilizados.' de '.$licenca->max_servidores.' '.($licenca->max_servidores === 1 ? 'servidor utilizado' : 'servidores utilizados') }}
+                                        </td>
+                                    @endif
                                 </tr>
                             @endforeach
                         </tbody>
