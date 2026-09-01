@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class EmpresaController extends Controller
@@ -45,7 +46,7 @@ class EmpresaController extends Controller
             abort(403);
         }
 
-        $empresa->load(['servidores', 'listas', 'licencas', 'users']);
+        $empresa->load(['servidores.allowedIps', 'servidores.listas', 'listas', 'licencas', 'users']);
 
         return view('empresas.show', compact('empresa'));
     }
@@ -57,13 +58,31 @@ class EmpresaController extends Controller
 
     public function update(Request $request, Empresa $empresa): RedirectResponse
     {
+        $oldSlug = $empresa->rpz_slug;
         $data = $this->validated($request);
 
         $empresa->update($data);
 
         AuditLog::record('empresa.updated', "Empresa \"{$empresa->nome}\" atualizada", $empresa->id, 'empresa', $empresa->id);
+        if ($oldSlug !== $empresa->rpz_slug) {
+            AuditLog::record('rpz.endpoint.slug_changed', 'Slug do endpoint RPZ empresarial alterado', $empresa->id, 'empresa', $empresa->id);
+        }
 
         return redirect()->route('empresas.index')->with('status', 'Empresa atualizada com sucesso.');
+    }
+
+    public function testRpzAcl(Request $request, Empresa $empresa): RedirectResponse
+    {
+        $data = $request->validate(['ip' => ['required', 'ip']]);
+        $allowed = $empresa->servidores()
+            ->where('status', 'active')
+            ->whereHas('allowedIps', fn ($query) => $query->where('status', 'active'))
+            ->with(['allowedIps' => fn ($query) => $query->where('status', 'active')])
+            ->get()
+            ->flatMap->allowedIps
+            ->contains(fn ($rule): bool => \App\Models\Servidor::ipMatchesCidr($data['ip'], $rule->ip_cidr));
+
+        return back()->with('acl_test', ['ip' => $data['ip'], 'allowed' => $allowed]);
     }
 
     public function destroy(Empresa $empresa): RedirectResponse
@@ -77,8 +96,16 @@ class EmpresaController extends Controller
 
     private function validated(Request $request): array
     {
+        $empresa = $request->route('empresa');
         return $request->validate([
             'nome' => ['required', 'string', 'max:255'],
+            'rpz_slug' => [
+                'nullable',
+                'string',
+                'max:80',
+                'regex:/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/',
+                Rule::unique('empresas', 'rpz_slug')->ignore($empresa?->id),
+            ],
             'documento' => ['nullable', 'string', 'max:32'],
             'email_contato' => ['nullable', 'email', 'max:255'],
             'status' => ['required', 'in:active,inactive'],

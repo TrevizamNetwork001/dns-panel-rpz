@@ -43,4 +43,17 @@ class ServidorIpMatchesCidrTest extends TestCase
         $this->assertFalse(Servidor::ipMatchesCidr('2001:db8::1', '203.0.113.0/24'));
         $this->assertFalse(Servidor::ipMatchesCidr('203.0.113.5', '2001:db8::/32'));
     }
+
+    public function test_equivalent_ipv6_individual_forms_match(): void
+    {
+        $this->assertTrue(Servidor::ipMatchesCidr('2001:0db8:0:0:0:0:0:1', '2001:db8::1'));
+    }
+
+    public function test_mask_must_fit_address_family(): void
+    {
+        $this->assertFalse(Servidor::validIpOrCidr('192.0.2.1/33'));
+        $this->assertFalse(Servidor::validIpOrCidr('2001:db8::1/129'));
+        $this->assertTrue(Servidor::validIpOrCidr('192.0.2.1/32'));
+        $this->assertTrue(Servidor::validIpOrCidr('2001:db8::1/128'));
+    }
 }

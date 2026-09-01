@@ -24,6 +24,12 @@
                 </div>
 
                 <div class="field-group">
+                    <label for="rpz_slug">Slug RPZ</label>
+                    <input class="form-control" type="text" id="rpz_slug" name="rpz_slug" value="{{ old('rpz_slug', $empresa->rpz_slug) }}" pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?" maxlength="80" placeholder="gerado automaticamente">
+                    <small>Identificador estável da URL; não muda com o nome da empresa.</small>
+                </div>
+
+                <div class="field-group">
                     <label for="documento">Documento (CNPJ)</label>
                     <input class="form-control" type="text" id="documento" name="documento" value="{{ old('documento', $empresa->documento) }}">
                 </div>

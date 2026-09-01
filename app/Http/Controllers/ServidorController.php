@@ -184,13 +184,14 @@ class ServidorController extends Controller
 
         $value = trim($data['ip_cidr']);
 
-        if (! $this->validIpOrCidr($value)) {
+        if (! Servidor::validIpOrCidr($value)) {
             return back()->withErrors(['ip_cidr' => 'IP ou CIDR inválido.']);
         }
 
         $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
 
         AuditLog::record('servidor.ips.added', "IP {$value} adicionado ao servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
+        AuditLog::record('rpz.endpoint.acl_updated', 'ACL do endpoint RPZ atualizada', $servidor->empresa_id, 'servidor', $servidor->id);
 
         return back()->with('status', 'IP adicionado à lista de permitidos.');
     }
@@ -205,6 +206,7 @@ class ServidorController extends Controller
         $ip->delete();
 
         AuditLog::record('servidor.ips.removed', "IP {$cidr} removido do servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
+        AuditLog::record('rpz.endpoint.acl_updated', 'ACL do endpoint RPZ atualizada', $servidor->empresa_id, 'servidor', $servidor->id);
 
         return back()->with('status', 'IP removido da lista de permitidos.');
     }
@@ -289,17 +291,6 @@ class ServidorController extends Controller
             })
             ->orderBy('nome')
             ->get();
-    }
-
-    private function validIpOrCidr(string $value): bool
-    {
-        if (str_contains($value, '/')) {
-            [$ip, $mask] = array_pad(explode('/', $value, 2), 2, null);
-
-            return filter_var($ip, FILTER_VALIDATE_IP) !== false && is_numeric($mask) && (int) $mask >= 0 && (int) $mask <= 128;
-        }
-
-        return filter_var($value, FILTER_VALIDATE_IP) !== false;
     }
 
     private function authorizeAccess(Servidor $servidor): void

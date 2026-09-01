@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Empresa extends Model
 {
@@ -12,10 +13,29 @@ class Empresa extends Model
 
     protected $fillable = [
         'nome',
+        'rpz_slug',
         'documento',
         'email_contato',
         'status',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Empresa $empresa): void {
+            if ($empresa->rpz_slug) {
+                return;
+            }
+
+            $base = substr(Str::slug($empresa->nome) ?: 'empresa', 0, 80);
+            $slug = $base;
+            $suffix = 2;
+            while (static::where('rpz_slug', $slug)->exists()) {
+                $tail = '-'.$suffix++;
+                $slug = substr($base, 0, 80 - strlen($tail)).$tail;
+            }
+            $empresa->rpz_slug = $slug;
+        });
+    }
 
     public function servidores(): HasMany
     {

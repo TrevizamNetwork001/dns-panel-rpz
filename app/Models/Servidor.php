@@ -94,7 +94,10 @@ class Servidor extends Model
         }
 
         if (! str_contains($cidr, '/')) {
-            return hash_equals($cidr, $ip);
+            $ipBinary = @inet_pton($ip);
+            $ruleBinary = @inet_pton($cidr);
+
+            return $ipBinary !== false && $ruleBinary !== false && hash_equals($ruleBinary, $ipBinary);
         }
 
         [$subnet, $maskLength] = array_pad(explode('/', $cidr, 2), 2, null);
@@ -109,6 +112,9 @@ class Servidor extends Model
         }
 
         $maskLength = (int) $maskLength;
+        if ($maskLength < 0 || $maskLength > strlen($ipBinary) * 8) {
+            return false;
+        }
         $bytes = intdiv($maskLength, 8);
         $bits = $maskLength % 8;
 
@@ -124,5 +130,16 @@ class Servidor extends Model
         }
 
         return true;
+    }
+
+    public static function validIpOrCidr(string $value): bool
+    {
+        [$ip, $mask] = array_pad(explode('/', trim($value), 2), 2, null);
+        $binary = @inet_pton($ip);
+        if ($binary === false) {
+            return false;
+        }
+
+        return $mask === null || (ctype_digit($mask) && (int) $mask <= strlen($binary) * 8);
     }
 }

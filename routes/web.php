@@ -28,8 +28,8 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.attempt')->
 Route::get('/cadastro', [RegistrationController::class, 'show'])->name('register');
 Route::post('/cadastro', [RegistrationController::class, 'store'])->name('register.store')->middleware('throttle:10,1');
 
-Route::get('/rpz/{token}.zone', [RpzController::class, 'show'])->middleware('throttle:60,1')
-    ->where('token', '[A-Za-z0-9]+')
+Route::get('/rpz/{identifier}.zone', [RpzController::class, 'show'])->middleware('throttle:60,1')
+    ->where('identifier', '[A-Za-z0-9][A-Za-z0-9-]{0,79}')
     ->name('rpz.show');
 
 Route::middleware('auth')->group(function () {
@@ -65,6 +65,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/anatel/listas/{lista}/batch/publish', [AnatelDashboardController::class, 'publishBatch'])->name('anatel.batch.publish');
         Route::post('/anatel/listas/{lista}/batch/reject', [AnatelDashboardController::class, 'rejectBatch'])->name('anatel.batch.reject');
         Route::resource('empresas', EmpresaController::class)->except(['show']);
+        Route::post('/empresas/{empresa}/rpz-acl-test', [EmpresaController::class, 'testRpzAcl'])->name('empresas.rpz-acl-test');
         Route::resource('licencas', LicencaController::class);
         Route::resource('listas', ListaController::class)->except(['index', 'show']);
         Route::patch('/listas/{lista}/toggle-sync', [ListaController::class, 'toggleSync'])->name('listas.toggle-sync');

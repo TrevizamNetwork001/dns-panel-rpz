@@ -45,6 +45,21 @@ class RpzZoneBuilder
             ->orderBy('dominio');
     }
 
+    public function companyQuery(int $empresaId): Builder
+    {
+        return DB::table('dominios')
+            ->join('lista_servidor', 'lista_servidor.lista_id', '=', 'dominios.lista_id')
+            ->join('servidores', 'servidores.id', '=', 'lista_servidor.servidor_id')
+            ->join('listas', 'listas.id', '=', 'lista_servidor.lista_id')
+            ->where('servidores.empresa_id', $empresaId)
+            ->where('servidores.status', 'active')
+            ->where('listas.status', 'active')
+            ->where('dominios.ativo', true)
+            ->selectRaw('LOWER(dominios.dominio) as dominio')
+            ->distinct()
+            ->orderBy('dominio');
+    }
+
     /** @return array{total:int,active:int,inactive:int,excluded:int,duplicates:int,entries:int,invalid:int} */
     public function stats(Lista $lista): array
     {
