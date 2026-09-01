@@ -35,6 +35,9 @@
             </p>
         </div>
         <div class="page-actions">
+            @if (auth()->user()->isAdmin())
+            <a href="{{ route('listas.rpz-preview', $lista) }}" class="button button-secondary">Preview RPZ</a>
+            @endif
             <a href="{{ route('listas.historico', $lista) }}" class="button button-secondary">Histórico</a>
             @if (auth()->user()->isAdmin())
             <a href="{{ route('listas.edit', $lista) }}" class="button button-secondary">Editar</a>

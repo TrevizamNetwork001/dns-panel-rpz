@@ -1889,6 +1889,26 @@ input.endpoint-code-field:focus {
     }
 }
 
+/* ---------- preview RPZ administrativo ---------- */
+.rpz-preview-grid { display:grid;grid-template-columns:minmax(280px,390px) minmax(0,1fr);gap:14px;align-items:start; }
+.rpz-preview-grid .panel + .panel { margin-top:0; }
+.rpz-preview-kicker { color:var(--orange);font-size:9px;font-weight:800;letter-spacing:.13em;text-transform:uppercase; }
+.rpz-preview-metrics > div { padding:8px 0; }
+.rpz-preview-checks { display:grid;gap:7px;margin:14px 0;color:var(--text-soft);font-size:10px; }
+.rpz-download-button { width:100%; }
+.rpz-format-strip { display:flex;gap:7px 16px;flex-wrap:wrap;margin-bottom:12px;color:var(--text-muted);font:600 10px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.rpz-preview-limit { margin:0 0 10px;color:var(--text-muted);font-size:10px; }
+.rpz-code { max-width:100%;height:min(610px,calc(100vh - 285px));min-height:390px;margin:0;padding:18px;overflow:auto;border:1px solid #263244;border-radius:10px;background:#090f19;color:#dce7f3;font:11px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre; }
+.rpz-domain-search { margin-top:18px;padding-top:16px;border-top:1px solid var(--border-soft); }
+.rpz-domain-search label { display:block;margin-bottom:8px;color:var(--text-muted);font-size:9px;font-weight:750;text-transform:uppercase;letter-spacing:.06em; }
+.rpz-domain-search > div { display:flex;gap:7px; }
+.rpz-domain-search input { min-width:0;width:100%; }
+.rpz-search-result { margin-top:10px;padding:11px;border:1px solid var(--border-soft);border-radius:9px;background:var(--surface-soft);font-size:10px;overflow-wrap:anywhere; }
+.rpz-search-result p { margin:7px 0 0;line-height:1.55; }
+.rpz-search-result code { display:block;margin-top:8px;overflow-x:auto;color:var(--orange);white-space:nowrap; }
+@media (max-width:900px) { .rpz-preview-grid { grid-template-columns:1fr; }.rpz-code { height:480px;min-height:320px; } }
+@media (max-width:520px) { .rpz-domain-search > div { align-items:stretch;flex-direction:column; }.rpz-code { height:420px;padding:13px; } }
+
 /* ---------- empty state ---------- */
 
 .empty-state {
