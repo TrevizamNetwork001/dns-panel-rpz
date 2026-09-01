@@ -81,4 +81,10 @@ class Empresa extends Model
     {
         return $this->licencas()->valid()->exists();
     }
+
+    public function rpzEndpointUrl(): ?string
+    {
+        return $this->rpz_slug ? url('/rpz/'.$this->rpz_slug.'.zone') : null;
+    }
+
 }

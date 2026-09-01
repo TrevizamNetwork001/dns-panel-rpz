@@ -4,9 +4,11 @@
 
 @php
     $panelHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
-    $rpzUrl = url('/rpz/' . $servidor->token . '.zone');
+    $rpzUrl = $servidor->preferredRpzEndpointUrl();
+    $legacyRpzUrl = $servidor->legacyRpzEndpointUrl();
+    $usesCompanyEndpoint = $servidor->empresa->rpz_slug !== null;
     $rpzZoneName = $panelHost;
-    $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
+    $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    zonefile: \"{$rpzZoneName}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
     $diasSemConsulta = $servidor->diasSemSincronizar();
 @endphp
 
@@ -48,19 +50,16 @@
         @if (auth()->user()->isAdmin())
         <div class="panel details-card-wide admin-endpoint-access">
             <div class="panel-header"><h2>Acesso RPZ</h2></div>
+            <dl class="details-list" style="margin-bottom:14px">
+                <div><dt>Método</dt><dd>{{ $usesCompanyEndpoint ? 'ACL por IP' : 'Token legado (fallback)' }}</dd></div>
+                <div><dt>Status da ACL</dt><dd>{{ $servidor->allowedIps->where('status', 'active')->isNotEmpty() ? 'Configurada' : 'Sem IP autorizado' }}</dd></div>
+                <div><dt>IPs autorizados</dt><dd>{{ $servidor->allowedIps->where('status', 'active')->pluck('ip_cidr')->join(', ') ?: 'Nenhum' }}</dd></div>
+            </dl>
             <div class="field-group">
-                <label>URL RPZ</label>
+                <label>{{ $usesCompanyEndpoint ? 'URL curta' : 'URL RPZ de fallback' }}</label>
                 <div class="endpoint-secret-row">
                     <input class="endpoint-code-field" id="detail-rpz-url" type="text" value="{{ $rpzUrl }}" readonly spellcheck="false">
                     <button type="button" class="button button-secondary" data-endpoint-copy="detail-rpz-url" aria-live="polite">Copiar</button>
-                </div>
-            </div>
-            <div class="field-group" style="margin-top:14px">
-                <label>Token</label>
-                <div class="endpoint-secret-row">
-                    <code class="endpoint-code-field endpoint-token-field" id="detail-token-value">••••••••••••••••••••••••••••</code>
-                    <button type="button" class="button button-secondary" id="detail-token-toggle">Mostrar</button>
-                    <button type="button" class="button button-secondary" data-endpoint-copy="detail-token-value" aria-live="polite">Copiar</button>
                 </div>
             </div>
         </div>
@@ -83,9 +82,26 @@
         </div>
 
         @if (auth()->user()->isAdmin())
+        <details class="panel details-card-wide" id="legacy-token-access">
+            <summary style="cursor:pointer;font-weight:700">Acesso legado por token</summary>
+            <p style="color:var(--text-muted);font-size:11px">Compatibilidade para clientes existentes. Para novas configurações, prefira a URL curta com ACL.</p>
+            <div class="field-group">
+                <label>URL legada</label>
+                <div class="endpoint-secret-row"><input class="endpoint-code-field" id="legacy-rpz-url" value="{{ $legacyRpzUrl }}" readonly><button type="button" class="button button-secondary" data-endpoint-copy="legacy-rpz-url">Copiar</button></div>
+            </div>
+            <div class="field-group" style="margin-top:14px">
+                <label>Token</label>
+                <div class="endpoint-secret-row">
+                    <code class="endpoint-code-field endpoint-token-field" id="detail-token-value">••••••••••••••••••••••••••••</code>
+                    <button type="button" class="button button-secondary" id="detail-token-toggle">Mostrar</button>
+                    <button type="button" class="button button-secondary" data-endpoint-copy="detail-token-value">Copiar</button>
+                </div>
+            </div>
+        </details>
+
         <div class="panel details-card-wide">
             <div class="panel-header">
-                <h2>Restrição de IP (opcional)</h2>
+                <h2>Restrição de IP</h2>
                 <form action="{{ route('servidores.ip-restriction.toggle', $servidor) }}" method="POST">
                     @csrf
                     <button type="submit" class="button button-secondary">
@@ -95,9 +111,9 @@
             </div>
             <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">
                 @if ($servidor->ip_restriction_enabled)
-                    Ativa: só os IPs listados abaixo conseguem sincronizar, mesmo com o token correto.
+                    Ativa: os IPs listados abaixo autorizam a URL curta e também restringem o acesso legado.
                 @else
-                    Desativada: qualquer IP com o token válido consegue sincronizar. O token (48 caracteres aleatórios) já é a proteção principal — isso é uma camada extra, útil se o IP do servidor do cliente for fixo.
+                    Desativada para o token legado. A URL curta empresarial continua exigindo pelo menos um IP autorizado.
                 @endif
             </p>
 

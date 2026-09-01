@@ -69,6 +69,16 @@ class Servidor extends Model
         return (int) $this->last_synced_at->diffInDays(now());
     }
 
+    public function legacyRpzEndpointUrl(): string
+    {
+        return url('/rpz/'.$this->token.'.zone');
+    }
+
+    public function preferredRpzEndpointUrl(): string
+    {
+        return $this->empresa->rpzEndpointUrl() ?? $this->legacyRpzEndpointUrl();
+    }
+
     public function ipAllowed(string $ip): bool
     {
         if (! $this->ip_restriction_enabled) {

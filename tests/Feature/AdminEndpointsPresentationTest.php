@@ -89,6 +89,44 @@ class AdminEndpointsPresentationTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), 'id="detail-token-value"'));
     }
 
+    public function test_admin_detail_prioritizes_short_company_url_and_keeps_legacy_collapsed(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create(['rpz_slug' => 'speed-fiber']);
+        $servidor = Servidor::factory()->for($empresa)->create();
+        $shortUrl = url('/rpz/speed-fiber.zone');
+        $legacyUrl = url('/rpz/'.$servidor->token.'.zone');
+
+        $response = $this->actingAs($admin)->get(route('servidores.show', $servidor));
+
+        $response->assertOk()
+            ->assertSee('Método')
+            ->assertSee('ACL por IP')
+            ->assertSee('URL curta')
+            ->assertSee('zonefile: &quot;'.parse_url(config('app.url'), PHP_URL_HOST).'&quot;', false)
+            ->assertSee('url: &quot;'.$shortUrl.'&quot;', false)
+            ->assertSee('Acesso legado por token')
+            ->assertSee('id="legacy-rpz-url"', false)
+            ->assertSee($legacyUrl)
+            ->assertSeeInOrder(['id="detail-rpz-url"', $shortUrl, 'id="legacy-token-access"', $legacyUrl], false);
+
+        $this->assertStringNotContainsString($servidor->token, $this->mainConfig($response->getContent()));
+        $this->assertStringContainsString($shortUrl, $this->copiedConfig($response->getContent()));
+    }
+
+    public function test_company_without_slug_falls_back_to_legacy_url_without_error(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create();
+        $empresa->update(['rpz_slug' => null]);
+        $servidor = Servidor::factory()->for($empresa)->create();
+
+        $this->actingAs($admin)->get(route('servidores.show', $servidor))
+            ->assertOk()
+            ->assertSee('Token legado (fallback)')
+            ->assertSee(url('/rpz/'.$servidor->token.'.zone'));
+    }
+
     public function test_endpoint_form_rejects_a_source_from_another_company(): void
     {
         $admin = User::factory()->admin()->create();
@@ -145,5 +183,19 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertOk()
             ->assertDontSee('admin-endpoint-access')
             ->assertDontSee('Status cadastral');
+    }
+
+    private function mainConfig(string $content): string
+    {
+        preg_match('/<pre[^>]+id="config-snippet"[^>]*>(.*?)<\/pre>/s', $content, $matches);
+
+        return html_entity_decode($matches[1] ?? '');
+    }
+
+    private function copiedConfig(string $content): string
+    {
+        preg_match('/var endpointConfigSnippet = (".*?");/s', $content, $matches);
+
+        return json_decode($matches[1] ?? '""', true) ?: '';
     }
 }
