@@ -76,11 +76,13 @@ class DominioController extends Controller
 
             if ($normalized === null) {
                 $invalid++;
+
                 continue;
             }
 
             if ($existing->has($normalized)) {
                 $duplicated++;
+
                 continue;
             }
 
@@ -115,5 +117,4 @@ class DominioController extends Controller
 
         return redirect()->route('listas.dominios.index', $listaId)->with('status', 'Domínio removido.');
     }
-
 }

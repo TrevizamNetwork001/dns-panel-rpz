@@ -202,7 +202,7 @@ class RpzZonefileTest extends TestCase
         exec("named-checkzone {$panelHost} {$tmpFile} 2>&1", $output, $exitCode);
         unlink($tmpFile);
 
-        $this->assertSame(0, $exitCode, 'named-checkzone falhou: ' . implode("\n", $output));
+        $this->assertSame(0, $exitCode, 'named-checkzone falhou: '.implode("\n", $output));
     }
 
     public function test_handles_large_domain_lists_without_high_memory_usage(): void

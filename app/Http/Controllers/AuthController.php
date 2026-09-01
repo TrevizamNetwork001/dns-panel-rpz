@@ -27,7 +27,7 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $throttleKey = strtolower($credentials['email']) . '|' . $request->ip();
+        $throttleKey = strtolower($credentials['email']).'|'.$request->ip();
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);

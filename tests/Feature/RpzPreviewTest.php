@@ -17,6 +17,7 @@ class RpzPreviewTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private Lista $lista;
 
     protected function setUp(): void
@@ -85,7 +86,9 @@ class RpzPreviewTest extends TestCase
     public function test_preview_respects_500_rule_limit_and_reports_truncation(): void
     {
         $now = now();
-        for ($i = 0; $i < 260; $i++) DB::table('dominios')->insert(['lista_id' => $this->lista->id, 'dominio' => sprintf('d%03d.example', $i), 'ativo' => true, 'created_at' => $now, 'updated_at' => $now]);
+        for ($i = 0; $i < 260; $i++) {
+            DB::table('dominios')->insert(['lista_id' => $this->lista->id, 'dominio' => sprintf('d%03d.example', $i), 'ativo' => true, 'created_at' => $now, 'updated_at' => $now]);
+        }
         $response = $this->actingAs($this->admin)->get(route('listas.rpz-preview', $this->lista));
         $response->assertOk()->assertSee('primeiras 500 regras')->assertSee('d249.example CNAME .')->assertDontSee('d250.example CNAME .');
     }
@@ -118,7 +121,9 @@ class RpzPreviewTest extends TestCase
 
     public function test_real_format_fixture_is_exact(): void
     {
-        foreach (['example.net', 'example.com', 'hypeflixplus.biz'] as $domain) Dominio::factory()->for($this->lista)->create(['dominio' => $domain]);
+        foreach (['example.net', 'example.com', 'hypeflixplus.biz'] as $domain) {
+            Dominio::factory()->for($this->lista)->create(['dominio' => $domain]);
+        }
         $builder = app(RpzZoneBuilder::class);
         $expected = <<<'ZONE'
 $TTL 60

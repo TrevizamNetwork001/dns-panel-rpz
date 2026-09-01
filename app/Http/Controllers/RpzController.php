@@ -34,11 +34,11 @@ class RpzController extends Controller
             ->firstOrFail();
 
         if (! $servidor->ipAllowed($request->ip())) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         if (! $servidor->empresa->possuiLicencaAtiva()) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         $servidor->forceFill(['last_synced_at' => now()])->saveQuietly();
@@ -65,7 +65,7 @@ class RpzController extends Controller
     private function showCompany(Request $request, Empresa $empresa, RpzZoneBuilder $builder): Response|StreamedResponse
     {
         if (! $empresa->possuiLicencaAtiva()) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         $ip = (string) $request->ip();
@@ -80,6 +80,7 @@ class RpzController extends Controller
 
         if ($matchingServers->isEmpty()) {
             AuditLog::record('rpz.endpoint.denied', 'Acesso ao endpoint RPZ empresarial negado', $empresa->id, 'empresa', $empresa->id);
+
             return response()->view('rpz.access-denied', [], 403, [
                 'Cache-Control' => 'private, no-store, max-age=0',
                 'Content-Type' => 'text/html; charset=UTF-8',
@@ -114,5 +115,4 @@ class RpzController extends Controller
             'X-Content-Type-Options' => 'nosniff',
         ]);
     }
-
 }

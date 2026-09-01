@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ListaHistoryTest extends TestCase
@@ -103,7 +104,7 @@ class ListaHistoryTest extends TestCase
                 'updated_at' => $agora,
             ];
         }
-        \Illuminate\Support\Facades\DB::table('dominios')->insert($rows);
+        DB::table('dominios')->insert($rows);
 
         $response = $this->actingAs($admin)->get(route('listas.historico', $lista));
 
@@ -134,7 +135,7 @@ class ListaHistoryTest extends TestCase
             ];
         }
         foreach (array_chunk($rows, 1000) as $chunk) {
-            \Illuminate\Support\Facades\DB::table('dominios')->insert($chunk);
+            DB::table('dominios')->insert($chunk);
         }
 
         Dominio::factory()->for($lista)->count(50)->create([
@@ -142,7 +143,7 @@ class ListaHistoryTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $response = $this->actingAs($admin)->get(route('listas.historico', $lista) . '?periodo=7dias');
+        $response = $this->actingAs($admin)->get(route('listas.historico', $lista).'?periodo=7dias');
 
         $response->assertOk();
         $response->assertSee('Escala logarítmica');
@@ -159,7 +160,7 @@ class ListaHistoryTest extends TestCase
         // com 50 dominios precisa ficar bem acima de um squash quase-zero.
         $this->assertTrue(
             min($alturas) > 40,
-            'Esperava todas as barras com altura > 40px na escala log, menor altura foi ' . min($alturas)
+            'Esperava todas as barras com altura > 40px na escala log, menor altura foi '.min($alturas)
         );
     }
 }

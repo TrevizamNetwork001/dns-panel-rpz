@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\AnatelController;
+use App\Http\Controllers\AnatelDashboardController;
+use App\Http\Controllers\AnatelImportController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ConfiguracoesController;
@@ -11,15 +14,12 @@ use App\Http\Controllers\LicencaController;
 use App\Http\Controllers\ListaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RegistrationController;
-use App\Http\Controllers\SugestaoDominioController;
-use App\Http\Controllers\UserController;
 use App\Http\Controllers\RpzController;
 use App\Http\Controllers\RpzPreviewController;
 use App\Http\Controllers\SegurancaController;
-use App\Http\Controllers\AnatelController;
-use App\Http\Controllers\AnatelImportController;
-use App\Http\Controllers\AnatelDashboardController;
 use App\Http\Controllers\ServidorController;
+use App\Http\Controllers\SugestaoDominioController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');

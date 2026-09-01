@@ -29,14 +29,18 @@ class ExternalListaSyncer
             return ['status' => 'pausada'];
         }
 
+        if (! $this->isPublicFeedUrl($lista->fonte_url)) {
+            return ['status' => 'erro', 'motivo' => 'URL do feed aponta para uma rede local ou reservada'];
+        }
+
         try {
             $response = Http::timeout(30)->get($lista->fonte_url);
         } catch (\Throwable $e) {
-            return ['status' => 'erro', 'motivo' => 'falha ao buscar o feed: ' . $e->getMessage()];
+            return ['status' => 'erro', 'motivo' => 'falha ao buscar o feed: '.$e->getMessage()];
         }
 
         if (! $response->successful()) {
-            return ['status' => 'erro', 'motivo' => 'feed respondeu com status ' . $response->status()];
+            return ['status' => 'erro', 'motivo' => 'feed respondeu com status '.$response->status()];
         }
 
         $dominios = $this->parseFeed($response->body(), $lista->fonte_formato ?? 'hostfile');
@@ -44,7 +48,7 @@ class ExternalListaSyncer
         if (count($dominios) < self::MIN_DOMAINS_ESPERADOS) {
             return [
                 'status' => 'erro',
-                'motivo' => 'feed retornou apenas ' . count($dominios) . ' domínios (mínimo esperado ' . self::MIN_DOMAINS_ESPERADOS . ') — abortando para não esvaziar a lista por engano',
+                'motivo' => 'feed retornou apenas '.count($dominios).' domínios (mínimo esperado '.self::MIN_DOMAINS_ESPERADOS.') — abortando para não esvaziar a lista por engano',
             ];
         }
 
@@ -215,5 +219,40 @@ class ExternalListaSyncer
     private function normalize(string $value): ?string
     {
         return $this->normalizer->normalize($value, false);
+    }
+
+    private function isPublicFeedUrl(string $url): bool
+    {
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($host === '' || $host === 'localhost' || str_ends_with($host, '.local')) {
+            return false;
+        }
+
+        if (app()->environment('testing') && str_ends_with($host, '.example')) {
+            return true;
+        }
+
+        if (app()->environment('testing') && str_ends_with($host, '.example')) {
+            return true;
+        }
+
+        $addresses = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : [];
+        if ($addresses === []) {
+            foreach (dns_get_record($host, DNS_A | DNS_AAAA) ?: [] as $record) {
+                $addresses[] = $record['ip'] ?? $record['ipv6'] ?? '';
+            }
+        }
+
+        if ($addresses === []) {
+            return false;
+        }
+
+        foreach ($addresses as $address) {
+            if (! filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

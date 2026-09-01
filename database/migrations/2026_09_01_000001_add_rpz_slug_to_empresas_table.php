@@ -18,6 +18,7 @@ return new class extends Migration
         foreach (DB::table('empresas')->select(['id', 'nome', 'rpz_slug'])->orderBy('id')->cursor() as $empresa) {
             if ($empresa->rpz_slug !== null && $empresa->rpz_slug !== '') {
                 $used[$empresa->rpz_slug] = true;
+
                 continue;
             }
 

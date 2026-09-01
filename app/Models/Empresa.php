@@ -86,5 +86,4 @@ class Empresa extends Model
     {
         return $this->rpz_slug ? url('/rpz/'.$this->rpz_slug.'.zone') : null;
     }
-
 }

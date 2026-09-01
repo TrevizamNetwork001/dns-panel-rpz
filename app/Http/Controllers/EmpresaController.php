@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Empresa;
+use App\Models\Servidor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,7 +23,7 @@ class EmpresaController extends Controller
 
     public function create(): View
     {
-        $empresa = new Empresa();
+        $empresa = new Empresa;
 
         return view('empresas.form', compact('empresa'));
     }
@@ -80,7 +81,7 @@ class EmpresaController extends Controller
             ->with(['allowedIps' => fn ($query) => $query->where('status', 'active')])
             ->get()
             ->flatMap->allowedIps
-            ->contains(fn ($rule): bool => \App\Models\Servidor::ipMatchesCidr($data['ip'], $rule->ip_cidr));
+            ->contains(fn ($rule): bool => Servidor::ipMatchesCidr($data['ip'], $rule->ip_cidr));
 
         return back()->with('acl_test', ['ip' => $data['ip'], 'allowed' => $allowed]);
     }
@@ -97,6 +98,7 @@ class EmpresaController extends Controller
     private function validated(Request $request): array
     {
         $empresa = $request->route('empresa');
+
         return $request->validate([
             'nome' => ['required', 'string', 'max:255'],
             'rpz_slug' => [

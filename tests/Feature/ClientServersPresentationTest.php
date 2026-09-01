@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Empresa;
 use App\Models\Dominio;
+use App\Models\Empresa;
 use App\Models\Licenca;
 use App\Models\Lista;
 use App\Models\Servidor;

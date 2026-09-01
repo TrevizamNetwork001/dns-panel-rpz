@@ -130,6 +130,17 @@ class ExternalListaSyncTest extends TestCase
         $this->assertDatabaseCount('dominios', 0);
     }
 
+    public function test_rejects_feed_on_private_network(): void
+    {
+        Lista::factory()->externa('private-feed', 'http://127.0.0.1/internal')->create();
+        Http::fake();
+
+        $this->artisan('external:sync')->assertFailed();
+
+        Http::assertNothingSent();
+        $this->assertDatabaseCount('dominios', 0);
+    }
+
     public function test_ignores_manual_listas(): void
     {
         Lista::factory()->create(['nome' => 'Lista manual']);

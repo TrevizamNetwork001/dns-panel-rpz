@@ -51,7 +51,7 @@ class User extends Authenticatable
             $password .= $alphabet[random_int(0, $max)];
         }
 
-        return substr($password, 0, 5) . '-' . substr($password, 5, 5) . '-' . substr($password, 10, 5) . '-' . substr($password, 15, 5);
+        return substr($password, 0, 5).'-'.substr($password, 5, 5).'-'.substr($password, 10, 5).'-'.substr($password, 15, 5);
     }
 
     public static function avatarOptions(): array

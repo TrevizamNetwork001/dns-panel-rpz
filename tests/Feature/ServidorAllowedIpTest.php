@@ -14,7 +14,9 @@ class ServidorAllowedIpTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private Empresa $empresa;
+
     private Servidor $servidor;
 
     protected function setUp(): void

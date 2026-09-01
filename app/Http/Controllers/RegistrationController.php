@@ -27,6 +27,7 @@ class RegistrationController extends Controller
     public function store(Request $request, TelegramNotifier $telegram): RedirectResponse
     {
         $data = $request->validate([
+            'website' => ['nullable', 'max:0'],
             'empresa_nome' => ['required', 'string', 'max:255'],
             'documento' => ['nullable', 'string', 'max:32'],
             'email_contato' => ['nullable', 'email', 'max:255'],

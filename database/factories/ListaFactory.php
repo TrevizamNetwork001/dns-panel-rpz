@@ -16,7 +16,7 @@ class ListaFactory extends Factory
     {
         return [
             'empresa_id' => null,
-            'nome' => fake()->unique()->words(2, true) . ' list',
+            'nome' => fake()->unique()->words(2, true).' list',
             'descricao' => fake()->sentence(),
             'status' => 'active',
             'origem' => 'manual',

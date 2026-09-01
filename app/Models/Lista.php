@@ -50,8 +50,23 @@ class Lista extends Model
         return $this->origem === 'externa';
     }
 
-    public function isAnatel(): bool { return $this->origem === 'anatel'; }
-    public function isManaged(): bool { return $this->isExterna() || $this->isAnatel(); }
-    public function anatelImports(): HasMany { return $this->hasMany(AnatelImport::class); }
-    public function anatelExclusions(): HasMany { return $this->hasMany(AnatelExclusion::class); }
+    public function isAnatel(): bool
+    {
+        return $this->origem === 'anatel';
+    }
+
+    public function isManaged(): bool
+    {
+        return $this->isExterna() || $this->isAnatel();
+    }
+
+    public function anatelImports(): HasMany
+    {
+        return $this->hasMany(AnatelImport::class);
+    }
+
+    public function anatelExclusions(): HasMany
+    {
+        return $this->hasMany(AnatelExclusion::class);
+    }
 }

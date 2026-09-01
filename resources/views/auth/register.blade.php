@@ -29,6 +29,10 @@
 
             <form action="{{ route('register.store') }}" method="POST">
                 @csrf
+                <div aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
+                    <label for="website">Website</label>
+                    <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
+                </div>
 
                 <div class="form-group">
                     <label for="empresa_nome">Nome da empresa</label>

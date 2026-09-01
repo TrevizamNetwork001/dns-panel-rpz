@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\Lista;
+use App\Models\ServerAllowedIp;
 use App\Models\Servidor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -34,7 +36,7 @@ class ServidorController extends Controller
     public function create(): View
     {
         $user = Auth::user();
-        $servidor = new Servidor();
+        $servidor = new Servidor;
         $listasDisponiveis = collect();
 
         if ($user->isCliente()) {
@@ -165,7 +167,7 @@ class ServidorController extends Controller
 
         AuditLog::record(
             $servidor->ip_restriction_enabled ? 'servidor.ip_restriction_enabled' : 'servidor.ip_restriction_disabled',
-            "Restrição de IP do servidor \"{$servidor->nome}\" " . ($servidor->ip_restriction_enabled ? 'ativada' : 'desativada'),
+            "Restrição de IP do servidor \"{$servidor->nome}\" ".($servidor->ip_restriction_enabled ? 'ativada' : 'desativada'),
             $servidor->empresa_id,
             'servidor',
             $servidor->id
@@ -196,7 +198,7 @@ class ServidorController extends Controller
         return back()->with('status', 'IP adicionado à lista de permitidos.');
     }
 
-    public function removeAllowedIp(Servidor $servidor, \App\Models\ServerAllowedIp $ip): RedirectResponse
+    public function removeAllowedIp(Servidor $servidor, ServerAllowedIp $ip): RedirectResponse
     {
         if ($ip->servidor_id !== $servidor->id) {
             abort(404);
@@ -221,7 +223,7 @@ class ServidorController extends Controller
      * num dia, e a proxima sincronizacao depois disso ja reflete a mudanca
      * na contagem de dominios entregues.
      *
-     * @return array<int, array{timestamp: \Illuminate\Support\Carbon, tipo: string, detalhe: string, meta: string|null, lista_id: int|null}>
+     * @return array<int, array{timestamp: Carbon, tipo: string, detalhe: string, meta: string|null, lista_id: int|null}>
      */
     private function logServidor(Servidor $servidor): array
     {
@@ -272,7 +274,7 @@ class ServidorController extends Controller
 
             foreach ($adicionadosPorDiaLista as $row) {
                 $eventos[] = [
-                    'timestamp' => \Illuminate\Support\Carbon::parse($row->dia)->endOfDay(),
+                    'timestamp' => Carbon::parse($row->dia)->endOfDay(),
                     'tipo' => 'lista_add',
                     'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" ganhou {$row->total} domínio(s)",
                     'meta' => null,
@@ -282,7 +284,7 @@ class ServidorController extends Controller
 
             foreach ($removidosPorDiaLista as $row) {
                 $eventos[] = [
-                    'timestamp' => \Illuminate\Support\Carbon::parse($row->dia)->endOfDay(),
+                    'timestamp' => Carbon::parse($row->dia)->endOfDay(),
                     'tipo' => 'lista_remove',
                     'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" perdeu {$row->total} domínio(s)",
                     'meta' => null,

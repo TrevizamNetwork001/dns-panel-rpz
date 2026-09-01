@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -24,7 +25,7 @@ class SegurancaController extends Controller
 
         $historico = $eventos->take(50);
 
-        $bansUltimas24h = $eventos->filter(fn ($e) => \Carbon\Carbon::parse($e->created_at)->gte(now()->subHours(24)) && $e->action === 'ban')->count();
+        $bansUltimas24h = $eventos->filter(fn ($e) => Carbon::parse($e->created_at)->gte(now()->subHours(24)) && $e->action === 'ban')->count();
 
         $loginFalhasUltimas24h = AuditLog::where('action', 'auth.login_failed')
             ->where('created_at', '>=', now()->subHours(24))

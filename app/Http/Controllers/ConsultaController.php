@@ -105,7 +105,7 @@ class ConsultaController extends Controller
                 });
             })
             ->when($fonteId, fn ($q) => $q->where('dominios.lista_id', $fonteId))
-            ->when($termoOriginal !== '', fn ($q) => $q->where('dominios.dominio', 'like', '%' . strtolower($termoOriginal) . '%'))
+            ->when($termoOriginal !== '', fn ($q) => $q->where('dominios.dominio', 'like', '%'.strtolower($termoOriginal).'%'))
             ->when($statusFiltro === 'ativos', fn ($q) => $q->where('dominios.ativo', true))
             ->when($statusFiltro === 'inativos', fn ($q) => $q->where('dominios.ativo', false));
 
@@ -248,7 +248,7 @@ class ConsultaController extends Controller
             return collect();
         }
 
-        $query = Dominio::where('dominio', 'like', '%' . $trecho . '%')
+        $query = Dominio::where('dominio', 'like', '%'.$trecho.'%')
             ->with(['lista' => function ($q) use ($user) {
                 $q->with('empresa');
                 if ($user->isCliente()) {

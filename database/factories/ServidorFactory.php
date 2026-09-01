@@ -17,7 +17,7 @@ class ServidorFactory extends Factory
     {
         return [
             'empresa_id' => Empresa::factory(),
-            'nome' => fake()->unique()->domainWord() . '-srv',
+            'nome' => fake()->unique()->domainWord().'-srv',
             'status' => 'active',
             'tipo_dns' => 'unbound',
             'bloqueio_modo' => 'nxdomain',

@@ -76,7 +76,7 @@ class HealthCheck extends Command
         if ($usedPercent >= self::DISK_WARNING_PERCENT) {
             return [[
                 'action' => 'health.disk_low',
-                'description' => "Disco do servidor em {$usedPercent}% de uso (limite de alerta: " . self::DISK_WARNING_PERCENT . '%)',
+                'description' => "Disco do servidor em {$usedPercent}% de uso (limite de alerta: ".self::DISK_WARNING_PERCENT.'%)',
             ]];
         }
 
@@ -88,7 +88,7 @@ class HealthCheck extends Command
         if (! is_readable(self::CERT_PATH)) {
             return [[
                 'action' => 'health.cert_unreadable',
-                'description' => 'Não foi possível ler o certificado TLS para checar a validade (' . self::CERT_PATH . ')',
+                'description' => 'Não foi possível ler o certificado TLS para checar a validade ('.self::CERT_PATH.')',
             ]];
         }
 
@@ -97,7 +97,7 @@ class HealthCheck extends Command
         if (! $cert || empty($cert['validTo_time_t'])) {
             return [[
                 'action' => 'health.cert_unreadable',
-                'description' => 'Não foi possível interpretar o certificado TLS em ' . self::CERT_PATH,
+                'description' => 'Não foi possível interpretar o certificado TLS em '.self::CERT_PATH,
             ]];
         }
 
@@ -120,14 +120,14 @@ class HealthCheck extends Command
         } catch (\Throwable $e) {
             return [[
                 'action' => 'health.site_down',
-                'description' => 'Site não respondeu em ' . self::HEALTH_URL . ': ' . $e->getMessage(),
+                'description' => 'Site não respondeu em '.self::HEALTH_URL.': '.$e->getMessage(),
             ]];
         }
 
         if (! $response->successful()) {
             return [[
                 'action' => 'health.site_down',
-                'description' => 'Site respondeu com status ' . $response->status() . ' em ' . self::HEALTH_URL,
+                'description' => 'Site respondeu com status '.$response->status().' em '.self::HEALTH_URL,
             ]];
         }
 

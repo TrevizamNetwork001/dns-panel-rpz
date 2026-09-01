@@ -34,7 +34,7 @@ class LicencaController extends Controller
 
     public function create(): View
     {
-        $licenca = new Licenca();
+        $licenca = new Licenca;
         $empresas = Empresa::orderBy('nome')->get();
 
         return view('licencas.form', compact('licenca', 'empresas'));

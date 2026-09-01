@@ -9,7 +9,9 @@ use App\Models\Servidor;
 use App\Services\ExternalListaSyncer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ListaController extends Controller
@@ -36,7 +38,7 @@ class ListaController extends Controller
 
     public function create(): View
     {
-        $lista = new Lista();
+        $lista = new Lista;
         if (request('origem') === 'anatel') {
             $lista->forceFill(['nome' => 'ANATEL', 'origem' => 'anatel', 'status' => 'active']);
         }
@@ -74,7 +76,9 @@ class ListaController extends Controller
             ->orderBy('dominio')
             ->limit(10)
             ->get();
-        if ($lista->isAnatel()) $lista->load(['anatelImports' => fn ($q) => $q->latest()->limit(5)]);
+        if ($lista->isAnatel()) {
+            $lista->load(['anatelImports' => fn ($q) => $q->latest()->limit(5)]);
+        }
 
         return view('listas.show', compact('lista', 'dominiosPreview'));
     }
@@ -132,7 +136,7 @@ class ListaController extends Controller
 
         AuditLog::record(
             $lista->sync_ativo ? 'lista.externa.sync_habilitado' : 'lista.externa.sync_pausado',
-            "Sincronização automática da lista \"{$lista->nome}\" " . ($lista->sync_ativo ? 'reativada' : 'pausada'),
+            "Sincronização automática da lista \"{$lista->nome}\" ".($lista->sync_ativo ? 'reativada' : 'pausada'),
             null,
             'lista',
             $lista->id
@@ -191,7 +195,7 @@ class ListaController extends Controller
         return match ($resultado['status']) {
             'ok' => back()->with('status', "Sincronizado agora: {$resultado['total']} ativos, {$resultado['adicionados']} novos, {$resultado['removidos']} desativados."),
             'pausada' => back()->withErrors(['lista' => 'Sincronização está pausada — reative antes de sincronizar.']),
-            'erro' => back()->withErrors(['lista' => 'Falha ao sincronizar: ' . ($resultado['motivo'] ?? 'erro desconhecido')]),
+            'erro' => back()->withErrors(['lista' => 'Falha ao sincronizar: '.($resultado['motivo'] ?? 'erro desconhecido')]),
             default => back(),
         };
     }
@@ -203,17 +207,17 @@ class ListaController extends Controller
      *
      * @return array<int, array{dia: string, adicionados: int, removidos: int}>
      */
-    private function serieDiaria(Lista $lista, \Illuminate\Support\Carbon $desde): array
+    private function serieDiaria(Lista $lista, Carbon $desde): array
     {
-        $adicionadosPorDia = \Illuminate\Support\Facades\DB::table('dominios')
-            ->selectRaw("DATE(created_at) as dia, COUNT(*) as total")
+        $adicionadosPorDia = DB::table('dominios')
+            ->selectRaw('DATE(created_at) as dia, COUNT(*) as total')
             ->where('lista_id', $lista->id)
             ->where('created_at', '>=', $desde)
             ->groupBy('dia')
             ->pluck('total', 'dia');
 
-        $removidosPorDia = \Illuminate\Support\Facades\DB::table('dominios')
-            ->selectRaw("DATE(updated_at) as dia, COUNT(*) as total")
+        $removidosPorDia = DB::table('dominios')
+            ->selectRaw('DATE(updated_at) as dia, COUNT(*) as total')
             ->where('lista_id', $lista->id)
             ->where('ativo', false)
             ->where('updated_at', '>=', $desde)

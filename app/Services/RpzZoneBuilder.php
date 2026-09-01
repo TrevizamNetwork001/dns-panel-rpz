@@ -75,6 +75,7 @@ class RpzZoneBuilder
             $domain = $this->normalizer->normalize((string) $row->dominio, false);
             if ($domain === null) {
                 $invalid++;
+
                 continue;
             }
             if ($domain !== $previous) {
@@ -144,6 +145,7 @@ class RpzZoneBuilder
         foreach ($this->lines($query, $target, $serial) as $line) {
             $content .= $line."\n";
         }
+
         return $content;
     }
 
@@ -167,6 +169,7 @@ class RpzZoneBuilder
         $totalRules = ($totalEntries ?? $this->stats($lista)['entries']) * 2;
         $bytes = strlen($content);
         $estimatedBytes = $shown > 0 ? (int) round($bytes * max(1, $totalRules / $shown)) : $bytes;
+
         return ['content' => $content, 'shown' => $shown, 'truncated' => $totalRules > $shown, 'bytes' => $bytes, 'estimated_bytes' => $estimatedBytes];
     }
 }

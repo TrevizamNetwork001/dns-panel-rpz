@@ -51,7 +51,7 @@ class ProfileController extends Controller
     public function updateAvatar(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'avatar' => ['nullable', 'string', 'in:' . implode(',', array_keys(User::avatarOptions()))],
+            'avatar' => ['nullable', 'string', 'in:'.implode(',', array_keys(User::avatarOptions()))],
         ]);
 
         Auth::user()->update(['avatar' => $data['avatar'] ?? null]);

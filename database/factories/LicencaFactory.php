@@ -39,5 +39,4 @@ class LicencaFactory extends Factory
             'status' => 'active',
         ]);
     }
-
 }

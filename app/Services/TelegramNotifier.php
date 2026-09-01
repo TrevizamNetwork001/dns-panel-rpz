@@ -21,10 +21,10 @@ class TelegramNotifier
     public function notifyCadastro(string $empresaNome, string $responsavelNome, string $email): bool
     {
         $texto = "🆕 <b>Novo cadastro no painel RPZ</b>\n\n"
-            . "<b>Empresa:</b> " . e($empresaNome) . "\n"
-            . "<b>Responsável:</b> " . e($responsavelNome) . "\n"
-            . "<b>E-mail:</b> " . e($email) . "\n\n"
-            . 'Status: aguardando aprovação.';
+            .'<b>Empresa:</b> '.e($empresaNome)."\n"
+            .'<b>Responsável:</b> '.e($responsavelNome)."\n"
+            .'<b>E-mail:</b> '.e($email)."\n\n"
+            .'Status: aguardando aprovação.';
 
         return $this->send($texto);
     }
@@ -35,7 +35,7 @@ class TelegramNotifier
     }
 
     /**
-     * @param array<int, array{action: string, description: string}> $problemas
+     * @param  array<int, array{action: string, description: string}>  $problemas
      */
     public function notifyHealthProblems(array $problemas): bool
     {
@@ -44,11 +44,11 @@ class TelegramNotifier
         }
 
         $itens = array_map(
-            fn (array $problema) => '• ' . e($problema['description']),
+            fn (array $problema) => '• '.e($problema['description']),
             $problemas
         );
 
-        return $this->send("🚨 <b>Alerta de saúde do DNS Panel RPZ</b>\n\n" . implode("\n", $itens));
+        return $this->send("🚨 <b>Alerta de saúde do DNS Panel RPZ</b>\n\n".implode("\n", $itens));
     }
 
     private function send(string $texto): bool

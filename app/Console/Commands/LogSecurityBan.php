@@ -19,7 +19,7 @@ class LogSecurityBan extends Command
         $action = $this->argument('action');
 
         if (! in_array($action, ['ban', 'unban'], true)) {
-            $this->error('Ação inválida: ' . $action);
+            $this->error('Ação inválida: '.$action);
 
             return self::FAILURE;
         }
