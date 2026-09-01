@@ -101,11 +101,11 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - `php artisan health:check` roda a cada 30min via `systemd timer` (`dns-panel-rpz-healthcheck.timer`, como **root** — precisa disso pra ler o certificado do Let's Encrypt, que fica com permissão restrita mesmo para `www-data`).
 - Verifica: uso de disco (alerta a partir de 85%), validade do certificado TLS (alerta a partir de 14 dias), e se `https://rpz.trevizamnetwork.com.br/up` responde 200.
 - Quando está tudo OK, grava um `health.ok` silencioso (só pra saber "checou pela última vez há X min"). Quando encontra algo, grava um evento por problema (`health.disk_low`, `health.cert_expiring`, `health.site_down`, `health.cert_unreadable`) — aparece em `/seguranca` (card dedicado + alertas) e em `/auditoria`.
-- Ainda não notifica ninguém ativamente sobre esses eventos (sem Telegram/e-mail configurado pra healthcheck) — é preciso abrir o painel pra ver. A notificação por Telegram hoje cobre só cadastro de empresa (ver seção abaixo); estender pra eventos de healthcheck/segurança é o próximo passo natural.
+- Quando encontra um problema, também envia um alerta consolidado pelo Telegram configurado no painel. Falhas no Telegram não mascaram nem interrompem o healthcheck; os eventos continuam registrados na auditoria e em `/seguranca`.
 
 ## Notificação por Telegram
 
-Quando alguém se cadastra pelo formulário público (`/cadastro`), o painel manda uma mensagem pra um grupo/tópico do Telegram (nome da empresa, responsável, e-mail) — pra saber na hora sem abrir o painel. Se o envio falhar (bot mal configurado, Telegram fora do ar), o cadastro do cliente **não é afetado** — só fica sem notificar.
+Quando alguém se cadastra pelo formulário público (`/cadastro`), o painel manda uma mensagem pra um grupo/tópico do Telegram (nome da empresa, responsável, e-mail) — pra saber na hora sem abrir o painel. A mesma integração envia alertas consolidados quando o healthcheck detecta problemas de disco, certificado ou disponibilidade. Se o envio falhar (bot mal configurado, Telegram fora do ar), o cadastro e o healthcheck **não são afetados**.
 
 - Configurável 100% pela UI, sem precisar de SSH: `/configuracoes` (admin), painel "Notificação de cadastro via Telegram" — token do bot, chat ID, ID do tópico (se o grupo usar fóruns) e um toggle pra pausar sem perder a config. Tem botão "Enviar mensagem de teste".
 - Guardado na tabela `settings` (chave/valor genérica, `App\Models\Setting`) — dá pra reaproveitar pra outras configurações futuras sem migration nova.
@@ -182,7 +182,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-207 testes / 713 assertions cobrindo os pontos mais críticos:
+208 testes / 716 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
 - `tests/Feature/RegistrationTelegramTest.php`, `tests/Feature/ConfiguracoesTelegramTest.php` — notificação de cadastro via Telegram (payload correto, cadastro não quebra se o Telegram falhar ou não estiver configurado, tela de configuração admin-only, token preservado ao salvar sem preencher de novo, toggle de pausa).

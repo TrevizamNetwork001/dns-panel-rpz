@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\AuditLog;
+use App\Services\TelegramNotifier;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 
@@ -20,7 +21,7 @@ class HealthCheck extends Command
 
     private const HEALTH_URL = 'https://rpz.trevizamnetwork.com.br/up';
 
-    public function handle(): int
+    public function handle(TelegramNotifier $telegram): int
     {
         $problemas = [];
 
@@ -53,6 +54,10 @@ class HealthCheck extends Command
             ]);
             $this->warn($problema['description']);
         }
+
+        // A indisponibilidade do Telegram nunca mascara o resultado real do
+        // healthcheck: o notifier trata falhas, registra no log e retorna false.
+        $telegram->notifyHealthProblems($problemas);
 
         return self::FAILURE;
     }

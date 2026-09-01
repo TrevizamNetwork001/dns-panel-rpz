@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Empresa;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\TelegramNotifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -101,5 +102,24 @@ class ConfiguracoesTelegramTest extends TestCase
         ])->assertRedirect(route('dashboard'));
 
         Http::assertNothingSent();
+    }
+
+    public function test_health_problems_send_a_single_telegram_alert(): void
+    {
+        Setting::set('telegram_ativo', '1');
+        Setting::set('telegram_bot_token', 'fake-token');
+        Setting::set('telegram_chat_id', '-1001234');
+
+        Http::fake(['api.telegram.org/*' => Http::response(['ok' => true], 200)]);
+
+        $sent = app(TelegramNotifier::class)->notifyHealthProblems([
+            ['action' => 'health.disk_low', 'description' => 'Disco em 90% de uso'],
+            ['action' => 'health.site_down', 'description' => 'Site indisponível'],
+        ]);
+
+        $this->assertTrue($sent);
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => str_contains($request['text'], 'Disco em 90% de uso')
+            && str_contains($request['text'], 'Site indisponível'));
     }
 }

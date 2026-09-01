@@ -34,6 +34,23 @@ class TelegramNotifier
         return $this->send('✅ Teste de conexão do painel RPZ. Se você está vendo isso, a integração funciona.');
     }
 
+    /**
+     * @param array<int, array{action: string, description: string}> $problemas
+     */
+    public function notifyHealthProblems(array $problemas): bool
+    {
+        if ($problemas === []) {
+            return false;
+        }
+
+        $itens = array_map(
+            fn (array $problema) => '• ' . e($problema['description']),
+            $problemas
+        );
+
+        return $this->send("🚨 <b>Alerta de saúde do DNS Panel RPZ</b>\n\n" . implode("\n", $itens));
+    }
+
     private function send(string $texto): bool
     {
         $config = $this->config();
