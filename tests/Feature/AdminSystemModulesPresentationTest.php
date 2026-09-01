@@ -120,6 +120,8 @@ class AdminSystemModulesPresentationTest extends TestCase
             ->assertSee('IPs bloqueados')
             ->assertSee('bloqueios nas últimas 24 h')
             ->assertSee('falhas de login')
+            ->assertSee('IP de origem')
+            ->assertSee('não é o IP deste servidor')
             ->assertSee('Sem dados')
             ->assertSee('Nenhum IP bloqueado no momento.')
             ->assertSee('Nenhuma falha de login recente.')

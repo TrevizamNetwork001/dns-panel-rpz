@@ -122,13 +122,14 @@
 
         <div class="panel">
             <div class="panel-header"><h2>Últimas falhas de login no painel</h2></div>
+            <p style="color:var(--text-muted);font-size:11px;margin:0 0 12px">O IP de origem identifica o dispositivo ou a conexão que tentou entrar no painel — não é o IP deste servidor.</p>
             @if ($ultimasFalhasLogin->isEmpty())
                 <div class="empty-state"><span>Nenhuma falha de login recente.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
-                            <tr><th>Data</th><th>IP</th><th>Detalhe</th></tr>
+                            <tr><th>Data</th><th>IP de origem</th><th>Detalhe</th></tr>
                         </thead>
                         <tbody>
                             @foreach ($ultimasFalhasLogin as $log)
