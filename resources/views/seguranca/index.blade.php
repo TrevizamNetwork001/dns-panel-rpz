@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Segurança do servidor')
+@section('title', 'Segurança')
 
 @section('content')
     <div class="page-heading">
         <div>
-            <div class="page-eyebrow">Segurança</div>
-            <h1>Segurança do servidor</h1>
+            <div class="page-eyebrow">Sistema</div>
+            <h1>Segurança</h1>
             <p>Ameaças detectadas no host (SSH) e falhas de login no painel.</p>
         </div>
     </div>
@@ -19,7 +19,7 @@
                 </div>
             </div>
             <div class="metric-value">{{ $bansAtivos->count() }}</div>
-            <div class="metric-label">IPs bloqueados agora (SSH)</div>
+            <div class="metric-label">{{ $bansAtivos->count() === 1 ? 'IP bloqueado' : 'IPs bloqueados' }}</div>
         </div>
 
         <div class="metric-card">
@@ -29,7 +29,7 @@
                 </div>
             </div>
             <div class="metric-value">{{ $bansUltimas24h }}</div>
-            <div class="metric-label">Bloqueios de SSH (24h)</div>
+            <div class="metric-label">{{ $bansUltimas24h === 1 ? 'bloqueio na última 24 h' : 'bloqueios nas últimas 24 h' }}</div>
         </div>
 
         <div class="metric-card">
@@ -39,7 +39,7 @@
                 </div>
             </div>
             <div class="metric-value">{{ $loginFalhasUltimas24h }}</div>
-            <div class="metric-label">Falhas de login no painel (24h)</div>
+            <div class="metric-label">{{ $loginFalhasUltimas24h === 1 ? 'falha de login' : 'falhas de login' }}</div>
         </div>
 
         <div class="metric-card">
@@ -48,9 +48,9 @@
                     <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                 </div>
             </div>
-            <div class="metric-value">{{ $alertasSaude->isEmpty() ? 'OK' : $alertasSaude->count() }}</div>
+            <div class="metric-value">{{ ! $ultimoHealthCheck ? 'Sem dados' : ($alertasSaude->isEmpty() ? 'OK' : $alertasSaude->count()) }}</div>
             <div class="metric-label">
-                Saúde do servidor
+                Saúde
                 @if ($ultimoHealthCheck)
                     <br><small style="color:var(--text-muted)">última checagem: {{ $ultimoHealthCheck->created_at->diffForHumans() }}</small>
                 @else
@@ -123,7 +123,7 @@
         <div class="panel">
             <div class="panel-header"><h2>Últimas falhas de login no painel</h2></div>
             @if ($ultimasFalhasLogin->isEmpty())
-                <div class="empty-state"><span>Nenhuma falha de login registrada.</span></div>
+                <div class="empty-state"><span>Nenhuma falha de login recente.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
@@ -150,7 +150,7 @@
                 <span class="status-pill is-muted">últimos 50</span>
             </div>
             @if ($historico->isEmpty())
-                <div class="empty-state"><span>Nenhum evento registrado ainda.</span></div>
+                <div class="empty-state"><span>Nenhum evento de bloqueio registrado.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">

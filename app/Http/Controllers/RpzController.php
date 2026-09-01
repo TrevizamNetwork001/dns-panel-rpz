@@ -69,14 +69,16 @@ class RpzController extends Controller
         }
 
         $ip = (string) $request->ip();
-        $rules = DB::table('server_allowed_ips')
-            ->join('servidores', 'servidores.id', '=', 'server_allowed_ips.servidor_id')
-            ->where('servidores.empresa_id', $empresa->id)
-            ->where('servidores.status', 'active')
-            ->where('server_allowed_ips.status', 'active')
-            ->pluck('server_allowed_ips.ip_cidr');
+        $matchingServers = Servidor::query()
+            ->where('empresa_id', $empresa->id)
+            ->where('status', 'active')
+            ->whereHas('allowedIps', fn ($query) => $query->where('status', 'active'))
+            ->with(['allowedIps' => fn ($query) => $query->where('status', 'active')])
+            ->get()
+            ->filter(fn (Servidor $servidor): bool => $servidor->allowedIps
+                ->contains(fn ($rule): bool => Servidor::ipMatchesCidr($ip, $rule->ip_cidr)));
 
-        if (! $rules->contains(fn (string $rule): bool => Servidor::ipMatchesCidr($ip, $rule))) {
+        if ($matchingServers->isEmpty()) {
             AuditLog::record('rpz.endpoint.denied', 'Acesso ao endpoint RPZ empresarial negado', $empresa->id, 'empresa', $empresa->id);
             return response()->view('rpz.access-denied', [], 403, [
                 'Cache-Control' => 'private, no-store, max-age=0',
@@ -87,6 +89,17 @@ class RpzController extends Controller
 
         $domains = $builder->companyQuery($empresa->id);
         $count = DB::query()->fromSub(clone $domains, 'rpz_domains')->count();
+
+        foreach ($matchingServers as $servidor) {
+            $servidor->forceFill(['last_synced_at' => now()])->saveQuietly();
+            ServerSyncLog::create([
+                'servidor_id' => $servidor->id,
+                'ip_address' => $ip,
+                'dominios_count' => $count,
+                'created_at' => now(),
+            ]);
+        }
+
         AuditLog::record('rpz.endpoint.downloaded', "Endpoint RPZ empresarial baixado ({$count} domínios)", $empresa->id, 'empresa', $empresa->id);
         $serial = (string) now()->timestamp;
 

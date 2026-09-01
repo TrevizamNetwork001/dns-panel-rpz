@@ -226,6 +226,9 @@ class ServidorController extends Controller
     private function logServidor(Servidor $servidor): array
     {
         $desde = now()->subDays(30)->startOfDay();
+        if ($servidor->created_at && $servidor->created_at->greaterThan($desde)) {
+            $desde = $servidor->created_at->copy();
+        }
         $eventos = [];
 
         foreach ($servidor->syncLogs()->where('created_at', '>=', $desde)->orderByDesc('id')->limit(200)->get() as $log) {
@@ -243,18 +246,28 @@ class ServidorController extends Controller
 
         if ($listaIds->isNotEmpty()) {
             $adicionadosPorDiaLista = DB::table('dominios')
-                ->selectRaw('lista_id, DATE(created_at) as dia, COUNT(*) as total')
-                ->whereIn('lista_id', $listaIds)
-                ->where('created_at', '>=', $desde)
-                ->groupBy('lista_id', 'dia')
+                ->join('lista_servidor', function ($join) use ($servidor) {
+                    $join->on('lista_servidor.lista_id', '=', 'dominios.lista_id')
+                        ->where('lista_servidor.servidor_id', '=', $servidor->id);
+                })
+                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.created_at) as dia, COUNT(*) as total')
+                ->whereIn('dominios.lista_id', $listaIds)
+                ->where('dominios.created_at', '>=', $desde)
+                ->whereColumn('dominios.created_at', '>=', 'lista_servidor.created_at')
+                ->groupBy('dominios.lista_id', 'dia')
                 ->get();
 
             $removidosPorDiaLista = DB::table('dominios')
-                ->selectRaw('lista_id, DATE(updated_at) as dia, COUNT(*) as total')
-                ->whereIn('lista_id', $listaIds)
-                ->where('ativo', false)
-                ->where('updated_at', '>=', $desde)
-                ->groupBy('lista_id', 'dia')
+                ->join('lista_servidor', function ($join) use ($servidor) {
+                    $join->on('lista_servidor.lista_id', '=', 'dominios.lista_id')
+                        ->where('lista_servidor.servidor_id', '=', $servidor->id);
+                })
+                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.updated_at) as dia, COUNT(*) as total')
+                ->whereIn('dominios.lista_id', $listaIds)
+                ->where('dominios.ativo', false)
+                ->where('dominios.updated_at', '>=', $desde)
+                ->whereColumn('dominios.updated_at', '>=', 'lista_servidor.created_at')
+                ->groupBy('dominios.lista_id', 'dia')
                 ->get();
 
             foreach ($adicionadosPorDiaLista as $row) {

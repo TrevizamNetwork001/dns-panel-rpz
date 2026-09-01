@@ -8,7 +8,8 @@
         $servidoresUtilizados = $empresa->servidores->count();
         $rpzUrl = $empresa->rpz_slug ? url('/rpz/'.$empresa->rpz_slug.'.zone') : null;
         $rpzHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
-        $rpzConfig = "rpz:\n    name: \"{$rpzHost}\"\n    zonefile: \"{$rpzHost}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
+        $rpzZonefile = '/var/lib/unbound/'.$rpzHost.'.zone';
+        $rpzConfig = "rpz:\n    name: \"{$rpzHost}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
         $rpzAllowedIps = $empresa->servidores->where('status', 'active')->flatMap->allowedIps->where('status', 'active')->unique('ip_cidr')->sortBy('ip_cidr');
         $rpzListas = $empresa->servidores->where('status', 'active')->flatMap->listas->where('status', 'active')->unique('id')->sortBy('nome');
     @endphp
@@ -76,9 +77,9 @@
         @endif
 
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Servidores</h2></div>
+            <div class="panel-header"><h2>{{ $isAdmin ? 'Endpoints RPZ' : 'Servidores' }}</h2></div>
             @if ($empresa->servidores->isEmpty())
-                <div class="empty-state"><span>Nenhum servidor cadastrado.</span></div>
+                <div class="empty-state"><span>{{ $isAdmin ? 'Nenhum endpoint cadastrado.' : 'Nenhum servidor cadastrado.' }}</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
@@ -93,9 +94,9 @@
         </div>
 
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Listas</h2></div>
+            <div class="panel-header"><h2>{{ $isAdmin ? 'Fontes' : 'Listas' }}</h2></div>
             @if ($empresa->listas->isEmpty())
-                <div class="empty-state"><span>Nenhuma lista cadastrada.</span></div>
+                <div class="empty-state"><span>{{ $isAdmin ? 'Nenhuma fonte cadastrada.' : 'Nenhuma lista cadastrada.' }}</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
@@ -164,7 +165,7 @@
                                     <td>{{ optional($licenca->expires_at)->format('d/m/Y') ?? 'Sem vencimento' }}</td>
                                     <td>
                                         <span class="status-pill @if($licenca->status === 'active') is-active @else is-inactive @endif">
-                                            {{ $isAdmin ? $licenca->status : $statusLabel }}
+                                            {{ $statusLabel }}
                                         </span>
                                     </td>
                                     @if (! $isAdmin)

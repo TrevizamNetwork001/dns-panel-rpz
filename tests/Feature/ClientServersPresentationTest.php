@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Empresa;
+use App\Models\Dominio;
 use App\Models\Licenca;
 use App\Models\Lista;
 use App\Models\Servidor;
@@ -110,6 +111,33 @@ class ClientServersPresentationTest extends TestCase
         ]))->assertSessionHasErrors('empresa_id');
 
         $this->assertSame(1, $empresa->servidores()->count());
+    }
+
+    public function test_server_log_does_not_show_list_history_from_before_the_server_was_linked(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        $servidor = Servidor::factory()->for($empresa)->create(['created_at' => now()->subHour()]);
+        $lista = Lista::factory()->create(['nome' => 'Lista histórica']);
+        Dominio::factory()->for($lista)->create([
+            'dominio' => 'antes.example',
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(2),
+        ]);
+        $servidor->listas()->attach($lista, [
+            'created_at' => now()->subMinutes(30),
+            'updated_at' => now()->subMinutes(30),
+        ]);
+        Dominio::factory()->for($lista)->create([
+            'dominio' => 'depois.example',
+            'created_at' => now()->subMinutes(10),
+            'updated_at' => now()->subMinutes(10),
+        ]);
+
+        $this->actingAs($cliente)->get(route('servidores.show', $servidor))
+            ->assertOk()
+            ->assertSee('Lista &quot;Lista histórica&quot; ganhou 1 domínio(s)', false)
+            ->assertDontSee('ganhou 2 domínio(s)');
     }
 
     private function activeLicense(Empresa $empresa, int $maximum): void

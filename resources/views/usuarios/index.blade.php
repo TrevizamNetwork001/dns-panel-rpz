@@ -3,11 +3,10 @@
 @section('title', 'Usuários')
 
 @section('content')
-    <div class="page-heading">
+    <div class="page-heading page-heading-compact">
         <div>
-            <div class="page-eyebrow">Gestão</div>
             <h1>Usuários</h1>
-            <p>Contas de acesso ao painel — administradores e clientes.</p>
+            <p>{{ $usuarios->total() }} cadastrados</p>
         </div>
         <div class="page-actions">
             <a href="{{ route('usuarios.create') }}" class="button button-primary">+ Novo usuário</a>
@@ -47,18 +46,19 @@
                                 </td>
                                 <td>{{ $usuario->empresa->nome ?? '-' }}</td>
                                 <td>
-                                    <div class="table-actions">
-                                        <a href="{{ route('usuarios.edit', $usuario) }}" class="table-action-link">Editar</a>
+                                    <x-actions-menu label="Ações do usuário {{ $usuario->name }}">
+                                        <a href="{{ route('usuarios.edit', $usuario) }}" class="actions-menu-item">Editar</a>
                                         <form action="{{ route('usuarios.reset-password', $usuario) }}" method="POST">
                                             @csrf
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Gerar nova senha temporária para este usuário?')">Resetar senha</button>
+                                            <button type="submit" class="actions-menu-item" onclick="return confirm('Gerar nova senha temporária para este usuário?')">Redefinir senha</button>
                                         </form>
+                                        <div class="actions-menu-divider"></div>
                                         <form action="{{ route('usuarios.destroy', $usuario) }}" method="POST">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover usuário?')">Remover</button>
+                                            <button type="submit" class="actions-menu-item actions-menu-item-danger" onclick="return confirm('Remover usuário?')">Remover</button>
                                         </form>
-                                    </div>
+                                    </x-actions-menu>
                                 </td>
                             </tr>
                         @endforeach

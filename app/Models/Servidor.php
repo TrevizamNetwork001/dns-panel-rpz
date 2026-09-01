@@ -47,7 +47,7 @@ class Servidor extends Model
 
     public function listas(): BelongsToMany
     {
-        return $this->belongsToMany(Lista::class, 'lista_servidor');
+        return $this->belongsToMany(Lista::class, 'lista_servidor')->withTimestamps();
     }
 
     public function allowedIps(): HasMany

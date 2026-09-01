@@ -116,13 +116,26 @@ class RpzZoneBuilder
         $previous = null;
         foreach ($query->cursor() as $row) {
             $domain = $this->normalizer->normalize((string) $row->dominio, false);
-            if ($domain === null || $domain === $previous) {
+            if ($domain === null || $domain === $previous || ! $this->ownerFitsZone($domain, $host)) {
                 continue;
             }
             $previous = $domain;
             yield $domain.' CNAME '.$target;
-            yield '*.'.$domain.' CNAME '.$target;
+            if ($this->ownerFitsZone('*.'.$domain, $host)) {
+                yield '*.'.$domain.' CNAME '.$target;
+            }
         }
+    }
+
+    /**
+     * Os nomes no arquivo são relativos à zona RPZ. Portanto, além de o
+     * domínio isolado ser válido, domínio + origem da zona precisam caber no
+     * limite DNS de 253 caracteres. O Unbound rejeita a zona inteira quando
+     * uma única entrada ultrapassa esse limite.
+     */
+    private function ownerFitsZone(string $owner, string $zone): bool
+    {
+        return strlen($owner.'.'.rtrim($zone, '.')) <= 253;
     }
 
     public function build(Builder $query, string $target = '.', ?string $serial = null): string

@@ -115,7 +115,7 @@
                                     <span class="status-pill {{ $bucketClass }}">{{ \App\Models\AuditLog::bucketLabel($bucket) }}</span>
                                 </td>
                                 <td>{{ $log->user->name ?? 'sistema' }}</td>
-                                <td><code>{{ $log->action }}</code></td>
+                                <td title="{{ $log->action }}">{{ \App\Models\AuditLog::actionLabel($log->action) }}</td>
                                 <td>
                                     @if ($log->target_type)
                                         {{ $log->target_type }} #{{ $log->target_id }}

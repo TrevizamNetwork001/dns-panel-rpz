@@ -14,5 +14,14 @@ class ExtractorTest(unittest.TestCase):
             "abta.org.br", "apachetorrent.xyz", "filmenoi-hd.net", "nickfilmestorrent.org"
         })
 
+    def test_separates_portuguese_prose_glued_after_domain(self):
+        text = "downloadoss5253212gift6789374.appceus777.comtodas"
+        self.assertEqual(extractor.candidates(text), {
+            "downloadoss5253212gift6789374.appceus777.com"
+        })
+
+    def test_does_not_trim_a_legitimate_domain(self):
+        self.assertEqual(extractor.candidates("servico.company"), {"servico.company"})
+
 if __name__ == "__main__":
     unittest.main()

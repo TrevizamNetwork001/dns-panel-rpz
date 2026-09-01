@@ -182,7 +182,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-78 testes / 161 assertions cobrindo os pontos mais críticos:
+207 testes / 713 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
 - `tests/Feature/RegistrationTelegramTest.php`, `tests/Feature/ConfiguracoesTelegramTest.php` — notificação de cadastro via Telegram (payload correto, cadastro não quebra se o Telegram falhar ou não estiver configurado, tela de configuração admin-only, token preservado ao salvar sem preencher de novo, toggle de pausa).

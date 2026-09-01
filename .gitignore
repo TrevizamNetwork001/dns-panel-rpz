@@ -26,9 +26,15 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+__pycache__/
+*.py[cod]
 
 # dns-panel-rpz specific
 /database/*.sqlite
 /database/*.sqlite-shm
 /database/*.sqlite-wal
 /database/backups/
+
+# Local source material / visual references (not application assets)
+/1234.png
+/Bloqueios_Dominios.zip

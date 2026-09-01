@@ -1,15 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'Endpoints RPZ')
+@section('title', auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores')
 
 @section('content')
     <div class="page-heading page-heading-compact">
         <div>
-            <h1>Endpoints RPZ</h1>
+            <h1>{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</h1>
             <p>{{ $servidores->total() }} cadastrados · {{ $servidoresAtivos }} ativos</p>
         </div>
         <div class="page-actions">
-            <a href="{{ route('servidores.create') }}" class="button button-primary">+ Novo endpoint</a>
+            <a href="{{ route('servidores.create') }}" class="button button-primary">+ {{ auth()->user()->isAdmin() ? 'Novo endpoint' : 'Novo servidor' }}</a>
         </div>
     </div>
 
@@ -18,8 +18,8 @@
             <div class="empty-state empty-state-large">
                 <div class="empty-state-icon">+</div>
                 <div>
-                    <strong>Nenhum endpoint cadastrado</strong>
-                    <span>Cadastre o primeiro endpoint RPZ para gerar o token do zonefile.</span>
+                    <strong>{{ auth()->user()->isAdmin() ? 'Nenhum endpoint cadastrado' : 'Nenhum servidor cadastrado' }}</strong>
+                    <span>{{ auth()->user()->isAdmin() ? 'Cadastre o primeiro endpoint RPZ para gerar o token do zonefile.' : 'Cadastre seu primeiro servidor para começar.' }}</span>
                 </div>
             </div>
         @else
@@ -28,9 +28,9 @@
                     <thead>
                         <tr>
                             <th>Nome</th>
-                            <th>Empresa</th>
-                            <th>Fontes habilitadas</th>
-                            <th>Última consulta</th>
+                            @if (auth()->user()->isAdmin())<th>Empresa</th>@endif
+                            <th>{{ auth()->user()->isAdmin() ? 'Fontes habilitadas' : 'Listas' }}</th>
+                            <th>{{ auth()->user()->isAdmin() ? 'Última consulta' : 'Última sincronização' }}</th>
                             <th>Status</th>
                             <th class="table-actions-column"></th>
                         </tr>
@@ -40,24 +40,19 @@
                             @php $dias = $servidor->diasSemSincronizar(); @endphp
                             <tr>
                                 <td><a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">{{ $servidor->nome }}</a></td>
-                                <td>{{ $servidor->empresa->nome }}</td>
+                                @if (auth()->user()->isAdmin())<td>{{ $servidor->empresa->nome }}</td>@endif
                                 <td>
                                     @if ($servidor->listas->isEmpty())
                                         <a href="{{ route('servidores.show', $servidor) }}" class="inline-link" style="color:var(--danger)">nenhuma — escolher</a>
                                     @else
-                                        <a href="{{ route('servidores.show', $servidor) }}" class="inline-link" title="{{ $servidor->listas->pluck('nome')->join(', ') }}">{{ $servidor->listas->count() }} {{ $servidor->listas->count() === 1 ? 'fonte' : 'fontes' }}</a>
+                                        <a href="{{ route('servidores.show', $servidor) }}" class="inline-link" title="{{ $servidor->listas->pluck('nome')->join(', ') }}">{{ $servidor->listas->count() }} {{ auth()->user()->isAdmin() ? ($servidor->listas->count() === 1 ? 'fonte' : 'fontes') : ($servidor->listas->count() === 1 ? 'lista' : 'listas') }}</a>
                                     @endif
                                 </td>
                                 <td class="table-mono">
                                     @if (auth()->user()->isAdmin())
                                         {{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}
                                     @else
-                                        <div>{{ optional($servidor->last_synced_at)->format('d/m/Y H:i') ?? 'nunca' }}</div>
-                                        @if ($dias === null)
-                                            <span class="status-pill is-inactive" style="margin-top:4px">Sem consulta</span>
-                                        @elseif ($dias >= 2)
-                                            <span class="status-pill is-warning" style="margin-top:4px">Sem consulta há {{ $dias }} dias</span>
-                                        @endif
+                                        {{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}
                                     @endif
                                 </td>
                                 <td>
@@ -71,13 +66,15 @@
                                             <small>{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }} no painel</small>
                                         </div>
                                     @else
-                                        <span class="status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
-                                            {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
-                                        </span>
+                                        @php
+                                            $estadoLabel = $dias === null ? 'Sem sincronização' : ($dias >= 2 ? 'Atenção' : 'Normal');
+                                            $estadoClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active');
+                                        @endphp
+                                        <span class="status-pill {{ $estadoClasse }}">{{ $estadoLabel }}</span>
                                     @endif
                                 </td>
                                 <td>
-                                    <x-actions-menu label="Ações do endpoint {{ $servidor->nome }}">
+                                    <x-actions-menu label="Ações do {{ auth()->user()->isAdmin() ? 'endpoint' : 'servidor' }} {{ $servidor->nome }}">
                                         @if (auth()->user()->isAdmin())
                                             <a href="{{ route('servidores.show', $servidor) }}" class="actions-menu-item">Ver detalhes</a>
                                         @endif
@@ -86,7 +83,7 @@
                                         <form action="{{ route('servidores.destroy', $servidor) }}" method="POST">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="actions-menu-item actions-menu-item-danger" onclick="return confirm('Remover endpoint?')">Remover</button>
+                                            <button type="submit" class="actions-menu-item actions-menu-item-danger" onclick="return confirm('Remover {{ auth()->user()->isAdmin() ? 'endpoint' : 'servidor' }}?')">Remover</button>
                                         </form>
                                     </x-actions-menu>
                                 </td>

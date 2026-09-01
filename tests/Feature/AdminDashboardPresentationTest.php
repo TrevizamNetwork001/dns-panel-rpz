@@ -21,6 +21,7 @@ class AdminDashboardPresentationTest extends TestCase
         $empresa = Empresa::factory()->create();
         Servidor::factory()->for($empresa)->create(['last_synced_at' => now()]);
         $lista = Lista::factory()->anatel()->create();
+        Lista::factory()->externa('anatel-proprio')->create(['nome' => 'Anatel externo']);
         Dominio::factory()->for($lista)->count(1001)->create();
 
         $response = $this->actingAs($admin)->get(route('dashboard'));
@@ -30,8 +31,9 @@ class AdminDashboardPresentationTest extends TestCase
             ->assertSee('Catálogo')
             ->assertSee('1.001')
             ->assertSeeText('1 ativo')
-            ->assertSee('Endpoint RPZ')
+            ->assertSee('Endpoints RPZ')
             ->assertSeeText('1 Normal')
+            ->assertSeeInOrder(['ANATEL', 'Catálogo', 'Anatel externo', 'Externa'])
             ->assertDontSee('metric-sparkline');
     }
 

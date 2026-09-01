@@ -31,13 +31,18 @@ class SugestaoDominioController extends Controller
             $statusFiltro = null;
         }
 
+        $busca = trim((string) $request->query('q', ''));
+        if ($busca !== '') {
+            $query->where('dominio', 'like', "%{$busca}%");
+        }
+
         $sugestoes = $query->paginate(20)->withQueryString();
 
         $listasParaAprovar = $user->isAdmin()
             ? Lista::where('status', 'active')->orderBy('nome')->get()
             : collect();
 
-        return view('sugestoes.index', compact('sugestoes', 'listasParaAprovar', 'statusFiltro'));
+        return view('sugestoes.index', compact('sugestoes', 'listasParaAprovar', 'statusFiltro', 'busca'));
     }
 
     public function create(): View

@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('sugestoes', SugestaoDominioController::class)->only(['index', 'create', 'store']);
 
     Route::get('/consulta', [ConsultaController::class, 'index'])->name('consulta.index');
+    Route::get('/dominios', [ConsultaController::class, 'pagina'])->name('dominios.index');
 
     Route::middleware('admin')->group(function () {
         Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');

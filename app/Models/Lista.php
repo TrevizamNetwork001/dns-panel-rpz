@@ -37,7 +37,7 @@ class Lista extends Model
 
     public function servidores(): BelongsToMany
     {
-        return $this->belongsToMany(Servidor::class, 'lista_servidor');
+        return $this->belongsToMany(Servidor::class, 'lista_servidor')->withTimestamps();
     }
 
     public function dominios(): HasMany

@@ -50,6 +50,33 @@ class RpzEndpointTest extends TestCase
         $this->assertStringContainsString('CNAME .', $response->streamedContent());
     }
 
+    public function test_company_endpoint_records_sync_for_the_server_matching_the_source_ip(): void
+    {
+        [$empresa, $servidor] = $this->endpoint('sync-status', ['127.0.0.1/32']);
+        $otherServer = Servidor::factory()->for($empresa)->create(['status' => 'active']);
+        ServerAllowedIp::create([
+            'servidor_id' => $otherServer->id,
+            'ip_cidr' => '203.0.113.10/32',
+            'status' => 'active',
+        ]);
+        $lista = Lista::factory()->create(['status' => 'active']);
+        $servidor->listas()->attach($lista);
+        Dominio::factory()->for($lista)->create(['dominio' => 'registrado.example']);
+
+        $this->get("/rpz/{$empresa->rpz_slug}.zone")->assertOk();
+
+        $this->assertNotNull($servidor->fresh()->last_synced_at);
+        $this->assertNull($otherServer->fresh()->last_synced_at);
+        $this->assertDatabaseHas('server_sync_logs', [
+            'servidor_id' => $servidor->id,
+            'ip_address' => '127.0.0.1',
+            'dominios_count' => 1,
+        ]);
+        $this->assertDatabaseMissing('server_sync_logs', [
+            'servidor_id' => $otherServer->id,
+        ]);
+    }
+
     public function test_disallowed_ipv4_and_company_without_acl_receive_403(): void
     {
         [$empresa] = $this->endpoint('spfiber', ['203.0.113.0/24']);

@@ -102,6 +102,26 @@ class RpzZonefileTest extends TestCase
         $this->assertStringNotContainsString('lista-inativa.example', $content);
     }
 
+    public function test_zonefile_skips_owner_that_overflows_when_rpz_zone_name_is_appended(): void
+    {
+        $servidor = Servidor::factory()->create();
+        $lista = Lista::factory()->create();
+        $servidor->listas()->attach($lista);
+        $tooLongForRelativeOwner = implode('.', [
+            str_repeat('a', 63),
+            str_repeat('b', 63),
+            str_repeat('c', 63),
+            str_repeat('d', 58),
+        ]);
+        $this->assertSame(250, strlen($tooLongForRelativeOwner));
+        Dominio::factory()->for($lista)->create(['dominio' => $tooLongForRelativeOwner]);
+
+        $content = $this->get("/rpz/{$servidor->token}.zone")->getContent();
+
+        $this->assertStringNotContainsString($tooLongForRelativeOwner, $content);
+        $this->assertStringContainsString('blocktest.', $content);
+    }
+
     public function test_nxdomain_mode_uses_cname_root(): void
     {
         $servidor = Servidor::factory()->create(['bloqueio_modo' => 'nxdomain']);

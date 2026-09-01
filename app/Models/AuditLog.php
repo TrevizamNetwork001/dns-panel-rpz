@@ -95,4 +95,21 @@ class AuditLog extends Model
             default => 'Baixo',
         };
     }
+
+    public static function actionLabel(string $action): string
+    {
+        return match ($action) {
+            'empresa.created' => 'Empresa criada',
+            'empresa.updated' => 'Empresa atualizada',
+            'empresa.destroyed' => 'Empresa removida',
+            'auth.login' => 'Login realizado',
+            'auth.login_failed' => 'Falha de login',
+            'auth.logout' => 'Logout realizado',
+            'lista.sync' => 'Fonte sincronizada',
+            'sugestao.created' => 'Sugestão recebida',
+            'sugestao.approved' => 'Sugestão aprovada',
+            'sugestao.rejected' => 'Sugestão rejeitada',
+            default => ucfirst(str_replace(['.', '_'], ' ', $action)),
+        };
+    }
 }

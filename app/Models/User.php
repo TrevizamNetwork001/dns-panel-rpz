@@ -57,6 +57,15 @@ class User extends Authenticatable
     public static function avatarOptions(): array
     {
         return [
+            // Opcoes profissionais primeiro (maior destaque na grade do perfil).
+            'operador' => ['label' => 'Operador', 'symbol' => '🖱️'],
+            'tecnico' => ['label' => 'Técnico', 'symbol' => '🎧'],
+            'engenheiro' => ['label' => 'Engenheiro', 'symbol' => '👷'],
+            'rede' => ['label' => 'Rede', 'symbol' => '🌐'],
+            'servidor' => ['label' => 'Servidor', 'symbol' => '🖥️'],
+            'escudo' => ['label' => 'Escudo', 'symbol' => '🛡️'],
+            'ceo' => ['label' => 'CEO', 'symbol' => '🧑‍💼'],
+            // Opcoes ludicas depois -- mantidas, ninguem perde avatar ja salvo.
             'raposa' => ['label' => 'Raposa', 'symbol' => '🦊'],
             'lobo' => ['label' => 'Lobo', 'symbol' => '🐺'],
             'coruja' => ['label' => 'Coruja', 'symbol' => '🦉'],
@@ -64,13 +73,6 @@ class User extends Authenticatable
             'aguia' => ['label' => 'Águia', 'symbol' => '🦅'],
             'robo' => ['label' => 'Robô', 'symbol' => '🤖'],
             'astronauta' => ['label' => 'Astronauta', 'symbol' => '🧑‍🚀'],
-            'tecnico' => ['label' => 'Técnico', 'symbol' => '🎧'],
-            'operador' => ['label' => 'Operador', 'symbol' => '🖱️'],
-            'escudo' => ['label' => 'Escudo', 'symbol' => '🛡️'],
-            'rede' => ['label' => 'Rede', 'symbol' => '🌐'],
-            'servidor' => ['label' => 'Servidor', 'symbol' => '🖥️'],
-            'engenheiro' => ['label' => 'Engenheiro', 'symbol' => '👷'],
-            'ceo' => ['label' => 'CEO', 'symbol' => '🧑‍💼'],
             'burro' => ['label' => 'Burro', 'symbol' => '🐴'],
             'boi' => ['label' => 'Boi', 'symbol' => '🐂'],
         ];

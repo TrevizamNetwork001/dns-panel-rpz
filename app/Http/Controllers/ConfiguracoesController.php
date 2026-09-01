@@ -44,7 +44,7 @@ class ConfiguracoesController extends Controller
         $ok = $telegram->sendTest();
 
         return back()->with($ok ? 'status' : 'error', $ok
-            ? 'Mensagem de teste enviada — confira o grupo/tópico configurado.'
-            : 'Não consegui enviar. Confira token, chat ID e se a notificação está ativa.');
+            ? 'Mensagem enviada com sucesso.'
+            : 'Falha ao enviar mensagem. Confira token, chat ID e se a notificação está ativa.');
     }
 }

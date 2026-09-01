@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Fontes')
+@section('title', auth()->user()->isAdmin() ? 'Fontes' : 'Listas')
 
 @section('content')
     <div class="page-heading page-heading-compact">
         <div>
-            <h1>Fontes</h1>
+            <h1>{{ auth()->user()->isAdmin() ? 'Fontes' : 'Listas' }}</h1>
             <p>{{ $listas->total() }} cadastradas · {{ $listasAtivas }} ativas</p>
         </div>
         <div class="page-actions">
@@ -21,8 +21,8 @@
             <div class="empty-state empty-state-large">
                 <div class="empty-state-icon">+</div>
                 <div>
-                    <strong>Nenhuma fonte cadastrada</strong>
-                    <span>Cadastre a primeira fonte de bloqueio para vincular aos endpoints RPZ.</span>
+                    <strong>{{ auth()->user()->isAdmin() ? 'Nenhuma fonte cadastrada' : 'Nenhuma lista disponível' }}</strong>
+                    <span>{{ auth()->user()->isAdmin() ? 'Cadastre a primeira fonte de bloqueio para vincular aos endpoints RPZ.' : 'As listas liberadas para sua empresa aparecerão aqui.' }}</span>
                 </div>
             </div>
         @else
@@ -30,13 +30,17 @@
                 <table class="data-table @if(auth()->user()->isAdmin()) admin-fontes-table @endif">
                     <thead>
                         <tr>
-                            <th>Nome</th>
+                            <th>{{ auth()->user()->isAdmin() ? 'Nome' : 'Lista' }}</th>
                             <th>Tipo</th>
+                            @if (auth()->user()->isAdmin())
                             <th>Empresa · Escopo</th>
+                            @endif
                             <th>Domínios ativos</th>
+                            @if (auth()->user()->isAdmin())
                             <th>Última atualização</th>
                             <th>Status</th>
                             <th class="table-actions-column"></th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -55,16 +59,15 @@
                                     <a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a>
                                 </td>
                                 <td><span class="status-pill {{ $tipoClasse }}">{{ $tipo }}</span></td>
+                                @if (auth()->user()->isAdmin())
                                 <td>{{ $lista->empresa?->nome ?? 'Catálogo (todas)' }}</td>
-                                <td class="table-mono">{{ auth()->user()->isAdmin() ? number_format($lista->dominios_ativos_count, 0, ',', '.') : $lista->dominios_ativos_count }}</td>
+                                @endif
+                                <td class="table-mono">{{ number_format($lista->dominios_ativos_count, 0, ',', '.') }}</td>
+                                @if (auth()->user()->isAdmin())
                                 <td class="table-mono">
-                                    @if (auth()->user()->isAdmin())
-                                        <time datetime="{{ $ultimaAtualizacao?->toIso8601String() }}" title="{{ $ultimaAtualizacao?->format('d/m/Y H:i:s') ?? 'Sem atualização' }}">
-                                            {{ \App\Http\Controllers\DashboardController::relativoPt($ultimaAtualizacao) }}
-                                        </time>
-                                    @else
-                                        {{ $ultimaAtualizacao?->format('d/m/Y H:i') ?? '-' }}
-                                    @endif
+                                    <time datetime="{{ $ultimaAtualizacao?->toIso8601String() }}" title="{{ $ultimaAtualizacao?->format('d/m/Y H:i:s') ?? 'Sem atualização' }}">
+                                        {{ \App\Http\Controllers\DashboardController::relativoPt($ultimaAtualizacao) }}
+                                    </time>
                                 </td>
                                 <td>
                                     <span class="status-pill @if($lista->status === 'active') is-active @else is-inactive @endif">
@@ -72,8 +75,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    @if (auth()->user()->isAdmin())
-                                        <x-actions-menu label="Ações da fonte {{ $lista->nome }}">
+                                    <x-actions-menu label="Ações da fonte {{ $lista->nome }}">
                                             <a href="{{ route('listas.show', $lista) }}" class="actions-menu-item">Ver detalhes</a>
                                             <a href="{{ route('listas.edit', $lista) }}" class="actions-menu-item">Editar</a>
                                             <a href="{{ route('listas.historico', $lista) }}" class="actions-menu-item">Histórico</a>
@@ -91,9 +93,9 @@
                                                     <button type="submit" class="actions-menu-item actions-menu-item-danger" onclick="return confirm('Remover fonte?')">Remover</button>
                                                 </form>
                                             @endif
-                                        </x-actions-menu>
-                                    @endif
+                                    </x-actions-menu>
                                 </td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>

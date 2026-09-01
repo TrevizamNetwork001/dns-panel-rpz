@@ -103,7 +103,7 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSee('Método')
             ->assertSee('ACL por IP')
             ->assertSee('URL curta')
-            ->assertSee('zonefile: &quot;'.parse_url(config('app.url'), PHP_URL_HOST).'&quot;', false)
+            ->assertSee('zonefile: &quot;/var/lib/unbound/'.parse_url(config('app.url'), PHP_URL_HOST).'.zone&quot;', false)
             ->assertSee('url: &quot;'.$shortUrl.'&quot;', false)
             ->assertSee('Acesso legado por token')
             ->assertSee('id="legacy-rpz-url"', false)

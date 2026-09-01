@@ -8,7 +8,8 @@
     $legacyRpzUrl = $servidor->legacyRpzEndpointUrl();
     $usesCompanyEndpoint = $servidor->empresa->rpz_slug !== null;
     $rpzZoneName = $panelHost;
-    $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    zonefile: \"{$rpzZoneName}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
+    $rpzZonefile = '/var/lib/unbound/'.$rpzZoneName.'.zone';
+    $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
     $diasSemConsulta = $servidor->diasSemSincronizar();
 @endphp
 

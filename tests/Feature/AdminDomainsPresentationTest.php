@@ -40,6 +40,34 @@ class AdminDomainsPresentationTest extends TestCase
             ->assertDontSee('Next');
     }
 
+    public function test_source_domains_use_the_compact_admin_pagination(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $lista = Lista::factory()->create();
+
+        foreach (range(1, 51) as $index) {
+            Dominio::factory()->for($lista)->create([
+                'dominio' => sprintf('fonte-%03d.example', $index),
+            ]);
+        }
+
+        $response = $this->actingAs($admin)->get(route('listas.dominios.index', [
+            'lista' => $lista,
+            'origem' => 'admin',
+        ]));
+
+        $response->assertOk()
+            ->assertSee('admin-domains-pagination')
+            ->assertSee('Página 1')
+            ->assertSee('Próxima')
+            ->assertSee('origem=admin&amp;page=2', false)
+            ->assertDontSee('Previous')
+            ->assertDontSee('Showing')
+            ->assertDontSee('Página 2');
+
+        $this->assertCount(50, $response->viewData('dominios')->items());
+    }
+
     public function test_admin_source_summary_and_actions_match_real_domain_state(): void
     {
         $admin = User::factory()->admin()->create();
