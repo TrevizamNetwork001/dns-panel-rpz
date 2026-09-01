@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\AnatelExclusion;
+use App\Models\Dominio;
 use App\Models\Lista;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -13,7 +15,7 @@ class ExternalListaSyncTest extends TestCase
 
     private function hostfile(array $domains): string
     {
-        $lines = ["# comentario que deve ser ignorado", ''];
+        $lines = ['# comentario que deve ser ignorado', ''];
         foreach ($domains as $domain) {
             $lines[] = "127.0.0.1\t{$domain}";
         }
@@ -23,7 +25,7 @@ class ExternalListaSyncTest extends TestCase
 
     private function plainfile(array $domains): string
     {
-        return "# comentario\n" . implode("\n", $domains);
+        return "# comentario\n".implode("\n", $domains);
     }
 
     private function manyDomains(int $count, string $prefix = 'malware'): array
@@ -34,6 +36,35 @@ class ExternalListaSyncTest extends TestCase
         }
 
         return $domains;
+    }
+
+    private function unboundFile(array $domains): string
+    {
+        return implode("\n", array_map(fn (string $domain) => "local-zone: \"{$domain}\" redirect\nlocal-data: \"{$domain} A 127.0.0.1\"", $domains));
+    }
+
+    public function test_legacy_feed_is_merged_into_main_anatel_without_removing_pdf_domains(): void
+    {
+        $anatel = Lista::factory()->anatel()->create();
+        Dominio::factory()->for($anatel)->create(['dominio' => 'somente-pdf.example']);
+        Dominio::factory()->for($anatel)->inativo()->create(['dominio' => 'reativar.example', 'inactive_reason' => null]);
+        Dominio::factory()->for($anatel)->inativo()->create(['dominio' => 'excluido.example', 'inactive_reason' => 'anatel_exclusion']);
+        AnatelExclusion::create([
+            'lista_id' => $anatel->id,
+            'type' => 'exact',
+            'value' => 'excluido.example',
+            'value_hash' => hash('sha256', 'excluido.example'),
+            'active' => true,
+        ]);
+        $feed = array_merge($this->manyDomains(100, 'anatel'), ['reativar.example', 'excluido.example']);
+        Http::fake([config('anatel.legacy_feed_url') => Http::response($this->unboundFile($feed), 200)]);
+
+        $this->artisan('external:sync')->assertSuccessful();
+
+        $this->assertTrue($anatel->dominios()->where('dominio', 'somente-pdf.example')->where('ativo', true)->exists());
+        $this->assertTrue($anatel->dominios()->where('dominio', 'anatel0.example')->where('ativo', true)->exists());
+        $this->assertTrue($anatel->dominios()->where('dominio', 'reativar.example')->where('ativo', true)->exists());
+        $this->assertFalse($anatel->dominios()->where('dominio', 'excluido.example')->where('ativo', true)->exists());
     }
 
     public function test_syncs_all_active_external_listas(): void
@@ -112,7 +143,7 @@ class ExternalListaSyncTest extends TestCase
     {
         $lista = Lista::factory()->externa('feed', 'https://feed.example/hosts.txt')->create();
 
-        $body = "# comentario\n127.0.0.1 localhost\nlinha sem colunas\n" . $this->hostfile($this->manyDomains(150));
+        $body = "# comentario\n127.0.0.1 localhost\nlinha sem colunas\n".$this->hostfile($this->manyDomains(150));
 
         Http::fake(['feed.example/*' => Http::response($body, 200)]);
 
@@ -166,8 +197,8 @@ class ExternalListaSyncTest extends TestCase
         $lista = Lista::factory()->externa('feed', 'https://feed.example/unbound.txt', 'unbound_local_zone')->create();
 
         $body = $this->unboundLocalZoneFile($this->manyDomains(150))
-            . "\nlocal-zone: \"0.googleap0i1s/.1c0o/m20.p2t5\" redirect\n"
-            . "local-zone: \"adoroassistir.online/planos\" redirect\n";
+            ."\nlocal-zone: \"0.googleap0i1s/.1c0o/m20.p2t5\" redirect\n"
+            ."local-zone: \"adoroassistir.online/planos\" redirect\n";
 
         Http::fake(['feed.example/*' => Http::response($body, 200)]);
 
