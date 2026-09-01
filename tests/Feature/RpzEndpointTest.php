@@ -58,6 +58,27 @@ class RpzEndpointTest extends TestCase
         $this->get("/rpz/{$withoutAcl->rpz_slug}.zone")->assertForbidden();
     }
 
+    public function test_acl_denial_has_friendly_public_response_without_sensitive_information(): void
+    {
+        [$empresa, $servidor] = $this->endpoint('empresa-sigilosa', ['203.0.113.10/32']);
+        $empresa->update(['nome' => 'Empresa Sigilosa 7X']);
+        $lista = Lista::factory()->create(['nome' => 'Lista Interna Sigilosa']);
+        $servidor->listas()->attach($lista);
+
+        $response = $this->get("/rpz/{$empresa->rpz_slug}.zone");
+
+        $response->assertForbidden()
+            ->assertSee('403')
+            ->assertSee('Acesso não autorizado')
+            ->assertSee('Este endpoint RPZ é restrito a origens previamente autorizadas.')
+            ->assertDontSee('Empresa Sigilosa 7X')
+            ->assertDontSee('empresa-sigilosa')
+            ->assertDontSee('203.0.113.10/32')
+            ->assertDontSee('Lista Interna Sigilosa')
+            ->assertDontSee($servidor->token);
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
     public function test_authorized_ipv6_individual_and_cidr_are_supported(): void
     {
         [$empresa] = $this->endpoint('ipv6', ['2001:db8::1', '2804:4ff0::/64']);
@@ -108,6 +129,17 @@ class RpzEndpointTest extends TestCase
     {
         [, $servidor] = $this->endpoint('legado');
         $this->get("/rpz/{$servidor->token}.zone")->assertOk();
+    }
+
+    public function test_denied_legacy_token_keeps_non_enumerable_response(): void
+    {
+        [, $servidor] = $this->endpoint('legado-negado', ['203.0.113.10/32']);
+        $servidor->update(['ip_restriction_enabled' => true]);
+
+        $this->get("/rpz/{$servidor->token}.zone")
+            ->assertNotFound()
+            ->assertDontSee('Acesso não autorizado')
+            ->assertDontSee($servidor->token);
     }
 
     public function test_admin_sees_short_url_acl_sources_and_unbound_configuration_but_client_does_not_see_admin_panel(): void

@@ -62,7 +62,7 @@ class RpzController extends Controller
             ->header('Content-Type', 'text/dns; charset=utf-8');
     }
 
-    private function showCompany(Request $request, Empresa $empresa, RpzZoneBuilder $builder): StreamedResponse
+    private function showCompany(Request $request, Empresa $empresa, RpzZoneBuilder $builder): Response|StreamedResponse
     {
         if (! $empresa->possuiLicencaAtiva()) {
             throw new NotFoundHttpException();
@@ -78,7 +78,11 @@ class RpzController extends Controller
 
         if (! $rules->contains(fn (string $rule): bool => Servidor::ipMatchesCidr($ip, $rule))) {
             AuditLog::record('rpz.endpoint.denied', 'Acesso ao endpoint RPZ empresarial negado', $empresa->id, 'empresa', $empresa->id);
-            abort(403);
+            return response()->view('rpz.access-denied', [], 403, [
+                'Cache-Control' => 'private, no-store, max-age=0',
+                'Content-Type' => 'text/html; charset=UTF-8',
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
         }
 
         $domains = $builder->companyQuery($empresa->id);
