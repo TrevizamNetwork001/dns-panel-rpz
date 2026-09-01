@@ -79,12 +79,6 @@ class Empresa extends Model
      */
     public function possuiLicencaAtiva(): bool
     {
-        return $this->licencas()
-            ->where('status', 'active')
-            ->whereDate('starts_at', '<=', now())
-            ->where(function ($query) {
-                $query->whereNull('expires_at')->orWhereDate('expires_at', '>=', now());
-            })
-            ->exists();
+        return $this->licencas()->valid()->exists();
     }
 }

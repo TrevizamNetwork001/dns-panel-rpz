@@ -161,14 +161,14 @@
                                 @endphp
                                 <tr>
                                     <td>{{ $licenca->starts_at->format('d/m/Y') }}</td>
-                                    <td>{{ optional($licenca->expires_at)->format('d/m/Y') ?? 'sem expiração' }}</td>
+                                    <td>{{ optional($licenca->expires_at)->format('d/m/Y') ?? 'Sem vencimento' }}</td>
                                     <td>
                                         <span class="status-pill @if($licenca->status === 'active') is-active @else is-inactive @endif">
                                             {{ $isAdmin ? $licenca->status : $statusLabel }}
                                         </span>
                                     </td>
                                     @if (! $isAdmin)
-                                        <td>{{ $licenca->expirationSummary() ?? 'Sem expiração' }}</td>
+                                        <td>{{ $licenca->expirationSummary() ?? 'Sem vencimento' }}</td>
                                         <td>
                                             {{ $servidoresUtilizados.' de '.$licenca->max_servidores.' '.($licenca->max_servidores === 1 ? 'servidor utilizado' : 'servidores utilizados') }}
                                         </td>

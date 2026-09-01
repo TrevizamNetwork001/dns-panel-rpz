@@ -31,4 +31,13 @@ class LicencaFactory extends Factory
             'expires_at' => now()->subDay(),
         ]);
     }
+
+    public function withoutExpiry(): static
+    {
+        return $this->state(fn () => [
+            'expires_at' => null,
+            'status' => 'active',
+        ]);
+    }
+
 }

@@ -30,7 +30,7 @@
         </span>
         <dl class="details-list" style="margin-top:14px">
             <div><dt>Início</dt><dd>{{ $licenca->starts_at->format('d/m/Y') }}</dd></div>
-            <div><dt>Expiração</dt><dd>{{ optional($licenca->expires_at)->format('d/m/Y') ?? 'sem expiração' }}</dd></div>
+            <div><dt>Validade</dt><dd>{{ optional($licenca->expires_at)->format('d/m/Y') ?? 'Sem vencimento' }}</dd></div>
             <div><dt>Máximo de Endpoints RPZ</dt><dd>{{ $licenca->max_servidores }}</dd></div>
         </dl>
     </div>

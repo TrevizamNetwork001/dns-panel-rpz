@@ -255,13 +255,7 @@ class DashboardController extends Controller
             : collect();
 
         $capacidadeLicenca = $empresa
-            ? $empresa->licencas()
-                ->where('status', 'active')
-                ->whereDate('starts_at', '<=', now())
-                ->where(function ($q) {
-                    $q->whereNull('expires_at')->orWhereDate('expires_at', '>=', now());
-                })
-                ->sum('max_servidores')
+            ? $empresa->licencas()->valid()->sum('max_servidores')
             : 0;
 
         $sugestoesRecentes = $empresa

@@ -3,6 +3,7 @@
 @section('title', $licenca->exists ? 'Editar licença' : 'Nova licença')
 
 @section('content')
+    @php $validityType = old('validity_type', $licenca->exists && $licenca->expires_at === null ? 'no_expiry' : 'with_expiry'); @endphp
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Gestão</div>
@@ -33,7 +34,13 @@
                     <input class="form-control" type="date" id="starts_at" name="starts_at" value="{{ old('starts_at', optional($licenca->starts_at)->format('Y-m-d')) }}" required>
                 </div>
 
-                <div class="field-group">
+                <div class="field-group field-span-2">
+                    <label>Tipo de validade</label>
+                    <label class="checkbox-label"><input type="radio" name="validity_type" value="with_expiry" @checked($validityType === 'with_expiry')> <span>Com vencimento</span></label>
+                    <label class="checkbox-label"><input type="radio" name="validity_type" value="no_expiry" @checked($validityType === 'no_expiry')> <span>Sem vencimento</span></label>
+                </div>
+
+                <div class="field-group" id="expires-at-group">
                     <label for="expires_at">Expiração</label>
                     <input class="form-control" type="date" id="expires_at" name="expires_at" value="{{ old('expires_at', optional($licenca->expires_at)->format('Y-m-d')) }}">
                 </div>
@@ -59,4 +66,20 @@
             </div>
         </form>
     </div>
+    <script>
+        (function () {
+            var inputs = document.querySelectorAll('input[name="validity_type"]');
+            var group = document.getElementById('expires-at-group');
+            var expiresAt = document.getElementById('expires_at');
+            function updateValidity() {
+                var selected = document.querySelector('input[name="validity_type"]:checked');
+                var noExpiry = selected && selected.value === 'no_expiry';
+                group.hidden = noExpiry;
+                expiresAt.disabled = noExpiry;
+                expiresAt.required = !noExpiry;
+            }
+            inputs.forEach(function (input) { input.addEventListener('change', updateValidity); });
+            updateValidity();
+        })();
+    </script>
 @endsection

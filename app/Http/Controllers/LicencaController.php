@@ -11,13 +11,25 @@ use Illuminate\View\View;
 
 class LicencaController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $licencas = Licenca::with(['empresa' => fn ($q) => $q->withCount('servidores')])
-            ->orderByDesc('id')
-            ->paginate(20);
+        $filter = $request->validate(['validity' => ['nullable', 'in:all,active,expired,no_expiry,inactive']])['validity'] ?? 'all';
+        $query = Licenca::with(['empresa' => fn ($q) => $q->withCount('servidores')]);
 
-        return view('licencas.index', compact('licencas'));
+        match ($filter) {
+            'active' => $query->valid(),
+            'expired' => $query->whereNotNull('expires_at')->whereDate('expires_at', '<', today()),
+            'no_expiry' => $query->whereNull('expires_at'),
+            'inactive' => $query->where('status', 'inactive'),
+            default => null,
+        };
+
+        $licencas = $query
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('licencas.index', compact('licencas', 'filter'));
     }
 
     public function create(): View
@@ -75,12 +87,19 @@ class LicencaController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'empresa_id' => ['required', 'exists:empresas,id'],
             'starts_at' => ['required', 'date'],
-            'expires_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'validity_type' => ['nullable', 'in:with_expiry,no_expiry'],
+            'expires_at' => ['nullable', 'required_if:validity_type,with_expiry', 'date', 'after_or_equal:starts_at'],
             'max_servidores' => ['required', 'integer', 'min:1'],
             'status' => ['required', 'in:active,inactive,expired'],
         ]);
+
+        $validityType = $data['validity_type'] ?? (($data['expires_at'] ?? null) === null ? 'no_expiry' : 'with_expiry');
+        $data['expires_at'] = $validityType === 'no_expiry' ? null : $data['expires_at'];
+        unset($data['validity_type']);
+
+        return $data;
     }
 }

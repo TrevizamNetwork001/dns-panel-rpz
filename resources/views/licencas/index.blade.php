@@ -13,6 +13,19 @@
         </div>
     </div>
 
+    <form method="GET" action="{{ route('licencas.index') }}" class="panel" style="margin-bottom:14px">
+        <div class="field-group" style="max-width:260px">
+            <label for="validity">Filtrar validade</label>
+            <select class="form-control" id="validity" name="validity" onchange="this.form.submit()">
+                <option value="all" @selected($filter === 'all')>Todas</option>
+                <option value="active" @selected($filter === 'active')>Ativas</option>
+                <option value="expired" @selected($filter === 'expired')>Vencidas</option>
+                <option value="no_expiry" @selected($filter === 'no_expiry')>Sem vencimento</option>
+                <option value="inactive" @selected($filter === 'inactive')>Inativas</option>
+            </select>
+        </div>
+    </form>
+
     <div class="panel">
         @if ($licencas->isEmpty())
             <div class="empty-state empty-state-large">
@@ -53,7 +66,7 @@
                             <tr>
                                 <td>{{ $licenca->empresa->nome }}</td>
                                 <td>
-                                    <div class="table-mono">{{ $licenca->starts_at->format('d/m/Y') }} → {{ optional($licenca->expires_at)->format('d/m/Y') ?? 'sem prazo' }}</div>
+                                    <div class="table-mono">{{ $licenca->starts_at->format('d/m/Y') }} → {{ optional($licenca->expires_at)->format('d/m/Y') ?? 'Sem vencimento' }}</div>
                                     @if ($licenca->expirationSummary() !== null)
                                         <span class="table-secondary-text">{{ $licenca->expirationSummary() }}</span>
                                     @endif

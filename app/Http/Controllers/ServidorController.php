@@ -308,13 +308,7 @@ class ServidorController extends Controller
             return 'Sua empresa não está configurada corretamente. Fale com o administrador.';
         }
 
-        $capacidade = $empresa->licencas()
-            ->where('status', 'active')
-            ->whereDate('starts_at', '<=', now())
-            ->where(function ($query) {
-                $query->whereNull('expires_at')->orWhereDate('expires_at', '>=', now());
-            })
-            ->sum('max_servidores');
+        $capacidade = $empresa->licencas()->valid()->sum('max_servidores');
 
         if ($capacidade === 0) {
             return 'Sua empresa não possui licença ativa. Fale com o administrador para liberar o cadastro de servidores.';
