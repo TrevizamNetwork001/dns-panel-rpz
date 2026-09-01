@@ -43,11 +43,11 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
    ```
 4. Do lado do cliente: confirmar que o bloco `rpz:` no `unbound.conf` dele está **depois** do bloco `server:` (antes, se usar `hyperlocal`), e rodar `unbound-checkconf` antes de qualquer restart.
 
-## Lista externa (URLhaus) não atualiza
+## Lista externa não atualiza
 
-1. `systemctl status dns-panel-rpz-urlhaus.timer` — timer ativo?
-2. `sudo -u www-data php artisan urlhaus:sync` — roda na mão, lê o motivo do erro/abort direto no output.
-3. Motivos comuns de abort (por design, não é bug): feed retornou menos de 100 domínios — proteção contra feed fora do ar não esvaziar a lista. Veja `storage/logs/urlhaus-sync.log`.
+1. `systemctl status dns-panel-rpz-external-sync.timer` — timer ativo?
+2. `sudo -u www-data php artisan external:sync` — roda todas as fontes externas na mão e mostra o resultado individual de cada uma.
+3. Motivo comum de abort (por design, não é bug): um feed retornou menos de 100 domínios — a proteção evita esvaziar a lista quando a fonte está fora do ar ou muda de formato. Veja `storage/logs/external-sync.log`.
 4. Lista pode estar pausada manualmente: confira `sync_ativo` em `/listas` (badge "Pausar sync" vira "Reativar sync" quando pausada).
 
 ## Banco de dados corrompido ou dado errado
@@ -119,7 +119,7 @@ Depois de qualquer reversão de código: `php artisan migrate:status` pra confer
 | O quê | Onde |
 |---|---|
 | Logs da aplicação | `storage/logs/laravel.log` |
-| Logs do sync URLhaus | `storage/logs/urlhaus-sync.log` |
+| Logs das listas externas | `storage/logs/external-sync.log` |
 | Logs do healthcheck | `storage/logs/health-check.log` |
 | Backups do banco | `database/backups/*.bak` |
 | Config real de infra (nginx/systemd/fail2ban) | `/etc/nginx`, `/etc/systemd/system`, `/etc/fail2ban` — cópias versionadas em [`deploy/`](deploy/) |

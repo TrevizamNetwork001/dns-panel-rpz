@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\Lista;
 use App\Models\Setting;
 use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,25 @@ class ConfiguracoesController extends Controller
 {
     public function index(TelegramNotifier $telegram): View
     {
-        return view('configuracoes.index', ['telegram' => $telegram->config()]);
+        $fontesGerenciadas = Lista::query()
+            ->whereIn('origem', ['externa', 'anatel'])
+            ->get(['origem', 'sync_ativo', 'last_sync_at']);
+
+        return view('configuracoes.index', [
+            'telegram' => $telegram->config(),
+            'geral' => [
+                'nome' => config('app.name'),
+                'url' => config('app.url'),
+                'timezone' => config('app.timezone'),
+                'ambiente' => app()->environment(),
+            ],
+            'integracoes' => [
+                'total' => $fontesGerenciadas->count(),
+                'ativas' => $fontesGerenciadas->where('sync_ativo', true)->count(),
+                'pausadas' => $fontesGerenciadas->where('sync_ativo', false)->count(),
+                'ultima_sync' => $fontesGerenciadas->max('last_sync_at'),
+            ],
+        ]);
     }
 
     public function updateTelegram(Request $request): RedirectResponse

@@ -18,7 +18,12 @@ class ConfiguracoesTelegramTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $this->actingAs($admin)->get(route('configuracoes.index'))->assertOk();
+        $this->actingAs($admin)->get(route('configuracoes.index'))
+            ->assertOk()
+            ->assertSee('Instalação')
+            ->assertSee('Proteções da aplicação')
+            ->assertSee('Fontes gerenciadas')
+            ->assertDontSee('Nada configurado aqui ainda.');
     }
 
     public function test_cliente_cannot_view_configuracoes_page(): void
