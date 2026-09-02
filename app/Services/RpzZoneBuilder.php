@@ -149,6 +149,23 @@ class RpzZoneBuilder
         return $content;
     }
 
+    /** @return \Generator<int, string> */
+    public function hostsLines(Builder $query): \Generator
+    {
+        yield '# DNS Panel RPZ - feed para MikroTik RouterOS v7 adlist';
+        yield '# Gerado em '.now()->toIso8601String();
+
+        $previous = null;
+        foreach ($query->cursor() as $row) {
+            $domain = $this->normalizer->normalize((string) $row->dominio, false);
+            if ($domain === null || $domain === $previous) {
+                continue;
+            }
+            $previous = $domain;
+            yield '0.0.0.0 '.$domain;
+        }
+    }
+
     /** @return array{content:string,shown:int,truncated:bool,bytes:int,estimated_bytes:int} */
     public function preview(Lista $lista, int $ruleLimit = 500, ?string $serial = null, ?int $totalEntries = null): array
     {

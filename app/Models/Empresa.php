@@ -86,4 +86,9 @@ class Empresa extends Model
     {
         return $this->rpz_slug ? url('/rpz/'.$this->rpz_slug.'.zone') : null;
     }
+
+    public function mikrotikEndpointUrl(): ?string
+    {
+        return $this->rpz_slug ? url('/mikrotik/'.$this->rpz_slug.'.hosts') : null;
+    }
 }

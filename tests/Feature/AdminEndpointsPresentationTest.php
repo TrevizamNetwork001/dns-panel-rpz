@@ -37,7 +37,7 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSee('actions-menu-item-danger');
     }
 
-    public function test_admin_form_has_static_dns_secure_access_controls_and_real_source_types(): void
+    public function test_admin_form_has_supported_dns_types_secure_access_controls_and_real_source_types(): void
     {
         $admin = User::factory()->admin()->create();
         $empresa = Empresa::factory()->create();
@@ -48,8 +48,9 @@ class AdminEndpointsPresentationTest extends TestCase
         $response = $this->actingAs($admin)->get(route('servidores.edit', $servidor));
 
         $response->assertOk()
-            ->assertSee('endpoint-static-field')
-            ->assertSee('name="tipo_dns" value="unbound"', false)
+            ->assertSee('name="tipo_dns"', false)
+            ->assertSee('<option value="unbound" selected>Unbound (RPZ)</option>', false)
+            ->assertSee('MikroTik RouterOS v7 (Adlist)')
             ->assertDontSee('BIND9 (em breve)')
             ->assertSee('id="rpz-url-value" type="text"', false)
             ->assertSee('readonly', false)
@@ -165,7 +166,7 @@ class AdminEndpointsPresentationTest extends TestCase
         $this->assertLessThan(15, $queries, 'A listagem deve carregar empresas e fontes com eager loading.');
     }
 
-    public function test_client_uses_static_dns_field_and_does_not_receive_admin_access_panel(): void
+    public function test_client_can_choose_supported_dns_type_and_does_not_receive_admin_access_panel(): void
     {
         $empresa = Empresa::factory()->create();
         $cliente = User::factory()->cliente($empresa)->create();
@@ -173,8 +174,9 @@ class AdminEndpointsPresentationTest extends TestCase
 
         $this->actingAs($cliente)->get(route('servidores.edit', $servidor))
             ->assertOk()
-            ->assertSee('endpoint-static-field')
-            ->assertSee('name="tipo_dns" value="unbound"', false)
+            ->assertSee('name="tipo_dns"', false)
+            ->assertSee('<option value="unbound" selected>Unbound (RPZ)</option>', false)
+            ->assertSee('MikroTik RouterOS v7 (Adlist)')
             ->assertDontSee('BIND9 (em breve)')
             ->assertDontSee('Estável')
             ->assertDontSee('Selecionar todas');

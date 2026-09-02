@@ -5,7 +5,9 @@
     : ($servidor->exists ? 'Editar servidor' : 'Novo servidor'))
 
 @php
-    $rpzUrl = $servidor->exists ? url('/rpz/' . $servidor->token . '.zone') : null;
+    $feedUrl = $servidor->exists
+        ? ($servidor->tipo_dns === 'mikrotik' ? $servidor->legacyMikrotikEndpointUrl() : $servidor->legacyRpzEndpointUrl())
+        : null;
 @endphp
 
 @section('content')
@@ -72,15 +74,11 @@
             <div class="form-grid">
                 <div class="field-group">
                     <label for="tipo_dns">Tipo de DNS</label>
-                    @if (auth()->user()->isAdmin())
-                        @php $tipoDnsAtual = old('tipo_dns', $servidor->tipo_dns ?? 'unbound'); @endphp
-                        <input type="hidden" id="tipo_dns" name="tipo_dns" value="{{ $tipoDnsAtual }}">
-                        <div class="endpoint-static-field">{{ match($tipoDnsAtual) { 'bind9' => 'BIND9', 'outro' => 'Outro', default => 'Unbound' } }}</div>
-                    @else
-                        @php $tipoDnsAtual = old('tipo_dns', $servidor->tipo_dns ?? 'unbound'); @endphp
-                        <input type="hidden" id="tipo_dns" name="tipo_dns" value="{{ $tipoDnsAtual }}">
-                        <div class="endpoint-static-field">{{ match($tipoDnsAtual) { 'bind9' => 'BIND9', 'outro' => 'Outro', default => 'Unbound' } }}</div>
-                    @endif
+                    @php $tipoDnsAtual = old('tipo_dns', $servidor->tipo_dns ?? 'unbound'); @endphp
+                    <select class="form-control" id="tipo_dns" name="tipo_dns">
+                        <option value="unbound" @selected($tipoDnsAtual === 'unbound')>Unbound (RPZ)</option>
+                        <option value="mikrotik" @selected($tipoDnsAtual === 'mikrotik')>MikroTik RouterOS v7 (Adlist)</option>
+                    </select>
                 </div>
 
                 <div class="field-group">
@@ -89,7 +87,7 @@
                         <option value="nxdomain" @selected(old('bloqueio_modo', $servidor->bloqueio_modo ?? 'nxdomain') === 'nxdomain')>NXDOMAIN (domínio não existe)</option>
                         <option value="redirect" @selected(old('bloqueio_modo', $servidor->bloqueio_modo) === 'redirect')>Página de bloqueio (redireciona)</option>
                     </select>
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">NXDOMAIN faz o domínio parecer inexistente. "Página de bloqueio" resolve o domínio para o painel, que exibe um aviso ao usuário.</p>
+                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">No MikroTik, o Adlist sempre responde com 0.0.0.0; a página de bloqueio só se aplica ao RPZ/Unbound.</p>
                 </div>
 
                 <div class="field-group">
@@ -111,17 +109,17 @@
 
         @if ($servidor->exists)
             <div class="panel form-panel" style="margin-bottom:14px">
-                <div class="panel-header"><h2>Acesso RPZ</h2></div>
+                <div class="panel-header"><h2>Acesso ao feed</h2></div>
                 <div class="field-group">
-                    <label>URL RPZ</label>
+                    <label>URL do feed</label>
                     @if (auth()->user()->isAdmin())
                         <div class="endpoint-secret-row">
-                            <input class="endpoint-code-field" id="rpz-url-value" type="text" value="{{ $rpzUrl }}" readonly spellcheck="false">
+                            <input class="endpoint-code-field" id="rpz-url-value" type="text" value="{{ $feedUrl }}" readonly spellcheck="false">
                             <button type="button" class="button button-secondary" data-copy-target="rpz-url-value" aria-live="polite">Copiar</button>
                         </div>
                     @else
                         <div style="display:flex;gap:8px;align-items:center">
-                            <code id="rpz-url-value" style="flex:1;word-break:break-all">{{ $rpzUrl }}</code>
+                            <code id="rpz-url-value" style="flex:1;word-break:break-all">{{ $feedUrl }}</code>
                             <button type="button" class="button button-secondary" data-copy-target="rpz-url-value">Copiar</button>
                         </div>
                     @endif

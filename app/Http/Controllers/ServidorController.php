@@ -57,6 +57,9 @@ class ServidorController extends Controller
     {
         $user = Auth::user();
         $data = $this->validated($request, $user);
+        if ($data['tipo_dns'] === 'mikrotik') {
+            $data['bloqueio_modo'] = 'nxdomain';
+        }
         $listaIds = $data['lista_ids'] ?? [];
         unset($data['lista_ids']);
 
@@ -113,6 +116,9 @@ class ServidorController extends Controller
 
         $user = Auth::user();
         $data = $this->validated($request, $user);
+        if ($data['tipo_dns'] === 'mikrotik') {
+            $data['bloqueio_modo'] = 'nxdomain';
+        }
         $listaIds = $data['lista_ids'] ?? [];
         unset($data['lista_ids']);
 
@@ -345,7 +351,7 @@ class ServidorController extends Controller
         $rules = [
             'nome' => ['required', 'string', 'max:255'],
             'status' => ['required', 'in:active,inactive'],
-            'tipo_dns' => ['required', 'in:unbound,bind9,outro'],
+            'tipo_dns' => ['required', 'in:unbound,mikrotik,bind9,outro'],
             'bloqueio_modo' => ['required', 'in:nxdomain,redirect'],
             'ip_v4' => ['nullable', 'ip'],
             'ip_v6' => ['nullable', 'ip'],

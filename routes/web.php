@@ -11,6 +11,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DominioController;
 use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\LicencaController;
+use App\Http\Controllers\MikrotikHostsController;
 use App\Http\Controllers\ListaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RegistrationController;
@@ -31,6 +32,10 @@ Route::post('/cadastro', [RegistrationController::class, 'store'])->name('regist
 Route::get('/rpz/{identifier}.zone', [RpzController::class, 'show'])->middleware('throttle:60,1')
     ->where('identifier', '[A-Za-z0-9][A-Za-z0-9-]{0,79}')
     ->name('rpz.show');
+
+Route::get('/mikrotik/{identifier}.hosts', [MikrotikHostsController::class, 'show'])->middleware('throttle:60,1')
+    ->where('identifier', '[A-Za-z0-9][A-Za-z0-9-]{0,79}')
+    ->name('mikrotik.hosts');
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');

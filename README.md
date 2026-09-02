@@ -22,6 +22,16 @@ Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que ge
 4. A rota é pública (não exige login — o Unbound não tem sessão), mas exige token válido, servidor ativo, **empresa ativa e licença ativa e vigente** (`Empresa::possuiLicencaAtiva()`), e tem rate-limit (60 req/min por IP). Sem licença ativa, a zona para de ser entregue mesmo que a empresa continue com status `active` — não é preciso um admin desativar a empresa manualmente quando a licença vence.
 5. Validado com `named-checkzone` (pacote `bind9-utils`) — sintaticamente correto mesmo com dezenas de milhares de domínios.
 
+### MikroTik RouterOS v7
+
+Servidores cadastrados como **MikroTik RouterOS v7 (Adlist)** recebem um feed adicional em formato hosts:
+
+```text
+https://rpz.trevizamnetwork.com.br/mikrotik/{token-ou-slug}.hosts
+```
+
+Cada domínio ativo é entregue como `0.0.0.0 dominio.example`. O endpoint usa as mesmas listas, licença, ACL por IP, deduplicação e logs de sincronização do RPZ. No RouterOS, configure com `/ip dns adlist add url="..." ssl-verify=yes`. O Adlist não oferece a página de bloqueio do modo `redirect`; ele responde com `0.0.0.0`. Verifique a disponibilidade de `/ip dns adlist` e dimensione cache, RAM e armazenamento antes de carregar listas grandes.
+
 ## Listas externas (sincronização de qualquer feed de blacklist)
 
 Além de listas manuais, o admin pode criar uma **Lista externa**: aponta uma URL (qualquer feed público ou privado de domínios maliciosos) e o painel sincroniza sozinho, periodicamente. Não é fixo num único provedor — dá pra apontar pra vários feeds diferentes, cada um sua própria lista.

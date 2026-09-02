@@ -15,7 +15,7 @@ class ClientServersPresentationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_client_server_form_uses_simple_labels_static_dns_and_real_list_origins(): void
+    public function test_client_server_form_allows_supported_dns_types_and_shows_real_list_origins(): void
     {
         $empresa = Empresa::factory()->create();
         $cliente = User::factory()->cliente($empresa)->create();
@@ -32,11 +32,11 @@ class ClientServersPresentationTest extends TestCase
         $response->assertOk()
             ->assertSee('Editar servidor')
             ->assertSee('Configuração do servidor')
-            ->assertSee('Acesso RPZ')
+            ->assertSee('Acesso ao feed')
             ->assertSee('Listas habilitadas')
             ->assertSee('Pesquisar listas...')
-            ->assertSee('endpoint-static-field')
-            ->assertSee('name="tipo_dns" value="unbound"', false)
+            ->assertSee('name="tipo_dns"', false)
+            ->assertSee('MikroTik RouterOS v7 (Adlist)')
             ->assertSeeInOrder(['ANATEL', 'Catálogo', 'Anatel', 'Externa'])
             ->assertSeeInOrder(['Phishing Army (auto)', 'Externa'])
             ->assertSeeInOrder(['ThreatFox — C2 / Botnet (auto)', 'Externa'])
@@ -45,8 +45,7 @@ class ClientServersPresentationTest extends TestCase
             ->assertDontSee('Configuração RPZ')
             ->assertDontSee('Fontes habilitadas')
             ->assertDontSee('Pesquisar fontes...')
-            ->assertDontSee('BIND9 é suporte futuro')
-            ->assertDontSee('<select class="form-control" id="tipo_dns"', false);
+            ->assertDontSee('BIND9 é suporte futuro');
     }
 
     public function test_client_create_form_uses_server_language_and_defaults_dns_to_unbound(): void
@@ -62,7 +61,8 @@ class ClientServersPresentationTest extends TestCase
             ->assertSee('Configuração do servidor')
             ->assertSee('Listas habilitadas')
             ->assertSee('Pesquisar listas...')
-            ->assertSee('name="tipo_dns" value="unbound"', false)
+            ->assertSee('<option value="unbound" selected>Unbound (RPZ)</option>', false)
+            ->assertSee('MikroTik RouterOS v7 (Adlist)')
             ->assertDontSee('Novo endpoint RPZ');
     }
 

@@ -79,6 +79,16 @@ class Servidor extends Model
         return $this->empresa->rpzEndpointUrl() ?? $this->legacyRpzEndpointUrl();
     }
 
+    public function legacyMikrotikEndpointUrl(): string
+    {
+        return url('/mikrotik/'.$this->token.'.hosts');
+    }
+
+    public function preferredMikrotikEndpointUrl(): string
+    {
+        return $this->empresa->mikrotikEndpointUrl() ?? $this->legacyMikrotikEndpointUrl();
+    }
+
     public function ipAllowed(string $ip): bool
     {
         if (! $this->ip_restriction_enabled) {

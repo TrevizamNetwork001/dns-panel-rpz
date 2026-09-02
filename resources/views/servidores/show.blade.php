@@ -6,17 +6,20 @@
     $panelHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
     $rpzUrl = $servidor->preferredRpzEndpointUrl();
     $legacyRpzUrl = $servidor->legacyRpzEndpointUrl();
+    $isMikrotik = $servidor->tipo_dns === 'mikrotik';
+    $mikrotikUrl = $servidor->preferredMikrotikEndpointUrl();
     $usesCompanyEndpoint = $servidor->empresa->rpz_slug !== null;
     $rpzZoneName = $panelHost;
     $rpzZonefile = '/var/lib/unbound/'.$rpzZoneName.'.zone';
     $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
+    $mikrotikConfig = "/ip dns set allow-remote-requests=yes\n/ip dns adlist add url=\"{$mikrotikUrl}\" ssl-verify=yes";
     $diasSemConsulta = $servidor->diasSemSincronizar();
 @endphp
 
 @section('content')
     <div class="page-heading">
         <div>
-            <div class="page-eyebrow">Endpoint RPZ</div>
+            <div class="page-eyebrow">{{ $isMikrotik ? 'Feed MikroTik Adlist' : 'Endpoint RPZ' }}</div>
             <h1>{{ $servidor->nome }}</h1>
             <p><a href="{{ route('empresas.show', $servidor->empresa) }}" class="inline-link">{{ $servidor->empresa->nome }}</a></p>
         </div>
@@ -44,7 +47,8 @@
             @endif
             <dl class="details-list" style="margin-top:14px">
                 <div><dt>Última consulta</dt><dd>{{ auth()->user()->isAdmin() ? \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) : (optional($servidor->last_synced_at)->format('d/m/Y H:i:s') ?? 'nunca') }}</dd></div>
-                <div><dt>Modo de bloqueio</dt><dd>{{ $servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN' }}</dd></div>
+                <div><dt>Tipo de DNS</dt><dd>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</dd></div>
+                <div><dt>Modo de bloqueio</dt><dd>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</dd></div>
             </dl>
         </div>
 
@@ -57,9 +61,9 @@
                 <div><dt>IPs autorizados</dt><dd>{{ $servidor->allowedIps->where('status', 'active')->pluck('ip_cidr')->join(', ') ?: 'Nenhum' }}</dd></div>
             </dl>
             <div class="field-group">
-                <label>{{ $usesCompanyEndpoint ? 'URL curta' : 'URL RPZ de fallback' }}</label>
+                <label>{{ $usesCompanyEndpoint ? 'URL curta' : 'URL do feed de fallback' }}</label>
                 <div class="endpoint-secret-row">
-                    <input class="endpoint-code-field" id="detail-rpz-url" type="text" value="{{ $rpzUrl }}" readonly spellcheck="false">
+                    <input class="endpoint-code-field" id="detail-rpz-url" type="text" value="{{ $isMikrotik ? $mikrotikUrl : $rpzUrl }}" readonly spellcheck="false">
                     <button type="button" class="button button-secondary" data-endpoint-copy="detail-rpz-url" aria-live="polite">Copiar</button>
                 </div>
             </div>
@@ -68,18 +72,22 @@
 
         <div class="panel details-card-wide">
             <div class="panel-header">
-                <h2>Configuração do Unbound</h2>
+                <h2>{{ $isMikrotik ? 'Configuração do MikroTik' : 'Configuração do Unbound' }}</h2>
                 <button type="button" class="button button-secondary" id="copy-config-btn" data-copy-target="config-snippet">Copiar</button>
             </div>
             <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
-                Cole este bloco no <code>unbound.conf</code> do servidor do cliente, <strong>depois</strong> do fim do bloco <code>server:</code> (antes dele, se usar <code>hyperlocal</code>). O Unbound vai buscar a zona periodicamente sozinho — não precisa de agente nem SSH. Antes de reiniciar o serviço, rode <code>unbound-checkconf</code> para garantir que a configuração está correta.
+                @if ($isMikrotik)
+                    Execute no terminal do RouterOS v7. Antes, confirme que o equipamento possui o menu <code>/ip dns adlist</code> e memória/cache suficientes para o tamanho da lista.
+                @else
+                    Cole este bloco no <code>unbound.conf</code> do servidor do cliente, <strong>depois</strong> do fim do bloco <code>server:</code> (antes dele, se usar <code>hyperlocal</code>). O Unbound vai buscar a zona periodicamente sozinho — não precisa de agente nem SSH. Antes de reiniciar o serviço, rode <code>unbound-checkconf</code> para garantir que a configuração está correta.
+                @endif
             </p>
             @if (auth()->user()->isAdmin())
-                <pre class="endpoint-config-snippet" id="config-snippet">{{ str_replace($servidor->token, '••••••••••••', $configSnippet) }}</pre>
+                <pre class="endpoint-config-snippet" id="config-snippet">{{ str_replace($servidor->token, '••••••••••••', $isMikrotik ? $mikrotikConfig : $configSnippet) }}</pre>
             @else
-                <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $configSnippet }}</pre>
+                <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $isMikrotik ? $mikrotikConfig : $configSnippet }}</pre>
             @endif
-            <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $rpzUrl }}</code></p>
+            <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $isMikrotik ? $mikrotikUrl : $rpzUrl }}</code></p>
         </div>
 
         @if (auth()->user()->isAdmin())
