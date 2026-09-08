@@ -22,6 +22,7 @@ class ClientAreaPresentationTest extends TestCase
         Carbon::setTestNow('2026-08-27 12:00:00');
         $empresa = Empresa::factory()->create(['nome' => 'SPEEDNET']);
         $cliente = User::factory()->cliente($empresa)->create();
+        $empresa->licencas()->delete();
         Licenca::create([
             'empresa_id' => $empresa->id,
             'starts_at' => today()->subDay(),
@@ -45,8 +46,8 @@ class ClientAreaPresentationTest extends TestCase
         $response->assertOk()
             ->assertSeeInOrder(['Domínios bloqueados', 'Listas disponíveis', 'Servidor em uso', 'Servidores contratados'])
             ->assertSee('1.001')
-            ->assertSee('usado da licença')
-            ->assertSee('disponíveis')
+            ->assertSee('1 de 2 usado da licença')
+            ->assertSee('1 disponível')
             ->assertSee('há 17 h')
             ->assertSee('Normal')
             ->assertSee('Minhas sugestões de domínio')
@@ -57,6 +58,58 @@ class ClientAreaPresentationTest extends TestCase
             ->assertDontSee('Endpoints RPZ')
             ->assertDontSee('Fontes')
             ->assertDontSee('Exceções');
+    }
+
+    public function test_cliente_dashboard_shows_full_license_usage_without_impossible_ratio(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $empresa->licencas()->first()->update(['max_servidores' => 1]);
+        $cliente = User::factory()->cliente($empresa)->create();
+        Servidor::factory()->for($empresa)->create();
+
+        $this->actingAs($cliente)->get('/')
+            ->assertOk()
+            ->assertSee('1 de 1 usado da licença')
+            ->assertSee('0 disponíveis')
+            ->assertDontSee('1 de 0');
+    }
+
+    public function test_cliente_dashboard_explains_absent_inactive_and_expired_licenses(): void
+    {
+        foreach (['absent', 'inactive', 'expired'] as $scenario) {
+            $empresa = Empresa::factory()->create();
+            $licenca = $empresa->licencas()->first();
+            if ($scenario === 'inactive') {
+                $licenca->update(['status' => 'inactive']);
+                $expected = 'Licença inativa';
+            } elseif ($scenario === 'expired') {
+                $licenca->update(['expires_at' => today()->subDay()]);
+                $expected = 'Licença expirada';
+            } else {
+                $licenca->delete();
+                $expected = 'Sem licença ativa';
+            }
+            $cliente = User::factory()->cliente($empresa)->create();
+            Servidor::factory()->for($empresa)->create();
+
+            $this->actingAs($cliente)->get('/')
+                ->assertOk()
+                ->assertSee($expected)
+                ->assertDontSee('1 de 0');
+        }
+    }
+
+    public function test_cliente_dashboard_explicitly_reports_usage_above_license_limit(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $empresa->licencas()->first()->update(['max_servidores' => 1]);
+        $cliente = User::factory()->cliente($empresa)->create();
+        Servidor::factory()->for($empresa)->count(2)->create();
+
+        $this->actingAs($cliente)->get('/')
+            ->assertOk()
+            ->assertSee('Uso acima do limite da licença (2 de 1)')
+            ->assertSee('Nenhum disponível · limite excedido');
     }
 
     public function test_cliente_dashboard_distinguishes_attention_and_never_synchronized(): void

@@ -70,6 +70,32 @@ class ClientCompanyPresentationTest extends TestCase
             ->assertSee('1 de 1 servidor utilizado');
     }
 
+    public function test_client_company_empty_state_refers_only_to_company_owned_lists(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        Lista::factory()->create(['empresa_id' => null, 'nome' => 'Catálogo global']);
+
+        $this->actingAs($cliente)->get(route('empresas.show', $empresa))
+            ->assertOk()
+            ->assertSee('Nenhuma lista própria cadastrada.')
+            ->assertDontSee('Nenhuma lista cadastrada.');
+    }
+
+    public function test_client_company_explains_invalid_license_without_impossible_usage(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $empresa->licencas()->first()->update(['expires_at' => today()->subDay()]);
+        $cliente = User::factory()->cliente($empresa)->create();
+        Servidor::factory()->for($empresa)->create();
+
+        $this->actingAs($cliente)->get(route('empresas.show', $empresa))
+            ->assertOk()
+            ->assertSee('Expirada')
+            ->assertSee('Licença expirada')
+            ->assertDontSee('1 de 0');
+    }
+
     public function test_client_only_sees_its_company_resources_and_cannot_manage_another_company(): void
     {
         $empresa = Empresa::factory()->create();

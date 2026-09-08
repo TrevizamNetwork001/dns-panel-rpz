@@ -12,6 +12,10 @@
     </div>
 
     <div class="metrics-grid">
+        @php
+            $servidoresDisponiveis = max(0, $capacidadeLicenca - $totalServidores);
+            $usoAcimaDoLimite = $capacidadeLicenca > 0 && $totalServidores > $capacidadeLicenca;
+        @endphp
         <div class="metric-card">
             <div class="metric-card-header">
                 <div class="metric-icon violet">
@@ -45,7 +49,15 @@
             </div>
             <div class="metric-value">{{ number_format($totalServidores, 0, ',', '.') }}</div>
             <div class="metric-label">{{ $totalServidores === 1 ? 'Servidor em uso' : 'Servidores em uso' }}</div>
-            <div class="metric-footer"><span>{{ number_format($totalServidores, 0, ',', '.') }} de {{ number_format($capacidadeLicenca, 0, ',', '.') }} {{ $totalServidores === 1 ? 'usado' : 'usados' }} da licença</span></div>
+            <div class="metric-footer"><span>
+                @if ($estadoLicenca)
+                    {{ $estadoLicenca }}
+                @elseif ($usoAcimaDoLimite)
+                    Uso acima do limite da licença ({{ number_format($totalServidores, 0, ',', '.') }} de {{ number_format($capacidadeLicenca, 0, ',', '.') }})
+                @else
+                    {{ number_format($totalServidores, 0, ',', '.') }} de {{ number_format($capacidadeLicenca, 0, ',', '.') }} {{ $totalServidores === 1 ? 'usado' : 'usados' }} da licença
+                @endif
+            </span></div>
         </div>
 
         <div class="metric-card">
@@ -55,9 +67,17 @@
                 </div>
                 <span class="metric-state">licença</span>
             </div>
-            <div class="metric-value">{{ number_format($capacidadeLicenca, 0, ',', '.') }}</div>
-            <div class="metric-label">{{ $capacidadeLicenca === 1 ? 'Servidor contratado' : 'Servidores contratados' }}</div>
-            <div class="metric-footer"><span>{{ number_format(max(0, $capacidadeLicenca - $totalServidores), 0, ',', '.') }} {{ max(0, $capacidadeLicenca - $totalServidores) === 1 ? 'disponível' : 'disponíveis' }}</span></div>
+            <div class="metric-value">{{ $estadoLicenca ? '—' : number_format($capacidadeLicenca, 0, ',', '.') }}</div>
+            <div class="metric-label">{{ $estadoLicenca ?: ($capacidadeLicenca === 1 ? 'Servidor contratado' : 'Servidores contratados') }}</div>
+            <div class="metric-footer"><span>
+                @if ($estadoLicenca)
+                    Consulte o administrador
+                @elseif ($usoAcimaDoLimite)
+                    Nenhum disponível · limite excedido
+                @else
+                    {{ number_format($servidoresDisponiveis, 0, ',', '.') }} {{ $servidoresDisponiveis === 1 ? 'disponível' : 'disponíveis' }}
+                @endif
+            </span></div>
         </div>
     </div>
 

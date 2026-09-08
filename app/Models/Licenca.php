@@ -46,6 +46,33 @@ class Licenca extends Model
             && ($this->expires_at === null || $this->expires_at->startOfDay()->gte(today()));
     }
 
+    public function effectiveStatusLabel(): string
+    {
+        if ($this->status === 'inactive') {
+            return 'Inativa';
+        }
+
+        if ($this->status === 'expired' || ($this->expires_at !== null && $this->expires_at->startOfDay()->lt(today()))) {
+            return 'Expirada';
+        }
+
+        if ($this->starts_at->startOfDay()->gt(today())) {
+            return 'Ainda não iniciada';
+        }
+
+        return $this->isValid() ? 'Ativa' : 'Inválida';
+    }
+
+    public function unavailableSummary(): string
+    {
+        return match ($this->effectiveStatusLabel()) {
+            'Expirada' => 'Licença expirada',
+            'Inativa' => 'Licença inativa',
+            'Ainda não iniciada' => 'Licença ainda não iniciada',
+            default => 'Sem licença ativa',
+        };
+    }
+
     public function expirationSummary(): ?string
     {
         if ($this->expires_at === null) {

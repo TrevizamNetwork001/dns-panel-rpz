@@ -6,6 +6,7 @@
     @php
         $isAdmin = auth()->user()->isAdmin();
         $servidoresUtilizados = $empresa->servidores->count();
+        $capacidadeLicencaAtiva = $empresa->licencas->filter->isValid()->sum('max_servidores');
         $rpzUrl = $empresa->rpz_slug ? url('/rpz/'.$empresa->rpz_slug.'.zone') : null;
         $rpzHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
         $rpzZonefile = '/var/lib/unbound/'.$rpzHost.'.zone';
@@ -96,7 +97,7 @@
         <div class="panel details-card-wide">
             <div class="panel-header"><h2>{{ $isAdmin ? 'Fontes' : 'Listas' }}</h2></div>
             @if ($empresa->listas->isEmpty())
-                <div class="empty-state"><span>{{ $isAdmin ? 'Nenhuma fonte cadastrada.' : 'Nenhuma lista cadastrada.' }}</span></div>
+                <div class="empty-state"><span>{{ $isAdmin ? 'Nenhuma fonte cadastrada.' : 'Nenhuma lista própria cadastrada.' }}</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
@@ -140,7 +141,7 @@
         <div class="panel details-card-wide">
             <div class="panel-header"><h2>{{ ! $isAdmin && $empresa->licencas->count() === 1 ? 'Licença' : 'Licenças' }}</h2></div>
             @if ($empresa->licencas->isEmpty())
-                <div class="empty-state"><span>Nenhuma licença cadastrada.</span></div>
+                <div class="empty-state"><span>{{ $isAdmin ? 'Nenhuma licença cadastrada.' : 'Sem licença ativa.' }}</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
@@ -153,25 +154,31 @@
                         <tbody>
                             @foreach ($empresa->licencas as $licenca)
                                 @php
-                                    $statusLabel = match ($licenca->status) {
+                                    $statusLabel = $isAdmin ? match ($licenca->status) {
                                         'active' => 'Ativa',
                                         'inactive' => 'Inativa',
                                         'expired' => 'Expirada',
                                         default => ucfirst($licenca->status),
-                                    };
+                                    } : $licenca->effectiveStatusLabel();
                                 @endphp
                                 <tr>
                                     <td>{{ $licenca->starts_at->format('d/m/Y') }}</td>
                                     <td>{{ optional($licenca->expires_at)->format('d/m/Y') ?? 'Sem vencimento' }}</td>
                                     <td>
-                                        <span class="status-pill @if($licenca->status === 'active') is-active @else is-inactive @endif">
+                                        <span class="status-pill @if($isAdmin ? $licenca->status === 'active' : $licenca->isValid()) is-active @else is-inactive @endif">
                                             {{ $statusLabel }}
                                         </span>
                                     </td>
                                     @if (! $isAdmin)
                                         <td>{{ $licenca->expirationSummary() ?? 'Sem vencimento' }}</td>
                                         <td>
-                                            {{ $servidoresUtilizados.' de '.$licenca->max_servidores.' '.($licenca->max_servidores === 1 ? 'servidor utilizado' : 'servidores utilizados') }}
+                                            @if (! $licenca->isValid())
+                                                {{ $licenca->unavailableSummary() }}
+                                            @elseif ($servidoresUtilizados > $capacidadeLicencaAtiva)
+                                                Uso acima do limite: {{ $servidoresUtilizados.' de '.$capacidadeLicencaAtiva }}
+                                            @else
+                                                {{ $servidoresUtilizados.' de '.$capacidadeLicencaAtiva.' '.($capacidadeLicencaAtiva === 1 ? 'servidor utilizado' : 'servidores utilizados') }}
+                                            @endif
                                         </td>
                                     @endif
                                 </tr>

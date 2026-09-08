@@ -254,9 +254,13 @@ class DashboardController extends Controller
             ? $empresa->servidores()->orderByRaw('last_synced_at IS NULL, last_synced_at DESC')->get()
             : collect();
 
-        $capacidadeLicenca = $empresa
-            ? $empresa->licencas()->valid()->sum('max_servidores')
-            : 0;
+        $licencas = $empresa
+            ? $empresa->licencas()->orderByDesc('starts_at')->orderByDesc('id')->get()
+            : collect();
+        $capacidadeLicenca = $licencas->filter->isValid()->sum('max_servidores');
+        $estadoLicenca = $capacidadeLicenca > 0
+            ? null
+            : ($licencas->first()?->unavailableSummary() ?? 'Sem licença ativa');
 
         $sugestoesRecentes = $empresa
             ? SugestaoDominio::where('empresa_id', $empresa->id)
@@ -275,6 +279,7 @@ class DashboardController extends Controller
             'listas',
             'servidores',
             'capacidadeLicenca',
+            'estadoLicenca',
             'sugestoesRecentes',
         ));
     }
