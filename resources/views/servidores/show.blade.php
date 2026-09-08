@@ -28,8 +28,11 @@
         </div>
     </div>
 
-    <div class="details-grid">
-        <div class="panel">
+    @if (auth()->user()->isAdmin())
+        @include('servidores.partials.admin-detail-styles')
+    @endif
+    <div class="details-grid{{ auth()->user()->isAdmin() ? ' admin-endpoint-detail' : '' }}">
+        <div class="panel{{ auth()->user()->isAdmin() ? ' details-card-wide admin-endpoint-status' : '' }}">
             <div class="panel-header"><h2>Status</h2></div>
             @if (auth()->user()->isAdmin())
                 @php
@@ -39,17 +42,22 @@
                 <div class="endpoint-detail-statuses">
                     <div><span>Status cadastral</span><strong class="status-pill {{ $servidor->status === 'active' ? 'is-active' : 'is-inactive' }}">{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}</strong></div>
                     <div><span>Estado operacional</span><strong class="status-pill {{ $classeOperacional }}">{{ $estadoOperacional }}</strong></div>
+                    <div><span>Última consulta</span><strong>{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</strong></div>
+                    <div><span>Tipo de DNS</span><strong>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</strong></div>
+                    <div><span>Modo de bloqueio</span><strong>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</strong></div>
                 </div>
             @else
                 <span class="status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
                     {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
                 </span>
             @endif
+            @unless (auth()->user()->isAdmin())
             <dl class="details-list" style="margin-top:14px">
                 <div><dt>Última consulta</dt><dd>{{ auth()->user()->isAdmin() ? \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) : (optional($servidor->last_synced_at)->format('d/m/Y H:i:s') ?? 'nunca') }}</dd></div>
                 <div><dt>Tipo de DNS</dt><dd>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</dd></div>
                 <div><dt>Modo de bloqueio</dt><dd>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</dd></div>
             </dl>
+            @endunless
         </div>
 
         @if (auth()->user()->isAdmin())
@@ -58,7 +66,7 @@
             <dl class="details-list" style="margin-bottom:14px">
                 <div><dt>Método</dt><dd>{{ $usesCompanyEndpoint ? 'ACL por IP' : 'Token legado (fallback)' }}</dd></div>
                 <div><dt>Status da ACL</dt><dd>{{ $servidor->allowedIps->where('status', 'active')->isNotEmpty() ? 'Configurada' : 'Sem IP autorizado' }}</dd></div>
-                <div><dt>IPs autorizados</dt><dd>{{ $servidor->allowedIps->where('status', 'active')->pluck('ip_cidr')->join(', ') ?: 'Nenhum' }}</dd></div>
+                <div><dt>IPs autorizados</dt><dd class="endpoint-detail-mono">{{ $servidor->allowedIps->where('status', 'active')->pluck('ip_cidr')->join(', ') ?: 'Nenhum' }}</dd></div>
             </dl>
             <div class="field-group">
                 <label>{{ $usesCompanyEndpoint ? 'URL curta' : 'URL do feed de fallback' }}</label>
@@ -78,6 +86,9 @@
             <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
                 @if ($isMikrotik)
                     Execute no terminal do RouterOS v7. Antes, confirme que o equipamento possui o menu <code>/ip dns adlist</code> e memória/cache suficientes para o tamanho da lista.
+                @elseif (auth()->user()->isAdmin())
+                    Adicione este bloco à configuração do Unbound do cliente. Antes de recarregar o serviço, valide com <code>unbound-checkconf</code>.
+                    <span class="endpoint-detail-note">No <code>unbound.conf</code>, depois do bloco <code>server:</code> (antes dele, se usar <code>hyperlocal</code>). A zona é buscada periodicamente, sem agente ou SSH.</span>
                 @else
                     Cole este bloco no <code>unbound.conf</code> do servidor do cliente, <strong>depois</strong> do fim do bloco <code>server:</code> (antes dele, se usar <code>hyperlocal</code>). O Unbound vai buscar a zona periodicamente sozinho — não precisa de agente nem SSH. Antes de reiniciar o serviço, rode <code>unbound-checkconf</code> para garantir que a configuração está correta.
                 @endif
@@ -120,18 +131,18 @@
             </div>
             <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">
                 @if ($servidor->ip_restriction_enabled)
-                    Ativa: os IPs listados abaixo autorizam a URL curta e também restringem o acesso legado.
+                    Os IPs abaixo podem acessar a URL curta e o acesso legado.
                 @else
                     Desativada para o token legado. A URL curta empresarial continua exigindo pelo menos um IP autorizado.
                 @endif
             </p>
 
             <p style="color:var(--text-muted);font-size:10px;margin:0 0 8px">
-                Aceita IPv4 e IPv6 (com ou sem CIDR). Confirme com o cliente por qual IP o Unbound dele realmente sai antes de cadastrar &mdash; se o servidor for dual-stack, pode sair por IPv6 mesmo você esperando IPv4.
+                Aceita IPv4 e IPv6, com ou sem CIDR. Em dual-stack, confirme o IP de saída: o servidor pode usar IPv6.
             </p>
-            <form action="{{ route('servidores.ips.store', $servidor) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px">
+            <form action="{{ route('servidores.ips.store', $servidor) }}" method="POST" class="endpoint-ip-form" style="display:flex;gap:8px;margin-bottom:14px">
                 @csrf
-                <input class="form-control" type="text" name="ip_cidr" placeholder="203.0.113.10, 203.0.113.0/24 ou 2001:db8::1" required>
+                <input class="form-control endpoint-detail-mono" type="text" name="ip_cidr" placeholder="203.0.113.10, 203.0.113.0/24 ou 2001:db8::1" required>
                 <button type="submit" class="button button-primary">Adicionar IP</button>
             </form>
 
@@ -226,6 +237,9 @@
             @endif
         </div>
 
+        @if (auth()->user()->isAdmin())
+            @include('servidores.partials.admin-event-stream')
+        @else
         <div class="panel details-card-wide">
             <div class="panel-header">
                 <h2>Log do servidor (últimos 30 dias)</h2>
@@ -281,6 +295,7 @@
                 <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 80 eventos. Detalhe domínio-por-domínio disponível no histórico de cada fonte.</p>
             @endif
         </div>
+        @endif
     </div>
 
     <script>

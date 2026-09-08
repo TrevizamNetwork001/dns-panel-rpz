@@ -27,7 +27,7 @@ class ServidorListaAtividadeTest extends TestCase
         $response = $this->actingAs($admin)->get(route('servidores.show', $servidor));
 
         $response->assertOk();
-        $response->assertSee('Lista &quot;'.$lista->nome.'&quot; ganhou 1 domínio(s)', false);
+        $response->assertSee('Lista &quot;'.$lista->nome.'&quot; ganhou 1 domínio', false);
     }
 
     public function test_shows_domains_removed_today_in_a_linked_lista(): void
@@ -43,7 +43,7 @@ class ServidorListaAtividadeTest extends TestCase
         $response = $this->actingAs($admin)->get(route('servidores.show', $servidor));
 
         $response->assertOk();
-        $response->assertSee('perdeu 1 domínio(s)');
+        $response->assertSee('perdeu 1 domínio');
     }
 
     public function test_shows_sync_events_alongside_lista_events(): void
