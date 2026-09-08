@@ -3,164 +3,121 @@
 @section('title', 'Configurações')
 
 @section('content')
-    <div class="page-heading page-heading-compact">
-        <div>
-            <h1>Configurações</h1>
-            <p>Integrações e ajustes gerais do painel.</p>
+    @include('configuracoes.partials.styles')
+    <div class="admin-settings">
+        <div class="page-heading page-heading-compact">
+            <div>
+                <h1>Configurações</h1>
+                <p>Integrações e ajustes gerais do painel.</p>
+            </div>
         </div>
-    </div>
 
-    <div class="panel" style="margin-bottom:14px">
-        <div style="display:flex;gap:8px;flex-wrap:wrap" role="tablist">
-            <button type="button" class="button button-secondary is-settings-tab is-active" data-settings-tab="geral">Geral</button>
-            <button type="button" class="button button-secondary is-settings-tab" data-settings-tab="notificacoes">Notificações</button>
-            <button type="button" class="button button-secondary is-settings-tab" data-settings-tab="seguranca">Segurança</button>
-            <button type="button" class="button button-secondary is-settings-tab" data-settings-tab="integracoes">Integrações</button>
-        </div>
-    </div>
+        <nav class="settings-tabs" role="tablist" aria-label="Configurações ADMIN">
+            @foreach (['geral' => 'Geral', 'notificacoes' => 'Notificações', 'seguranca' => 'Segurança', 'integracoes' => 'Integrações'] as $tab => $label)
+                <button type="button" id="settings-tab-{{ $tab }}" class="settings-tab {{ $tab === 'geral' ? 'is-active' : '' }}" role="tab" aria-selected="{{ $tab === 'geral' ? 'true' : 'false' }}" aria-controls="settings-panel-{{ $tab }}" tabindex="{{ $tab === 'geral' ? '0' : '-1' }}" data-settings-tab="{{ $tab }}">{{ $label }}</button>
+            @endforeach
+        </nav>
 
-    <div data-settings-panel="geral">
-        <div class="details-grid">
-            <div class="panel details-card-wide">
-                <div class="panel-header"><h2>Instalação</h2><span class="status-pill is-active">Operacional</span></div>
-                <dl class="details-list">
+        <div id="settings-panel-geral" role="tabpanel" aria-labelledby="settings-tab-geral" data-settings-panel="geral">
+            <section class="settings-section">
+                <div class="settings-heading"><h2>Instalação</h2><span class="settings-status is-enabled">Operacional</span></div>
+                <dl class="settings-inventory">
                     <div><dt>Nome da aplicação</dt><dd>{{ $geral['nome'] }}</dd></div>
-                    <div><dt>Endereço público</dt><dd><a class="inline-link" href="{{ $geral['url'] }}" target="_blank" rel="noopener">{{ $geral['url'] }}</a></dd></div>
-                    <div><dt>Fuso horário</dt><dd>{{ $geral['timezone'] }}</dd></div>
-                    <div><dt>Ambiente</dt><dd>{{ $geral['ambiente'] }}</dd></div>
+                    <div><dt>Endereço público</dt><dd class="settings-mono"><a class="inline-link" href="{{ $geral['url'] }}" target="_blank" rel="noopener">{{ $geral['url'] }}</a></dd></div>
+                    <div><dt>Fuso horário</dt><dd class="settings-mono">{{ $geral['timezone'] }}</dd></div>
+                    <div><dt>Ambiente</dt><dd class="settings-mono">{{ $geral['ambiente'] }}</dd></div>
                 </dl>
-                <p style="color:var(--text-muted);font-size:11px;margin:14px 0 0">Esses dados estruturais são definidos no arquivo <code>.env</code> do servidor para evitar alterações acidentais em produção.</p>
-            </div>
-            <div class="panel">
-                <div class="panel-header"><h2>Administração</h2></div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap">
-                    <a class="button button-secondary" href="{{ route('usuarios.index') }}">Usuários</a>
-                    <a class="button button-secondary" href="{{ route('auditoria.index') }}">Auditoria</a>
-                    <a class="button button-secondary" href="{{ route('seguranca.index') }}">Saúde e segurança</a>
-                </div>
-            </div>
+                <p class="settings-note">Esses valores são definidos no <code>.env</code> do servidor para evitar alterações acidentais em produção.</p>
+            </section>
+            <section class="settings-section">
+                <div class="settings-heading"><h2>Administração</h2></div>
+                <ul class="settings-links">
+                    <li><a href="{{ route('usuarios.index') }}"><strong>Usuários</strong><span>Gerencie contas e vínculos</span></a></li>
+                    <li><a href="{{ route('auditoria.index') }}"><strong>Auditoria</strong><span>Consulte eventos e ações</span></a></li>
+                    <li><a href="{{ route('seguranca.index') }}"><strong>Segurança</strong><span>Monitore autenticação e SSH</span></a></li>
+                </ul>
+            </section>
         </div>
-    </div>
 
-    <div data-settings-panel="notificacoes" hidden>
-        <div class="panel details-card-wide">
-            <div class="panel-header">
-                <h2>Telegram — cadastro de empresa</h2>
-                <span class="status-pill @if($telegram['ativo']) is-active @else is-inactive @endif">
-                    {{ $telegram['ativo'] ? 'Ativa' : 'Pausada' }}
-                </span>
-            </div>
-            <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">
-                Quando alguém se cadastra pelo formulário público (<code>/cadastro</code>), o painel manda uma mensagem pra um grupo/tópico do Telegram com nome da empresa, responsável e e-mail — pra você saber na hora sem precisar abrir o painel. Se a mensagem falhar, o cadastro do cliente não é afetado.
-            </p>
-
-            <form action="{{ route('configuracoes.telegram.update') }}" method="POST" style="display:flex;flex-direction:column;gap:14px;max-width:480px">
-                @csrf
-                @method('PUT')
-
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px">
-                    <input type="checkbox" name="ativo" value="1" @checked($telegram['ativo'])>
-                    Notificação ativa
-                </label>
-
-                <div class="field-group" style="margin:0">
-                    <label for="bot_token">Token do bot</label>
-                    <input type="password" class="form-control" id="bot_token" name="bot_token" placeholder="{{ $telegram['bot_token'] ? '•••••••••••• (já configurado — deixe em branco pra manter)' : 'Cole o token do BotFather aqui' }}" autocomplete="off">
+        <div id="settings-panel-notificacoes" role="tabpanel" aria-labelledby="settings-tab-notificacoes" data-settings-panel="notificacoes" hidden>
+            <section class="settings-section">
+                <div class="settings-heading">
+                    <div><h2>Telegram</h2><p>Notificações de novos cadastros de empresa</p></div>
+                    <span class="settings-status {{ $telegram['ativo'] ? 'is-enabled' : '' }}">{{ $telegram['ativo'] ? 'Ativa' : 'Inativa' }}</span>
                 </div>
+                <p class="settings-copy">Novos cadastros enviados pelo formulário público (<code>/cadastro</code>) podem gerar uma notificação no grupo configurado. Falhas no Telegram não interrompem o cadastro.</p>
+                <p class="settings-note">Inclui empresa, responsável e e-mail.</p>
 
-                <div class="field-group" style="margin:0">
-                    <label for="chat_id">Chat ID do grupo</label>
-                    <input type="text" class="form-control" id="chat_id" name="chat_id" value="{{ $telegram['chat_id'] }}" placeholder="-1001234567890">
+                <form id="settings-telegram-save" class="settings-form" action="{{ route('configuracoes.telegram.update') }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <label class="settings-check">
+                        <span><strong>Notificação ativa</strong><small>Notificações de novos cadastros no Telegram</small></span>
+                        <input type="checkbox" name="ativo" value="1" @checked($telegram['ativo'])>
+                    </label>
+                    <div class="field-group">
+                        <label for="bot_token">Token do bot</label>
+                        <input type="password" class="form-control settings-mono" id="bot_token" name="bot_token" placeholder="{{ $telegram['bot_token'] ? '••••••••••••••••' : 'Cole o token do BotFather aqui' }}" autocomplete="off" aria-describedby="settings-token-help">
+                        <small id="settings-token-help" class="settings-note">{{ $telegram['bot_token'] ? 'Já configurado · deixe em branco para manter' : 'Obtenha o token com o BotFather.' }}</small>
+                    </div>
+                    <div class="settings-fields">
+                        <div class="field-group">
+                            <label for="chat_id">Chat ID do grupo</label>
+                            <input type="text" class="form-control settings-mono" id="chat_id" name="chat_id" value="{{ $telegram['chat_id'] }}" placeholder="-1001234567890">
+                        </div>
+                        <div class="field-group">
+                            <label for="thread_id">ID do tópico (opcional)</label>
+                            <input type="text" class="form-control settings-mono" id="thread_id" name="thread_id" value="{{ $telegram['thread_id'] }}" placeholder="Deixe em branco se não usa tópicos">
+                        </div>
+                    </div>
+                </form>
+                <div class="settings-actions">
+                    <button type="submit" form="settings-telegram-save" class="button button-primary">Salvar alterações</button>
+                    <form action="{{ route('configuracoes.telegram.test') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="button button-secondary">Enviar teste</button>
+                    </form>
                 </div>
-
-                <div class="field-group" style="margin:0">
-                    <label for="thread_id">ID do tópico (opcional)</label>
-                    <input type="text" class="form-control" id="thread_id" name="thread_id" value="{{ $telegram['thread_id'] }}" placeholder="Deixe em branco se o grupo não usa tópicos">
-                </div>
-
-                <div style="display:flex;gap:10px">
-                    <button type="submit" class="button button-primary">Salvar</button>
-                </div>
-            </form>
-
-            <form action="{{ route('configuracoes.telegram.test') }}" method="POST" style="margin-top:14px">
-                @csrf
-                <button type="submit" class="button button-secondary">Enviar mensagem de teste</button>
-            </form>
-
-            <details style="margin-top:12px;color:var(--text-muted);font-size:10px">
-                <summary class="inline-link" style="cursor:pointer">Como encontrar Chat ID e tópico</summary>
-                <p>Adicione o bot ao grupo, envie uma mensagem e consulte <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>. Use <code>chat.id</code> e, em grupos com tópicos, <code>message_thread_id</code>.</p>
-            </details>
+                <details class="settings-help">
+                    <summary>Como encontrar Chat ID e tópico</summary>
+                    <p>Adicione o bot ao grupo, envie uma mensagem e consulte <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>. Use <code>chat.id</code> e, em grupos com tópicos, <code>message_thread_id</code>.</p>
+                </details>
+            </section>
         </div>
-    </div>
 
-    <div data-settings-panel="seguranca" hidden>
-        <div class="details-grid">
-            <div class="panel details-card-wide">
-                <div class="panel-header"><h2>Proteções da aplicação</h2><span class="status-pill is-active">Ativas</span></div>
-                <dl class="details-list">
+        <div id="settings-panel-seguranca" role="tabpanel" aria-labelledby="settings-tab-seguranca" data-settings-panel="seguranca" hidden>
+            <section class="settings-section">
+                <div class="settings-heading"><h2>Proteções da aplicação</h2><span class="settings-status is-enabled">Ativas</span></div>
+                <dl class="settings-inventory">
                     <div><dt>Login</dt><dd>Limite de tentativas e registro de falhas</dd></div>
                     <div><dt>Endpoints RPZ</dt><dd>Limite de 60 requisições por minuto e controle por IP</dd></div>
                     <div><dt>Permissões</dt><dd>Separação entre administradores e empresas clientes</dd></div>
                     <div><dt>Auditoria</dt><dd>Registro de acessos e alterações sensíveis</dd></div>
                 </dl>
-            </div>
-            <div class="panel">
-                <div class="panel-header"><h2>Monitoramento</h2></div>
-                <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">Consulte falhas de login, IPs banidos, certificado, disco e disponibilidade do painel.</p>
-                <a class="button button-primary" href="{{ route('seguranca.index') }}">Abrir saúde e segurança</a>
-            </div>
+            </section>
+            <section class="settings-section">
+                <div class="settings-heading"><h2>Monitoramento</h2></div>
+                <p class="settings-copy">Consulte falhas de login, IPs banidos, certificado, disco e disponibilidade do painel.</p>
+                <a class="settings-shortcut" href="{{ route('seguranca.index') }}"><span aria-hidden="true">→</span> Abrir Segurança</a>
+            </section>
+        </div>
+
+        <div id="settings-panel-integracoes" role="tabpanel" aria-labelledby="settings-tab-integracoes" data-settings-panel="integracoes" hidden>
+            <dl class="settings-summary">
+                <div><dt>Fontes gerenciadas</dt><dd>{{ $integracoes['total'] }}</dd><dd class="settings-summary-note">Externas e ANATEL</dd></div>
+                <div><dt>Sincronizações ativas</dt><dd>{{ $integracoes['ativas'] }}</dd><dd class="settings-summary-note">Executadas automaticamente</dd></div>
+                <div><dt>Fontes pausadas</dt><dd>{{ $integracoes['pausadas'] }}</dd><dd class="settings-summary-note">Sem atualização automática</dd></div>
+            </dl>
+            <section class="settings-section">
+                <div class="settings-heading"><h2>Listas e feeds</h2></div>
+                <dl class="settings-inventory">
+                    <div><dt>Última sincronização registrada</dt><dd class="settings-mono">{{ $integracoes['ultima_sync']?->format('d/m/Y H:i') ?? 'ainda não executada' }}</dd></div>
+                    <div><dt>Estado</dt><dd>{{ $integracoes['ativas'] }} {{ $integracoes['ativas'] === 1 ? 'sincronização ativa' : 'sincronizações ativas' }} · {{ $integracoes['pausadas'] }} {{ $integracoes['pausadas'] === 1 ? 'pausada' : 'pausadas' }}</dd></div>
+                </dl>
+                <p class="settings-note">URLs, formatos e pausas são administrados diretamente em cada fonte.</p>
+                <a class="settings-shortcut" href="{{ route('listas.index') }}"><span aria-hidden="true">→</span> Gerenciar fontes</a>
+            </section>
         </div>
     </div>
-
-    <div data-settings-panel="integracoes" hidden>
-        <div class="metrics-grid">
-            <div class="metric-card"><div class="metric-value">{{ $integracoes['total'] }}</div><div class="metric-label">Fontes gerenciadas</div><div class="metric-footer"><span>Externas e ANATEL</span></div></div>
-            <div class="metric-card"><div class="metric-value">{{ $integracoes['ativas'] }}</div><div class="metric-label">Sincronizações ativas</div><div class="metric-footer"><span>Executadas automaticamente</span></div></div>
-            <div class="metric-card"><div class="metric-value">{{ $integracoes['pausadas'] }}</div><div class="metric-label">Fontes pausadas</div><div class="metric-footer"><span>Sem atualização automática</span></div></div>
-        </div>
-        <div class="panel" style="margin-top:14px">
-            <div class="panel-header"><h2>Listas e feeds</h2></div>
-            <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">Última sincronização registrada: <strong>{{ $integracoes['ultima_sync']?->format('d/m/Y H:i') ?? 'ainda não executada' }}</strong>. URLs, formatos e pausas são administrados diretamente em cada lista.</p>
-            <a class="button button-primary" href="{{ route('listas.index') }}">Gerenciar fontes</a>
-        </div>
-    </div>
-
-    <script>
-        (function () {
-            var tabs = document.querySelectorAll('[data-settings-tab]');
-            var panels = document.querySelectorAll('[data-settings-panel]');
-
-            function activate(name) {
-                tabs.forEach(function (tab) {
-                    tab.classList.toggle('is-active', tab.dataset.settingsTab === name);
-                });
-                panels.forEach(function (panel) {
-                    panel.hidden = panel.dataset.settingsPanel !== name;
-                });
-            }
-
-            tabs.forEach(function (tab) {
-                tab.addEventListener('click', function () {
-                    activate(tab.dataset.settingsTab);
-                });
-            });
-
-            var requestedTab = new URLSearchParams(window.location.search).get('aba');
-            var initialTab = Array.from(tabs).some(function (tab) {
-                return tab.dataset.settingsTab === requestedTab;
-            }) ? requestedTab : 'geral';
-
-            activate(initialTab);
-
-            tabs.forEach(function (tab) {
-                tab.addEventListener('click', function () {
-                    var url = new URL(window.location.href);
-                    url.searchParams.set('aba', tab.dataset.settingsTab);
-                    window.history.replaceState({}, '', url);
-                });
-            });
-        })();
-    </script>
+    @include('configuracoes.partials.tabs')
 @endsection

@@ -138,7 +138,7 @@ class AdminSystemModulesPresentationTest extends TestCase
         $this->actingAs($admin)->get(route('configuracoes.index'))
             ->assertOk()
             ->assertSee('Notificações')
-            ->assertSee('Telegram — cadastro de empresa')
+            ->assertSee('Notificações de novos cadastros de empresa')
             ->assertSee('Como encontrar Chat ID e tópico')
             ->assertDontSee('token-super-secreto');
 
