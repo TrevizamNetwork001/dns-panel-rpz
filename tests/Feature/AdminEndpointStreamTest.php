@@ -64,7 +64,7 @@ class AdminEndpointStreamTest extends TestCase
         $this->assertSame('Servidor sincronizou — 80 domínios entregues', $events[79]['detalhe']);
     }
 
-    public function test_client_keeps_original_log_and_admin_legacy_remains_collapsed(): void
+    public function test_client_keeps_original_log_and_admin_has_no_legacy_panel(): void
     {
         $server = Servidor::factory()->create();
         $client = User::factory()->cliente($server->empresa)->create();
@@ -76,9 +76,7 @@ class AdminEndpointStreamTest extends TestCase
         $admin = User::factory()->admin()->create();
         $response = $this->actingAs($admin)->get(route('servidores.show', $server));
         $response->assertOk()->assertSee('Status cadastral')->assertSee('Estado operacional');
-        preg_match('/<details[^>]*id="legacy-token-access"[^>]*>/', $response->getContent(), $matches);
-        $this->assertNotEmpty($matches);
-        $this->assertStringNotContainsString('open', $matches[0]);
+        $response->assertDontSee('legacy-token-access')->assertDontSee('Acesso legado por token');
         $this->assertSame(1, substr_count($response->getContent(), 'Última consulta'));
     }
 }

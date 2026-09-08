@@ -5,7 +5,6 @@
 @php
     $panelHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
     $rpzUrl = $servidor->preferredRpzEndpointUrl();
-    $legacyRpzUrl = $servidor->legacyRpzEndpointUrl();
     $isMikrotik = $servidor->tipo_dns === 'mikrotik';
     $mikrotikUrl = $servidor->preferredMikrotikEndpointUrl();
     $usesCompanyEndpoint = $servidor->empresa->rpz_slug !== null;
@@ -102,23 +101,6 @@
         </div>
 
         @if (auth()->user()->isAdmin())
-        <details class="panel details-card-wide" id="legacy-token-access">
-            <summary style="cursor:pointer;font-weight:700">Acesso legado por token</summary>
-            <p style="color:var(--text-muted);font-size:11px">Compatibilidade para clientes existentes. Para novas configurações, prefira a URL curta com ACL.</p>
-            <div class="field-group">
-                <label>URL legada</label>
-                <div class="endpoint-secret-row"><input class="endpoint-code-field" id="legacy-rpz-url" value="{{ $legacyRpzUrl }}" readonly><button type="button" class="button button-secondary" data-endpoint-copy="legacy-rpz-url">Copiar</button></div>
-            </div>
-            <div class="field-group" style="margin-top:14px">
-                <label>Token</label>
-                <div class="endpoint-secret-row">
-                    <code class="endpoint-code-field endpoint-token-field" id="detail-token-value">••••••••••••••••••••••••••••</code>
-                    <button type="button" class="button button-secondary" id="detail-token-toggle">Mostrar</button>
-                    <button type="button" class="button button-secondary" data-endpoint-copy="detail-token-value">Copiar</button>
-                </div>
-            </div>
-        </details>
-
         <div class="panel details-card-wide">
             <div class="panel-header">
                 <h2>Restrição de IP</h2>
@@ -300,7 +282,6 @@
 
     <script>
         (function () {
-            var detailEndpointToken = @json(auth()->user()->isAdmin() ? $servidor->token : null);
             var endpointConfigSnippet = @json($configSnippet);
             var btn = document.getElementById('copy-config-btn');
             if (btn) {
@@ -317,9 +298,7 @@
                 copyButton.addEventListener('click', function () {
                     var target = document.getElementById(copyButton.dataset.endpointCopy);
                     if (!target) return;
-                    var copyValue = target.id === 'detail-token-value' && detailEndpointToken
-                        ? detailEndpointToken
-                        : ('value' in target ? target.value : target.textContent).trim();
+                    var copyValue = ('value' in target ? target.value : target.textContent).trim();
                     navigator.clipboard.writeText(copyValue).then(function () {
                         var original = copyButton.textContent;
                         copyButton.textContent = 'Copiado!';
@@ -328,16 +307,6 @@
                 });
             });
 
-            var tokenToggle = document.getElementById('detail-token-toggle');
-            var tokenValue = document.getElementById('detail-token-value');
-            if (tokenToggle && tokenValue && detailEndpointToken) {
-                var detailTokenVisible = false;
-                tokenToggle.addEventListener('click', function () {
-                    detailTokenVisible = !detailTokenVisible;
-                    tokenValue.textContent = detailTokenVisible ? detailEndpointToken : '••••••••••••••••••••••••••••';
-                    tokenToggle.textContent = detailTokenVisible ? 'Ocultar' : 'Mostrar';
-                });
-            }
         })();
     </script>
 @endsection

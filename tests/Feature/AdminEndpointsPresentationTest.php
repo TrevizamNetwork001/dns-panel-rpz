@@ -82,15 +82,14 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSee('Última consulta')
             ->assertSee('Acesso RPZ')
             ->assertSee('detail-rpz-url')
-            ->assertSee('detail-token-value')
+            ->assertDontSee('detail-token-value')
             ->assertDontSee('detail-token-masked')
-            ->assertSee('••••••••••••')
             ->assertSee('Configuração do Unbound');
 
-        $this->assertSame(1, substr_count($response->getContent(), 'id="detail-token-value"'));
+        $response->assertDontSee('detailEndpointToken');
     }
 
-    public function test_admin_detail_prioritizes_short_company_url_and_keeps_legacy_collapsed(): void
+    public function test_admin_detail_prioritizes_short_company_url_without_legacy_panel(): void
     {
         $admin = User::factory()->admin()->create();
         $empresa = Empresa::factory()->create(['rpz_slug' => 'speed-fiber']);
@@ -106,10 +105,11 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSee('URL curta')
             ->assertSee('zonefile: &quot;/var/lib/unbound/'.parse_url(config('app.url'), PHP_URL_HOST).'.zone&quot;', false)
             ->assertSee('url: &quot;'.$shortUrl.'&quot;', false)
-            ->assertSee('Acesso legado por token')
-            ->assertSee('id="legacy-rpz-url"', false)
-            ->assertSee($legacyUrl)
-            ->assertSeeInOrder(['id="detail-rpz-url"', $shortUrl, 'id="legacy-token-access"', $legacyUrl], false);
+            ->assertDontSee('Acesso legado por token')
+            ->assertDontSee('id="legacy-rpz-url"', false)
+            ->assertDontSee($legacyUrl)
+            ->assertSeeInOrder(['id="detail-rpz-url"', $shortUrl], false)
+            ->assertDontSee($servidor->token);
 
         $this->assertStringNotContainsString($servidor->token, $this->mainConfig($response->getContent()));
         $this->assertStringContainsString($shortUrl, $this->copiedConfig($response->getContent()));
