@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\RblTarget;
+use App\Models\RblTargetGroup;
 use App\Services\Rbl\DnsblResolver;
 use App\Services\Rbl\RblChecker;
 use Illuminate\Http\Request;
@@ -14,7 +15,26 @@ class RblTargetController extends Controller
 {
     public function create()
     {
-        return view('rbl.create');
+        return view('rbl.create', ['target' => new RblTarget(['enabled' => true]), 'groups' => RblTargetGroup::orderBy('name')->get()]);
+    }
+
+    public function edit(RblTarget $target)
+    {
+        return view('rbl.create', ['target' => $target, 'groups' => RblTargetGroup::orderBy('name')->get()]);
+    }
+
+    public function update(Request $request, RblTarget $target)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'rbl_target_group_id' => ['nullable', 'integer', 'exists:rbl_target_groups,id'],
+            'category' => ['nullable', Rule::in(['cgnat', 'mail', 'infra', 'dedicated', 'other'])],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'enabled' => ['required', 'boolean'],
+        ]);
+        $target->update($data);
+
+        return redirect()->route('rbl.targets.show', $target)->with('status', 'Alvo atualizado.');
     }
 
     public function store(Request $request)
@@ -33,6 +53,7 @@ class RblTargetController extends Controller
                     $fail('Informe um valor válido para o tipo de alvo selecionado.');
                 }
             }],
+            'rbl_target_group_id' => ['nullable', 'integer', 'exists:rbl_target_groups,id'],
             'category' => ['nullable', Rule::in(['cgnat', 'mail', 'infra', 'dedicated', 'other'])],
             'description' => ['nullable', 'string', 'max:2000'],
             'enabled' => ['required', 'boolean'],
@@ -58,7 +79,7 @@ class RblTargetController extends Controller
             'checks' => $target->checks()->with('list')->latest('id')->paginate(25, ['*'], 'checks_page'),
             'events' => $target->events()->with('list')->latest('id')->paginate(25, ['*'], 'events_page'),
             'listedChecks' => $target->checks()->with('list')->whereIn('id',
-                $target->checks()->selectRaw('MAX(id)')->groupBy('rbl_list_id')
+                $target->checks()->selectRaw('MAX(id)')->groupBy('rbl_list_id', 'checked_value')
             )->where('status', 'listed')->get(),
         ]);
     }
@@ -85,7 +106,7 @@ class RblTargetController extends Controller
         return redirect()->route('rbl.targets.show', $target)->with('status', match ($target->last_status) {
             'listed' => 'Verificação concluída: alvo listado. Consulte os resultados por lista.',
             'error' => 'Verificação registrada com erros DNS. Consulte o histórico.',
-            'unchecked' => 'Verificação registrada com consultas ignoradas (skipped). Consulte o histórico.',
+            'unchecked', 'skipped' => 'Verificação registrada com consultas ignoradas (skipped). Consulte o histórico.',
             default => 'Verificação concluída: alvo limpo nas listas consultadas.',
         });
     }

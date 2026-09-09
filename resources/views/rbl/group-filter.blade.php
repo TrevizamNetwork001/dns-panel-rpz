@@ -1,0 +1,1 @@
+<div class="field-group"><label for="group">Grupo</label><select class="form-control" id="group" name="group"><option value="">Todos os grupos</option>@foreach($groups as $group)<option value="{{ $group->id }}" @selected((string) request('group') === (string) $group->id)>{{ $group->name }}</option>@endforeach</select></div>

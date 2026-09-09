@@ -1,4 +1,4 @@
-# RBL Checker — RBL-2
+# RBL Checker — RBL-3
 
 Módulo administrativo independente em `/rbl`, protegido por `auth` e `admin`.
 Banco confirmado no `.env` durante a implementação: `DB_CONNECTION=sqlite`.
@@ -19,7 +19,7 @@ Cada nova lista cadastrada pela tela começa desativada.
 
 ## Consulta e interpretação
 
-Apenas IPv4 individual é consultado. `1.2.3.4` em `zen.spamhaus.org` gera
+IPv4 individual e CIDR IPv4 de até 8 endereços são consultados. `1.2.3.4` em `zen.spamhaus.org` gera
 `4.3.2.1.zen.spamhaus.org`. O transporte usa sockets PHP UDP, porta 53, e o primeiro
 nameserver IP de `/etc/resolv.conf`. Não usa shell, scripts, subprocessos, fallback
 para DNS público, nem modifica serviços do sistema.
@@ -36,16 +36,16 @@ cache compartilhado com suporte a locks. Não configurar cache array em produç�
 - Timeout: timeout; SERVFAIL, REFUSED, resposta malformada/truncada ou A inesperado: error.
 - Respostas de acesso recusado como `127.255.255.254` não significam blacklist.
 - Não há fallback TCP nem consulta TXT nesta fase; `response_text` fica preparado.
-- CIDR, domínio, hostname, IPv6 e listas incompatíveis geram skipped, sem expansão/resolução.
+- CIDR acima do limite, domínio, hostname, IPv6 e listas incompatíveis geram skipped, sem resolução DNS.
 - Sem listas ativas ou alvo desativado: mensagem controlada, sem histórico fictício.
 
-Todas as listas ativas recebem um check (inclusive as ignoradas). O status agregado
+Cada combinação de IP expandido e lista ativa recebe um check (inclusive as ignoradas). CIDR incompatível ou grande recebe um skipped por lista, com o valor original. O status agregado
 prioriza listed, depois error/timeout; se houver skipped sem erros/listagem, fica
-unchecked; somente uma execução integralmente clean recebe clean.
+skipped para CIDR e unchecked para outros tipos; somente uma execução integralmente clean recebe clean.
 A data do alvo registra a última execução, mesmo quando todas as consultas são skipped.
 
 Checks, eventos e status do alvo são persistidos em uma transação após o DNS.
-Listed abre ou atualiza o evento por alvo/lista; clean resolve o evento.
+Listed abre ou atualiza o evento por alvo/lista/IP em CIDR; clean resolve somente o evento daquele IP. Para alvos individuais permanece o vínculo alvo/lista.
 Error, timeout e skipped preservam eventos abertos. Uma nova listagem após resolução
 abre outro evento, preservando o histórico. O card de eventos abertos inclui ocorrências
 pendentes em alvos/listas desativados; o card de listados considera o último status de
@@ -67,15 +67,15 @@ php artisan rbl:check --only-enabled --limit=50
 php artisan rbl:check --dry-run
 ```
 
-Somente alvos enabled são processados, inclusive com `--target`. `--only-enabled`
+Somente alvos enabled sem grupo ou com grupo ativo são processados, inclusive com `--target`. `--only-enabled`
 explicita esse padrão e não permite incluir desativados. O limite padrão é 100 alvos,
 aceitando de 1 a 1000. Alvos nunca verificados vêm primeiro, seguidos dos mais antigos;
 isso distribui os lotes sem repetir sempre os mesmos IDs. Alvos verificados no último
 minuto ficam fora da seleção. ID inexistente/desativado ou nenhuma seleção termina
-com zero alvos. `--dry-run` mostra a quantidade elegível, sem DNS, locks ou gravação.
+com zero alvos. `--dry-run` mostra alvos elegíveis, tipo, valor, IPs planejados, listas ativas e consultas planejadas (limitadas a 10), sem DNS, locks ou gravação. O tempo limite pode reduzir a quantidade efetiva.
 
-O comando usa o checker da RBL-1: consultas sequenciais, somente listas ativas,
-mesmos limites por alvo e mesma transação de checks/eventos. Não há expansão de blocos.
+O comando usa o mesmo checker da interface: consultas sequenciais, somente listas ativas,
+mesmos limites por alvo e mesma transação de checks/eventos. A expansão de blocos respeita o limite descrito abaixo.
 `rbl_checks.rbl_run_id` associa os checks ao lote, sem misturar verificações manuais.
 `rbl_runs` registra início, fim, status, duração, alvos processados e totais de checks
 por resultado (error_count inclui timeout). Falhas estruturais preservam contagens
@@ -132,7 +132,7 @@ Sem delist automático, firewall, bloqueio de clientes, integração MikroTik/CG
 ações CLI operacionais sobre infraestrutura, Unbound, agente remoto, reload ou apply.
 O único novo comando é o monitor Laravel `rbl:check`. Não há scripts externos,
 consulta agressiva de blocos, alertas, fila assíncrona ou recuperação automática de runs.
-CIDR, domínio, hostname e IPv6 continuam skipped; a categoria cgnat é apenas cadastral.
+CIDR grande, domínio, hostname e IPv6 continuam skipped. Grupos CGNAT organizam reputação de IPs públicos; não correlacionam clientes ou traduções NAT.
 A geração/download/preview RPZ e o RpzZoneBuilder não participam do módulo.
 
 Resultados clean significam ausência de listagem na resposta recebida; não garantem
@@ -142,8 +142,7 @@ https://docs.spamhaus.com/datasets/docs/source/70-access-methods/data-query-serv
 
 ## Próximas fases
 
-- RBL-3: avaliar fila assíncrona, limites por provedor e suporte controlado a CIDR.
-- Fase posterior: grupos de IPs e correlação CGNAT, mediante escopo próprio.
+- Fase posterior: avaliar fila assíncrona e limites por provedor, mediante escopo próprio.
 - RBL-4: alertas por e-mail/Telegram.
 - RBL-5: correlação com logs CGNAT para investigação de clientes suspeitos.
 - RBL-6: ações CLI auditadas, com allowlist e confirmação humana.
@@ -192,3 +191,81 @@ Não foi feita inspeção visual no navegador. Os 63 testes focados em RBL/RPZ p
 Uma consulta real ao IPv4 autorizado pelo operador criou o run 2 completed,
 com 1 alvo, 2 checks (1 listed, 1 clean), zero erros e evento aberto correspondente.
 Nenhum delist ou alteração de firewall foi executado.
+
+
+## Grupos e CIDR — RBL-3
+
+Em **Grupos RBL → Novo grupo**, crie “CGNAT Bloco 1”, selecione `cgnat` e mantenha
+Ativo. O slug pode ser informado ou será gerado pelo nome; deve ser único.
+Em **Novo alvo** ou **Editar alvo**, selecione o grupo. Alvos antigos sem grupo
+continuam válidos; `category` permanece disponível. A edição altera nome, grupo,
+categoria, descrição e estado; tipo/valor são fixos para preservar o histórico.
+Desativar um grupo suspende checks manuais e agendados, sem resolver eventos.
+
+`/rbl/groups` permite listar, criar, detalhar, editar e ativar/desativar grupos.
+O detalhe mostra total de alvos, listados, eventos abertos, último check e ID da
+execução quando houver, alvos paginados e dez eventos recentes. Todas as rotas
+exigem auth/admin. O dashboard mostra contagens por grupo e filtro da tabela de
+alvos (os demais cards continuam globais). Eventos e relatórios aceitam grupo.
+O relatório e CSV incluem resumo por grupo e grupo de cada check. A associação
+considerada nos relatórios é a atual; mover um alvo reagrupa seu histórico.
+“Eventos abertos” no relatório conta primeiras detecções no período, inclusive
+posteriormente resolvidas; no dashboard/detalhe conta eventos atualmente open.
+
+### Limite e exemplos
+
+`config/rbl.php`: `RBL_MAX_CIDR_IPS`, padrão 8, configurável para reduzir o limite,
+com teto rígido de 8 nesta fase. Vale igualmente para botão manual e comando.
+A expansão inclui endereços de rede e broadcast; não limita a IPs úteis.
+
+- `203.0.113.0/30`: .0, .1, .2 e .3 (4 IPs).
+- `192.0.2.0/29`: .0 até .7 (8 IPs).
+- `192.0.2.0/24`: skipped com motivo explícito, nenhuma consulta DNS.
+- `2001:db8::/126`: skipped, IPv6 ainda não suportado.
+- CIDR com bits de host, como `203.0.113.2/30`, expande a rede .0/30;
+  o valor cadastrado permanece intacto.
+
+O teto anterior de **10 consultas / 20 segundos de DNS por alvo**, timeout de
+1–5 segundos por RBL, cooldown de um minuto e locks foram preservados.
+Assim, /30 com duas RBLs planeja 8 consultas; /29 com duas RBLs permite no máximo
+10 consultas e registra as seis restantes como skipped. A ordem é por lista e IP;
+não há rotação interna dos IPs/listas excedentes nesta fase. Não interpretar uma
+verificação parcial como bloco limpo. `--limit=N` limita alvos, não IPs internos.
+`rbl:check --target=ID --dry-run` informa o planejamento sem criar checks ou runs.
+
+### Status e eventos por endereço
+
+`rbl_targets.value` mantém o CIDR; `rbl_checks.checked_value` e `query` registram
+IP individual e nome DNSBL. Qualquer listed torna o alvo listed. Sem listed,
+erro/timeout torna o alvo error (inclusive em execução parcialmente útil, para
+não esconder falhas); skipped torna o CIDR skipped; todos clean tornam clean.
+
+Cada IP listado abre evento por target CIDR + RBL + `last_checked_value`.
+Por exemplo, 203.0.113.2 listado no bloco 203.0.113.0/30 aparece com nome do alvo,
+grupo, bloco monitorado, IP listado, RBL e resposta 127.0.0.4. Vários IPs listados
+produzem eventos distintos. Clean de .1 não resolve evento de .2; clean de .2
+resolve o evento correspondente. Error/timeout/skipped mantêm eventos abertos.
+
+CIDR grande, IPv6, ASN, integração real CGNAT/logs NAT, MikroTik, firewall,
+bloqueio de clientes, delist automático, scripts externos e ações CLI sobre
+infraestrutura continuam fora do escopo. Apenas o comando Laravel já existente
+foi atualizado. Geração, preview, download e bloqueio RPZ foram preservados.
+
+A migration RBL-3 deve ser aplicada pelo processo de implantação. As validações
+usam SQLite de teste e DNS simulado; nenhuma consulta operacional é necessária.
+
+### Validação RBL-3 — 09/09/2026
+
+- `php artisan test`: 294 testes passaram, 2.006 assertions.
+- `composer test`: mesmos 294 testes passaram; `APP_CONFIG_CACHE` apontado para
+  `/tmp/rbl3-config.php` para isolar o config:clear do cache operacional.
+- `php artisan route:list --json`: 117 rotas, 20 RBL, todas com auth/admin.
+- `migrate:fresh --seed --force`: passou com `APP_ENV=testing`, SQLite `:memory:`,
+  `DB_URL` vazio, cache array e log null; nenhum banco operacional foi recriado.
+- `php -l`: 28 arquivos PHP/Blade novos ou alterados sem erros de sintaxe.
+- `git diff --check`: passou; status revisado, alterações ainda sem commit.
+- Dez testes novos cobrem grupos, autorização, associação, filtros, CSV, CIDR,
+  eventos independentes por IP, execução limitada e dry-run sem DNS/gravação.
+  A expectativa antiga de CIDR grande foi atualizada de unchecked para skipped.
+- Scheduler e fluxo RPZ sem alterações; testes existentes preservados.
+- Sem implantação da migration RBL-3, consulta DNS real ou inspeção visual em navegador.

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RblEvent extends Model
 {
-    protected $fillable = ['rbl_target_id', 'rbl_list_id', 'status', 'first_seen_at', 'last_seen_at', 'resolved_at', 'last_response', 'notes'];
+    protected $fillable = ['last_checked_value', 'rbl_target_id', 'rbl_list_id', 'status', 'first_seen_at', 'last_seen_at', 'resolved_at', 'last_response', 'notes'];
 
     protected function casts(): array
     {

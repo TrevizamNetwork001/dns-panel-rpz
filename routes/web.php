@@ -11,9 +11,13 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DominioController;
 use App\Http\Controllers\EmpresaController;
 use App\Http\Controllers\LicencaController;
-use App\Http\Controllers\MikrotikHostsController;
 use App\Http\Controllers\ListaController;
+use App\Http\Controllers\MikrotikHostsController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RblController;
+use App\Http\Controllers\RblMonitoringController;
+use App\Http\Controllers\RblTargetController;
+use App\Http\Controllers\RblTargetGroupController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\RpzController;
 use App\Http\Controllers\RpzPreviewController;
@@ -60,17 +64,21 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('admin')->group(function () {
         Route::prefix('rbl')->name('rbl.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\RblController::class, 'index'])->name('index');
-            Route::get('/events', [\App\Http\Controllers\RblMonitoringController::class, 'events'])->name('events');
-            Route::get('/reports', [\App\Http\Controllers\RblMonitoringController::class, 'reports'])->name('reports');
-            Route::post('/lists', [\App\Http\Controllers\RblController::class, 'storeList'])->name('lists.store');
-            Route::patch('/lists/{list}/toggle', [\App\Http\Controllers\RblController::class, 'toggleList'])->name('lists.toggle');
-            Route::get('/targets/create', [\App\Http\Controllers\RblTargetController::class, 'create'])->name('targets.create');
-            Route::post('/targets', [\App\Http\Controllers\RblTargetController::class, 'store'])->name('targets.store');
-            Route::get('/targets/{target}', [\App\Http\Controllers\RblTargetController::class, 'show'])->name('targets.show');
-            Route::get('/targets/{target}/checks', [\App\Http\Controllers\RblTargetController::class, 'show'])->name('targets.checks');
-            Route::post('/targets/{target}/check', [\App\Http\Controllers\RblTargetController::class, 'check'])->middleware('throttle:6,1')->name('targets.check');
-            Route::patch('/targets/{target}/toggle', [\App\Http\Controllers\RblTargetController::class, 'toggle'])->name('targets.toggle');
+            Route::get('/', [RblController::class, 'index'])->name('index');
+            Route::resource('groups', RblTargetGroupController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
+            Route::patch('/groups/{group}/toggle', [RblTargetGroupController::class, 'toggle'])->name('groups.toggle');
+            Route::get('/targets/{target}/edit', [RblTargetController::class, 'edit'])->name('targets.edit');
+            Route::patch('/targets/{target}', [RblTargetController::class, 'update'])->name('targets.update');
+            Route::get('/events', [RblMonitoringController::class, 'events'])->name('events');
+            Route::get('/reports', [RblMonitoringController::class, 'reports'])->name('reports');
+            Route::post('/lists', [RblController::class, 'storeList'])->name('lists.store');
+            Route::patch('/lists/{list}/toggle', [RblController::class, 'toggleList'])->name('lists.toggle');
+            Route::get('/targets/create', [RblTargetController::class, 'create'])->name('targets.create');
+            Route::post('/targets', [RblTargetController::class, 'store'])->name('targets.store');
+            Route::get('/targets/{target}', [RblTargetController::class, 'show'])->name('targets.show');
+            Route::get('/targets/{target}/checks', [RblTargetController::class, 'show'])->name('targets.checks');
+            Route::post('/targets/{target}/check', [RblTargetController::class, 'check'])->middleware('throttle:6,1')->name('targets.check');
+            Route::patch('/targets/{target}/toggle', [RblTargetController::class, 'toggle'])->name('targets.toggle');
         });
 
         Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');

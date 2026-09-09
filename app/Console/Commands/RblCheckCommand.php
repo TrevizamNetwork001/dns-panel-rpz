@@ -2,9 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Models\RblList;
 use App\Models\RblRun;
 use App\Models\RblTarget;
 use App\Services\Rbl\RblChecker;
+use App\Services\Rbl\TargetExpansion;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Throwable;
@@ -29,7 +31,7 @@ class RblCheckCommand extends Command
         $lock = null;
         $started = hrtime(true);
         try {
-            $query = RblTarget::where('enabled', true);
+            $query = RblTarget::monitorable();
             if ($this->option('target') !== null) {
                 $query->whereKey($this->option('target'));
             }
@@ -38,7 +40,19 @@ class RblCheckCommand extends Command
                 ->orderByRaw('CASE WHEN last_checked_at IS NULL THEN 0 ELSE 1 END')->orderBy('last_checked_at')->orderBy('id')
                 ->limit((int) $this->option('limit'));
             if ($this->option('dry-run')) {
-                $this->info('Simulação: '.$query->get(['id'])->count().' alvo(s) elegível(is).');
+                $targets = $query->get();
+                $this->info('Simulação: '.$targets->count().' alvo(s) elegível(is).');
+                $lists = RblList::where('enabled', true)->count();
+                $ipLists = RblList::where('enabled', true)->where('type', 'ip')->count();
+                foreach ($targets as $target) {
+                    $plan = app(TargetExpansion::class)->plan($target);
+                    $this->line("Target: {$target->name} | Tipo: {$target->type} | Valor: {$target->value}");
+                    $this->line('IPs planejados: '.count($plan['ips']).' | Listas ativas: '.$lists.' | Checks planejados: '.min(10, count($plan['ips']) * $ipLists));
+                    if ($plan['reason']) {
+                        $this->line('Skipped: '.$plan['reason']);
+                    }
+                }
+                $this->info('Dry-run: nenhuma consulta realizada. Teto de 10 consultas e 20 segundos por alvo.');
 
                 return self::SUCCESS;
             }

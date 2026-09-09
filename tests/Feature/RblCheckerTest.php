@@ -150,7 +150,7 @@ class RblCheckerTest extends TestCase
             $target = $this->target(compact('type', 'value'));
             app(RblChecker::class)->check($target);
             $this->assertSame('skipped', $target->checks()->first()->status);
-            $this->assertSame('unchecked', $target->fresh()->last_status);
+            $this->assertSame($target->type === 'cidr' ? 'skipped' : 'unchecked', $target->fresh()->last_status);
         }
         RblList::query()->update(['type' => 'domain']);
         app(RblChecker::class)->check($this->target());

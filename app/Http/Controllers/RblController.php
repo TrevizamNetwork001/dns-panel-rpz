@@ -7,16 +7,20 @@ use App\Models\RblEvent;
 use App\Models\RblList;
 use App\Models\RblRun;
 use App\Models\RblTarget;
+use App\Models\RblTargetGroup;
 use App\Services\Rbl\DnsblResolver;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class RblController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $request->validate(['group' => ['nullable', 'integer', 'exists:rbl_target_groups,id']]);
+
         return view('rbl.index', [
-            'targets' => RblTarget::latest('id')->paginate(25),
+            'groups' => RblTargetGroup::withCount(['targets', 'targets as listed_count' => fn ($q) => $q->where('last_status', 'listed'), 'events as open_count' => fn ($q) => $q->where('status', 'open')])->orderBy('name')->get(),
+            'targets' => RblTarget::with('group')->when($request->input('group'), fn ($q, $id) => $q->where('rbl_target_group_id', $id))->latest('id')->paginate(25)->withQueryString(),
             'lists' => RblList::orderBy('name')->get(),
             'total' => RblTarget::where('enabled', true)->count(),
             'listed' => RblTarget::where('enabled', true)->where('last_status', 'listed')->count(),
@@ -24,9 +28,9 @@ class RblController extends Controller
             'lastRun' => RblRun::latest('id')->first(),
             'resolved24h' => RblEvent::where('status', 'resolved')->where('resolved_at', '>=', now()->subDay())->count(),
             'errors24h' => RblCheck::whereIn('status', ['error', 'timeout'])->where('checked_at', '>=', now()->subDay())->count(),
-            'openEvents' => RblEvent::with(['target', 'list'])->where('status', 'open')->latest('last_seen_at')->limit(10)->get(),
-            'resolvedEvents' => RblEvent::with(['target', 'list'])->where('status', 'resolved')->latest('resolved_at')->limit(10)->get(),
-            'errorChecks' => RblCheck::with(['target', 'list'])->whereIn('status', ['error', 'timeout'])->latest('checked_at')->limit(10)->get(),
+            'openEvents' => RblEvent::with(['target.group', 'list'])->where('status', 'open')->latest('last_seen_at')->limit(10)->get(),
+            'resolvedEvents' => RblEvent::with(['target.group', 'list'])->where('status', 'resolved')->latest('resolved_at')->limit(10)->get(),
+            'errorChecks' => RblCheck::with(['target.group', 'list'])->whereIn('status', ['error', 'timeout'])->latest('checked_at')->limit(10)->get(),
             'uncheckedTargets' => RblTarget::where('enabled', true)->whereNull('last_checked_at')->orderBy('id')->limit(10)->get(),
         ]);
     }

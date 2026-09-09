@@ -22,7 +22,7 @@ class RblChecker
         }
         try {
             $target->refresh();
-            if (! $target->enabled) {
+            if (! $target->enabled || ($target->group && ! $target->group->enabled)) {
                 throw ValidationException::withMessages(['check' => 'Este alvo está desativado.']);
             }
             if ($target->last_checked_at?->gt(now()->subMinute())) {
@@ -35,26 +35,29 @@ class RblChecker
             $deadline = microtime(true) + 20;
             $results = [];
             $queries = 0;
+            $plan = app(TargetExpansion::class)->plan($target);
             foreach ($lists as $list) {
-                $query = null;
-                $result = ['status' => 'skipped', 'error_message' => 'Consulta disponível apenas para IPv4 individual em listas do tipo IP.'];
-                if ($target->type === 'ip' && filter_var($target->value, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && $list->type === 'ip') {
-                    if ($queries >= 10 || microtime(true) >= $deadline) {
-                        $result = ['status' => 'skipped', 'error_message' => 'Limite de 10 consultas ou 20 segundos atingido.'];
-                    } else {
-                        try {
-                            $query = $this->resolver->queryFor($target->value, $list->dns_zone);
-                            $queries++;
-                            $result = $this->resolver->resolve($query, min(max(1, $list->timeout_seconds), 5, max(0.001, $deadline - microtime(true))));
-                        } catch (Throwable) {
-                            $result = ['status' => 'error', 'error_message' => 'Falha controlada ao consultar a lista DNSBL.'];
+                foreach ($plan['ips'] ?: [$target->value] as $ip) {
+                    $query = null;
+                    $result = ['status' => 'skipped', 'error_message' => $plan['reason'] ?? 'Lista incompatível: requer tipo IP.'];
+                    if ($plan['ips'] && $list->type === 'ip') {
+                        if ($queries >= 10 || microtime(true) >= $deadline) {
+                            $result = ['status' => 'skipped', 'error_message' => 'Limite de 10 consultas ou 20 segundos atingido.'];
+                        } else {
+                            try {
+                                $query = $this->resolver->queryFor($ip, $list->dns_zone);
+                                $queries++;
+                                $result = $this->resolver->resolve($query, min(max(1, $list->timeout_seconds), 5, max(0.001, $deadline - microtime(true))));
+                            } catch (Throwable) {
+                                $result = ['status' => 'error', 'error_message' => 'Falha controlada ao consultar a lista DNSBL.'];
+                            }
                         }
                     }
+                    $results[] = array_merge($result, [
+                        'rbl_run_id' => $runId, 'rbl_list_id' => $list->id, 'checked_value' => $ip,
+                        'query' => $query, 'checked_at' => now(),
+                    ]);
                 }
-                $results[] = array_merge($result, [
-                    'rbl_run_id' => $runId, 'rbl_list_id' => $list->id, 'checked_value' => $target->value,
-                    'query' => $query, 'checked_at' => now(),
-                ]);
             }
             DB::transaction(function () use ($target, $results) {
                 RblTarget::whereKey($target->id)->lockForUpdate()->firstOrFail();
@@ -65,7 +68,7 @@ class RblChecker
                 $statuses = array_column($results, 'status');
                 $status = in_array('listed', $statuses, true) ? 'listed'
                     : (array_intersect(['error', 'timeout'], $statuses) ? 'error'
-                    : (in_array('skipped', $statuses, true) ? 'unchecked' : 'clean'));
+                    : (in_array('skipped', $statuses, true) ? ($target->type === 'cidr' ? 'skipped' : 'unchecked') : 'clean'));
                 $target->update(['last_status' => $status, 'last_checked_at' => now()]);
             });
 

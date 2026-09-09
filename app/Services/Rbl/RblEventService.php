@@ -18,6 +18,9 @@ class RblEventService
             RblTarget::whereKey($check->rbl_target_id)->lockForUpdate()->firstOrFail();
             $events = RblEvent::where('rbl_target_id', $check->rbl_target_id)
                 ->where('rbl_list_id', $check->rbl_list_id)->where('status', 'open');
+            if ($check->target->type === 'cidr') {
+                $events->where('last_checked_value', $check->checked_value);
+            }
             if ($check->status === 'clean') {
                 $events->update(['status' => 'resolved', 'resolved_at' => $check->checked_at]);
 
@@ -25,12 +28,12 @@ class RblEventService
             }
             $event = $events->first();
             if ($event) {
-                $event->update(['last_seen_at' => $check->checked_at, 'last_response' => $check->response]);
+                $event->update(['last_seen_at' => $check->checked_at, 'last_checked_value' => $check->checked_value, 'last_response' => $check->response]);
             } else {
                 RblEvent::create([
                     'rbl_target_id' => $check->rbl_target_id, 'rbl_list_id' => $check->rbl_list_id,
                     'status' => 'open', 'first_seen_at' => $check->checked_at,
-                    'last_seen_at' => $check->checked_at, 'last_response' => $check->response,
+                    'last_seen_at' => $check->checked_at, 'last_checked_value' => $check->checked_value, 'last_response' => $check->response,
                 ]);
             }
         });
