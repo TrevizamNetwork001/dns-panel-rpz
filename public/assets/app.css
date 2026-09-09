@@ -2155,3 +2155,26 @@ html[data-theme="light"] .button-secondary:hover {
         display: none;
     }
 }
+
+/* RBL dashboard */
+.rbl-dashboard { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.rbl-dashboard .metrics-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); margin: 14px 0; }
+.rbl-dashboard .metric-card { min-height: 128px; padding: 18px; }
+.rbl-dashboard .metric-label { color: var(--text-soft); }
+.rbl-last-run { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 14px; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.rbl-last-run time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rbl-dashboard .status-pill { font-size: 11px; }
+.rbl-dashboard .table-responsive { max-width: 100%; overflow-x: auto; }
+.rbl-dashboard .data-table { min-width: 760px; }
+.rbl-dashboard .data-table td { max-width: 320px; overflow-wrap: anywhere; }
+.rbl-dashboard .button { cursor: pointer; white-space: nowrap; }
+.rbl-dashboard .rbl-button-positive { border-color: var(--green); background: rgba(53, 211, 154, 0.08); color: var(--green); }
+.rbl-dashboard .rbl-button-positive:hover { background: rgba(53, 211, 154, 0.18); }
+.rbl-history-link { display: inline-block; margin-top: 10px; color: var(--cyan); }
+.rbl-dashboard .rbl-list-description { margin: 6px 0 0; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.rbl-list-registration { margin-top: 14px; }
+.rbl-list-registration summary { padding: 8px 0; color: var(--text); font-size: 14px; font-weight: 700; cursor: pointer; }
+.rbl-list-registration summary:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+.rbl-list-registration form > .button { margin-top: 18px; }
+.rbl-dashboard .field-group, .rbl-dashboard .page-heading > div { min-width: 0; }
+@media (max-width: 520px) { .rbl-dashboard .panel { padding: 14px; } }

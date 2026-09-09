@@ -48,9 +48,9 @@
                                 <td>
                                     <x-actions-menu label="Ações do usuário {{ $usuario->name }}">
                                         <a href="{{ route('usuarios.edit', $usuario) }}" class="actions-menu-item">Editar</a>
-                                        <form action="{{ route('usuarios.reset-password', $usuario) }}" method="POST">
+                                        <form action="{{ route('usuarios.reset-password', $usuario) }}" method="POST" class="user-password-reset-form" id="user-password-reset-{{ $usuario->id }}">
                                             @csrf
-                                            <button type="submit" class="actions-menu-item" onclick="return confirm('Gerar nova senha temporária para este usuário?')">Redefinir senha</button>
+                                            <button type="submit" class="actions-menu-item" aria-haspopup="dialog" aria-controls="user-password-confirm">Redefinir senha</button>
                                         </form>
                                         <div class="actions-menu-divider"></div>
                                         <form action="{{ route('usuarios.destroy', $usuario) }}" method="POST">
@@ -69,4 +69,6 @@
     </div>
 
     {{ $usuarios->links() }}
+
+    @include('usuarios.partials.password-reset-dialogs')
 @endsection

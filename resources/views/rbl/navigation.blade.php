@@ -1,0 +1,1 @@
+<div class="panel"><a class="button" href="{{ route('rbl.index') }}">Dashboard RBL</a> <a class="button" href="{{ route('rbl.events') }}">Eventos RBL</a> <a class="button" href="{{ route('rbl.reports') }}">Relatório por período</a></div>

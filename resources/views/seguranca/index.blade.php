@@ -3,6 +3,8 @@
 @section('title', 'Segurança')
 
 @section('content')
+    @include('seguranca.partials.stream-styles')
+    <div class="admin-security">
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Sistema</div>
@@ -29,7 +31,7 @@
                 </div>
             </div>
             <div class="metric-value">{{ $bansUltimas24h }}</div>
-            <div class="metric-label">{{ $bansUltimas24h === 1 ? 'bloqueio na última 24 h' : 'bloqueios nas últimas 24 h' }}</div>
+            <div class="metric-label">{{ $bansUltimas24h === 1 ? 'bloqueio nas últimas 24 h' : 'bloqueios nas últimas 24 h' }}</div>
         </div>
 
         <div class="metric-card">
@@ -39,7 +41,7 @@
                 </div>
             </div>
             <div class="metric-value">{{ $loginFalhasUltimas24h }}</div>
-            <div class="metric-label">{{ $loginFalhasUltimas24h === 1 ? 'falha de login' : 'falhas de login' }}</div>
+            <div class="metric-label">{{ $loginFalhasUltimas24h === 1 ? 'falha de login nas últimas 24 h' : 'falhas de login nas últimas 24 h' }}</div>
         </div>
 
         <div class="metric-card">
@@ -60,121 +62,93 @@
         </div>
     </div>
 
-    <div class="panel" style="margin-bottom:14px">
-        <div class="alert-error" style="margin:0;background:rgba(33,199,232,0.08);border-color:var(--cyan, #21c7e8);color:var(--text)">
-            O SSH do servidor está protegido por <strong>fail2ban</strong>: qualquer IP com 5 tentativas de senha erradas em 10 minutos é bloqueado por 1 hora automaticamente. Esta página mostra o que o fail2ban já bloqueou — não é um firewall configurável por aqui.
+    <aside class="security-note" aria-label="Proteção SSH">
+        <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8 12 3 3 5-6"/></svg>
+        <div>
+            <strong>Proteção SSH</strong>
+            <p>O SSH está protegido por fail2ban: 5 tentativas de senha erradas em 10 minutos geram bloqueio automático por 1 hora. Esta tela apenas exibe o estado; não é um firewall configurável por aqui.</p>
         </div>
-    </div>
+    </aside>
 
     @if ($alertasSaude->isNotEmpty())
     <div class="panel" style="margin-bottom:14px">
         <div class="panel-header">
             <h2>Alertas de saúde do servidor</h2>
-            <span class="status-pill is-warning">requer atenção</span>
+            <span class="security-status">requer atenção</span>
         </div>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead>
-                    <tr><th>Data</th><th>Alerta</th></tr>
-                </thead>
-                <tbody>
-                    @foreach ($alertasSaude as $alerta)
-                        <tr>
-                            <td class="table-mono">{{ $alerta->created_at->format('d/m/Y H:i:s') }}</td>
-                            <td>{{ $alerta->description }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+        <ul class="security-stream" aria-label="Alertas de saúde">
+            @foreach ($alertasSaude as $alerta)
+                <li class="security-event security-event-warning">
+                    <time class="security-mono security-date" datetime="{{ $alerta->created_at->toIso8601String() }}">{{ $alerta->created_at->format('d/m/Y H:i:s') }}</time>
+                    <strong class="security-action">{{ $alerta->description }}</strong>
+                </li>
+            @endforeach
+        </ul>
     </div>
     @endif
 
-    <div class="details-grid">
-        <div class="panel">
+    <div class="security-grid">
+        <section class="panel" aria-labelledby="security-active-heading">
             <div class="panel-header">
-                <h2>IPs bloqueados agora (SSH)</h2>
-                <span class="status-pill @if($bansAtivos->count() > 0) is-inactive @else is-active @endif">
+                <h2 id="security-active-heading">IPs bloqueados agora (SSH)</h2>
+                <span class="security-status">
                     {{ $bansAtivos->count() > 0 ? 'ameaças ativas' : 'nenhuma ameaça ativa' }}
                 </span>
             </div>
             @if ($bansAtivos->isEmpty())
-                <div class="empty-state"><span>Nenhum IP bloqueado no momento.</span></div>
+                <p class="security-empty">Nenhum IP bloqueado no momento.</p>
             @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>IP</th><th>Jail</th><th>Bloqueado em</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($bansAtivos as $ban)
-                                <tr>
-                                    <td class="table-mono">{{ $ban->ip_address }}</td>
-                                    <td>{{ $ban->jail }}</td>
-                                    <td class="table-mono">{{ \Illuminate\Support\Carbon::parse($ban->created_at)->format('d/m/Y H:i:s') }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                <ul class="security-stream" aria-label="IPs bloqueados">
+                    @foreach ($bansAtivos as $ban)
+                        <li class="security-event security-event-danger">
+                            <strong class="security-action security-mono">{{ $ban->ip_address }}</strong>
+                            <div class="security-meta">Jail: <span class="security-mono">{{ $ban->jail }}</span></div>
+                            <div class="security-meta">Bloqueado em <time class="security-mono" datetime="{{ \Illuminate\Support\Carbon::parse($ban->created_at)->toIso8601String() }}">{{ \Illuminate\Support\Carbon::parse($ban->created_at)->format('d/m/Y H:i:s') }}</time></div>
+                        </li>
+                    @endforeach
+                </ul>
             @endif
-        </div>
+        </section>
 
-        <div class="panel">
-            <div class="panel-header"><h2>Últimas falhas de login no painel</h2></div>
+        <section class="panel" aria-labelledby="security-login-heading">
+            <div class="panel-header"><h2 id="security-login-heading">Últimas falhas de login no painel</h2></div>
             <p style="color:var(--text-muted);font-size:11px;margin:0 0 12px">O IP de origem identifica o dispositivo ou a conexão que tentou entrar no painel — não é o IP deste servidor.</p>
             @if ($ultimasFalhasLogin->isEmpty())
-                <div class="empty-state"><span>Nenhuma falha de login recente.</span></div>
+                <p class="security-empty">Nenhuma falha de login recente.</p>
             @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Data</th><th>IP de origem</th><th>Detalhe</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($ultimasFalhasLogin as $log)
-                                <tr>
-                                    <td class="table-mono">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
-                                    <td class="table-mono">{{ $log->ip_address ?? '-' }}</td>
-                                    <td>{{ $log->description }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                <ul class="security-stream" aria-label="Falhas de login">
+                    @foreach ($ultimasFalhasLogin as $log)
+                        <li class="security-event security-event-warning">
+                            <time class="security-mono security-date" datetime="{{ $log->created_at->toIso8601String() }}">{{ $log->created_at->format('d/m/Y H:i:s') }}</time>
+                            <strong class="security-action">Falha de login</strong>
+                            <div class="security-meta"><span class="security-mono">{{ $log->ip_address ?? '-' }}</span> · <span title="{{ $log->description }}">{{ preg_replace('/^Tentativa de login falhou para /u', '', $log->description) }}</span></div>
+                        </li>
+                    @endforeach
+                </ul>
             @endif
-        </div>
+        </section>
 
-        <div class="panel details-card-wide">
+        <section class="panel security-history" aria-labelledby="security-history-heading">
             <div class="panel-header">
-                <h2>Histórico de bloqueios/desbloqueios SSH</h2>
-                <span class="status-pill is-muted">últimos 50</span>
+                <h2 id="security-history-heading">Histórico de bloqueios/desbloqueios SSH</h2>
+                <span class="security-status">últimos 50</span>
             </div>
             @if ($historico->isEmpty())
-                <div class="empty-state"><span>Nenhum evento de bloqueio registrado.</span></div>
+                <p class="security-empty">Nenhum evento de bloqueio registrado.</p>
             @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Data</th><th>IP</th><th>Jail</th><th>Ação</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($historico as $evento)
-                                <tr>
-                                    <td class="table-mono">{{ \Illuminate\Support\Carbon::parse($evento->created_at)->format('d/m/Y H:i:s') }}</td>
-                                    <td class="table-mono">{{ $evento->ip_address }}</td>
-                                    <td>{{ $evento->jail }}</td>
-                                    <td>
-                                        <span class="status-pill @if($evento->action === 'ban') is-inactive @else is-active @endif">
-                                            {{ $evento->action === 'ban' ? 'bloqueado' : 'desbloqueado' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                <ul class="security-stream" aria-label="Histórico SSH">
+                    @foreach ($historico as $evento)
+                        <li class="security-event {{ $evento->action === 'ban' ? 'security-event-danger' : 'security-event-success' }}">
+                            <time class="security-mono security-date" datetime="{{ \Illuminate\Support\Carbon::parse($evento->created_at)->toIso8601String() }}">{{ \Illuminate\Support\Carbon::parse($evento->created_at)->format('d/m/Y H:i:s') }}</time>
+                            <div>
+                                <strong class="security-action">{{ $evento->action === 'ban' ? 'Bloqueado' : 'Desbloqueado' }}</strong>
+                                <div class="security-meta"><span class="security-mono">{{ $evento->ip_address }}</span> · <span class="security-mono">{{ $evento->jail }}</span></div>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
             @endif
-        </div>
+        </section>
+    </div>
     </div>
 @endsection

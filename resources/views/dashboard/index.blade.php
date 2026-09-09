@@ -15,7 +15,6 @@
     @php
         $totalDominiosInativos = $totalDominios - $totalDominiosAtivos;
         $totalListasInativas = $totalListasTotal - $totalListasAtivas;
-        $totalServidoresInativos = $totalServidoresTotal - $totalServidoresAtivos;
         $percentFontes = $totalListasTotal > 0 ? round(($totalListasAtivas / $totalListasTotal) * 100) : 0;
         $percentEndpoints = $totalServidoresTotal > 0 ? round(($totalServidoresAtivos / $totalServidoresTotal) * 100) : 0;
         $percentEmpresas = $totalEmpresasTotal > 0 ? round(($totalEmpresas / $totalEmpresasTotal) * 100) : 0;
@@ -43,15 +42,13 @@
 
         <div class="metric-card">
             <div class="metric-card-header">
-                <div class="metric-card-title"><div class="metric-icon green"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg></div><span class="metric-label">Endpoints RPZ</span></div>
+                <div class="metric-card-title"><div class="metric-icon green"><svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg></div><span class="metric-label">{{ $totalServidoresAtivos === 1 ? 'Endpoint ativo' : 'Endpoints ativos' }}</span></div>
             </div>
-            <div class="metric-value">{{ number_format($totalServidoresAtivos, 0, ',', '.') }} <span class="metric-value-suffix">{{ $totalServidoresAtivos === 1 ? 'ativo' : 'ativos' }}</span></div>
+            <div class="metric-value">{{ number_format($totalServidoresAtivos, 0, ',', '.') }}</div>
             <div class="metric-footer">
                 <span>
                     @if ($servidoresAtencao > 0)
-                        {{ $servidoresAtencao }} em atenção
-                    @elseif ($totalServidoresInativos > 0)
-                        {{ $totalServidoresInativos }} {{ $totalServidoresInativos === 1 ? 'inativo' : 'inativos' }}
+                        {{ number_format($servidoresAtencao, 0, ',', '.') }} com atenção operacional
                     @else
                         Todos operando normalmente
                     @endif

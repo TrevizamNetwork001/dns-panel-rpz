@@ -3,6 +3,8 @@
 @section('title', 'Auditoria')
 
 @section('content')
+    @include('auditoria.partials.stream-assets')
+    <div class="admin-audit">
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Rastreabilidade</div>
@@ -57,13 +59,13 @@
         <div class="panel-header"><h2>Filtros</h2></div>
         <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">Pesquisa por ação, alvo, ator ou IP. Os filtros ficam restritos aos 200 últimos eventos.</p>
         <form action="{{ route('auditoria.index') }}" method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-            <div class="field-group" style="margin:0;min-width:220px">
-                <label>Buscar</label>
-                <input type="text" name="q" class="form-control" placeholder="auth, servidor, empresa, IP" value="{{ $query }}">
+            <div class="field-group" style="margin:0;min-width:0;width:260px;max-width:100%">
+                <label for="audit-search">Buscar</label>
+                <input type="text" id="audit-search" name="q" class="form-control" placeholder="auth, servidor, empresa, IP" value="{{ $query }}">
             </div>
             <div class="field-group" style="margin:0;min-width:160px">
-                <label>Categoria</label>
-                <select name="bucket" class="form-control">
+                <label for="audit-bucket">Severidade</label>
+                <select id="audit-bucket" name="bucket" class="form-control">
                     @foreach (['all' => 'Todas', 'danger' => 'Alto', 'warning' => 'Médio', 'info' => 'Info', 'muted' => 'Baixo'] as $value => $label)
                         <option value="{{ $value }}" @selected($bucketFilter === $value)>{{ $label }}</option>
                     @endforeach
@@ -79,7 +81,6 @@
     <div class="panel">
         <div class="panel-header">
             <h2>Eventos recentes</h2>
-            <span class="status-pill is-muted">Audit log</span>
         </div>
 
         @if ($visibleLogs->isEmpty())
@@ -91,46 +92,36 @@
                 </div>
             </div>
         @else
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Data local</th>
-                            <th>Severidade</th>
-                            <th>Ator</th>
-                            <th>Ação</th>
-                            <th>Alvo</th>
-                            <th>IP</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($visibleLogs as $log)
-                            @php
-                                $bucket = \App\Models\AuditLog::bucket($log->action);
-                                $bucketClass = match($bucket) { 'danger' => 'is-inactive', 'warning' => 'is-warning', 'info' => 'is-info', default => 'is-muted' };
-                            @endphp
-                            <tr>
-                                <td class="table-mono">{{ $log->created_at->format('d/m/Y H:i:s') }}</td>
-                                <td>
-                                    <span class="status-pill {{ $bucketClass }}">{{ \App\Models\AuditLog::bucketLabel($bucket) }}</span>
-                                </td>
-                                <td>{{ $log->user->name ?? 'sistema' }}</td>
-                                <td title="{{ $log->action }}">{{ \App\Models\AuditLog::actionLabel($log->action) }}</td>
-                                <td>
-                                    @if ($log->target_type)
-                                        {{ $log->target_type }} #{{ $log->target_id }}
-                                    @elseif ($log->empresa)
-                                        {{ $log->empresa->nome }}
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-                                <td class="table-mono">{{ $log->ip_address ?? '-' }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
+            <ul class="audit-stream" aria-label="Eventos de auditoria">
+                @foreach ($visibleLogs as $log)
+                    @php
+                        $bucket = \App\Models\AuditLog::bucket($log->action);
+                        $severity = \App\Models\AuditLog::bucketLabel($bucket);
+                        $actionLabel = match ($log->action) {
+                            'auth.logout' => 'Sessão encerrada',
+                            'user.password_reset' => 'Senha de usuário redefinida',
+                            'rpz.endpoint.downloaded' => 'Zona RPZ baixada',
+                            default => \App\Models\AuditLog::actionLabel($log->action),
+                        };
+                        $actor = $log->user->name ?? 'sistema';
+                        $target = $log->target_type ? $log->target_type.' #'.$log->target_id : ($log->empresa->nome ?? '-');
+                        $date = $log->created_at->format('d/m/Y H:i:s');
+                        $searchText = mb_strtolower(implode(' ', [$log->action, $actionLabel, $actor, $target, $log->ip_address, $date, $severity, $log->description, $log->empresa->nome ?? '']));
+                        $routine = in_array($log->action, ['health.ok', 'rpz.endpoint.downloaded'], true);
+                    @endphp
+                    <li class="audit-event audit-severity-{{ $bucket }}{{ $routine ? ' audit-event-routine' : '' }}" data-audit-search="{{ $searchText }}">
+                        <time class="audit-date" datetime="{{ $log->created_at->toIso8601String() }}">{{ $date }}</time>
+                        <div class="audit-content">
+                            <strong class="audit-action" title="{{ $log->action }}">{{ $actionLabel }}</strong>
+                            <div class="audit-meta">{{ $actor }} <span aria-hidden="true">·</span> {{ $target }}</div>
+                            <span class="audit-sr-only">Severidade: {{ $severity }}</span>
+                        </div>
+                        <span class="audit-ip"><span class="audit-sr-only">IP: </span>{{ $log->ip_address ?? '-' }}</span>
+                    </li>
+                @endforeach
+            </ul>
+            <p id="audit-search-empty" class="empty-state" role="status" aria-live="polite" hidden>Nenhum evento corresponde à busca.</p>
         @endif
+    </div>
     </div>
 @endsection

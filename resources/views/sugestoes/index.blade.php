@@ -93,22 +93,19 @@
                                 @if (auth()->user()->isAdmin())
                                     <td>
                                         @if ($sugestao->status === 'pending')
-                                            <div class="table-actions" style="align-items:center">
-                                                <form action="{{ route('sugestoes.aprovar', $sugestao) }}" method="POST" style="display:flex;gap:6px;align-items:center">
-                                                    @csrf
-                                                    <select name="lista_id" class="form-control" aria-label="Fonte de destino" style="padding:4px 8px;min-height:auto;font-size:11px" required>
-                                                        <option value="">fonte...</option>
-                                                        @foreach ($listasParaAprovar as $lista)
-                                                            <option value="{{ $lista->id }}">{{ $lista->nome }}</option>
-                                                        @endforeach
-                                                    </select>
-                                                    <button type="submit" class="table-action-link">Aprovar</button>
-                                                </form>
-                                                <form action="{{ route('sugestoes.rejeitar', $sugestao) }}" method="POST">
-                                                    @csrf
-                                                    <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Rejeitar esta sugestão?')">Rejeitar</button>
-                                                </form>
-                                            </div>
+                                            <x-actions-menu label="Ações da sugestão {{ $sugestao->dominio }}">
+                                                @foreach (['aprovar' => 'Aprovar', 'rejeitar' => 'Rejeitar'] as $action => $label)
+                                                    <button type="button" class="actions-menu-item {{ $action === 'rejeitar' ? 'actions-menu-item-danger' : '' }}" data-suggestion-action="{{ $action }}" data-url="{{ route('sugestoes.'.$action, $sugestao) }}" aria-haspopup="dialog" aria-controls="suggestion-{{ $action }}">{{ $label }}</button>
+                                                @endforeach
+                                                <template>
+                                                    <dl class="suggestion-context">
+                                                        <div><dt>Domínio</dt><dd data-domain>{{ $sugestao->dominio }}</dd></div>
+                                                        <div><dt>Empresa</dt><dd>{{ $sugestao->empresa->nome }}</dd></div>
+                                                        <div><dt>Enviado por</dt><dd>{{ $sugestao->criadoPor->name ?? '-' }}</dd></div>
+                                                        <div><dt>Motivo</dt><dd>{{ $sugestao->motivo ?: '-' }}</dd></div>
+                                                    </dl>
+                                                </template>
+                                            </x-actions-menu>
                                         @endif
                                     </td>
                                 @endif
@@ -121,4 +118,8 @@
     </div>
 
     {{ $sugestoes->links() }}
+
+    @if (auth()->user()->isAdmin() && $sugestoes->contains('status', 'pending'))
+        @include('sugestoes.partials.review-dialogs')
+    @endif
 @endsection
