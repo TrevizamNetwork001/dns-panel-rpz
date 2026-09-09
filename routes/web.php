@@ -59,6 +59,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/dominios', [ConsultaController::class, 'pagina'])->name('dominios.index');
 
     Route::middleware('admin')->group(function () {
+        Route::prefix('rbl')->name('rbl.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\RblController::class, 'index'])->name('index');
+            Route::get('/events', [\App\Http\Controllers\RblMonitoringController::class, 'events'])->name('events');
+            Route::get('/reports', [\App\Http\Controllers\RblMonitoringController::class, 'reports'])->name('reports');
+            Route::post('/lists', [\App\Http\Controllers\RblController::class, 'storeList'])->name('lists.store');
+            Route::patch('/lists/{list}/toggle', [\App\Http\Controllers\RblController::class, 'toggleList'])->name('lists.toggle');
+            Route::get('/targets/create', [\App\Http\Controllers\RblTargetController::class, 'create'])->name('targets.create');
+            Route::post('/targets', [\App\Http\Controllers\RblTargetController::class, 'store'])->name('targets.store');
+            Route::get('/targets/{target}', [\App\Http\Controllers\RblTargetController::class, 'show'])->name('targets.show');
+            Route::get('/targets/{target}/checks', [\App\Http\Controllers\RblTargetController::class, 'show'])->name('targets.checks');
+            Route::post('/targets/{target}/check', [\App\Http\Controllers\RblTargetController::class, 'check'])->middleware('throttle:6,1')->name('targets.check');
+            Route::patch('/targets/{target}/toggle', [\App\Http\Controllers\RblTargetController::class, 'toggle'])->name('targets.toggle');
+        });
+
         Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');
         Route::post('/anatel/imports', [AnatelDashboardController::class, 'store'])->name('anatel.dashboard.store');
         Route::get('/anatel/imports/{import}/status', [AnatelDashboardController::class, 'status'])->name('anatel.dashboard.status');

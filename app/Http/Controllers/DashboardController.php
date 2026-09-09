@@ -130,7 +130,7 @@ class DashboardController extends Controller
         return match (true) {
             $action === 'auth.login' => ['titulo' => 'Login realizado', 'icone' => 'seguranca', 'cor' => 'muted'],
             $action === 'auth.login_failed' => ['titulo' => 'Falha de login', 'icone' => 'seguranca', 'cor' => 'danger'],
-            $action === 'auth.logout' => ['titulo' => 'Logout', 'icone' => 'seguranca', 'cor' => 'muted'],
+            $action === 'auth.logout' => ['titulo' => 'Sessão encerrada', 'icone' => 'seguranca', 'cor' => 'muted'],
             $action === 'auth.password_changed' => ['titulo' => 'Senha alterada', 'icone' => 'seguranca', 'cor' => 'muted'],
             $action === 'configuracoes.telegram_atualizado' => ['titulo' => 'Configuração atualizada', 'icone' => 'sistema', 'cor' => 'muted'],
             $action === 'empresa.cadastro_publico' => ['titulo' => 'Empresa cadastrada', 'icone' => 'empresa', 'cor' => 'cyan'],
@@ -148,6 +148,7 @@ class DashboardController extends Controller
             $action === 'lista.externa.sync_falhou' => ['titulo' => 'Falha na sincronização', 'icone' => 'fonte', 'cor' => 'danger'],
             $action === 'lista.externa.sync_habilitado' => ['titulo' => 'Sincronização reativada', 'icone' => 'fonte', 'cor' => 'green'],
             $action === 'lista.externa.sync_pausado' => ['titulo' => 'Sincronização pausada', 'icone' => 'fonte', 'cor' => 'warning'],
+            $action === 'rpz.endpoint.downloaded' => ['titulo' => 'Zona RPZ baixada', 'icone' => 'endpoint', 'cor' => 'violet'],
             $action === 'servidor.created' => ['titulo' => 'Endpoint cadastrado', 'icone' => 'endpoint', 'cor' => 'violet'],
             $action === 'servidor.destroyed' => ['titulo' => 'Endpoint removido', 'icone' => 'endpoint', 'cor' => 'danger'],
             $action === 'servidor.updated' => ['titulo' => 'Endpoint atualizado', 'icone' => 'endpoint', 'cor' => 'violet'],
@@ -164,6 +165,21 @@ class DashboardController extends Controller
             $action === 'user.updated' => ['titulo' => 'Usuário atualizado', 'icone' => 'usuario', 'cor' => 'violet'],
             default => ['titulo' => 'Auditoria', 'icone' => 'sistema', 'cor' => 'muted'],
         };
+    }
+
+    private static function atividadeDescricao(AuditLog $log): string
+    {
+        $descricao = $log->description ?? '';
+
+        if ($log->action !== 'rpz.endpoint.downloaded') {
+            return $descricao;
+        }
+
+        return preg_replace_callback(
+            '/(\d+)(?= domínios\b)/u',
+            fn (array $matches): string => number_format((int) $matches[1], 0, ',', '.'),
+            $descricao,
+        ) ?? $descricao;
     }
 
     /**
@@ -191,7 +207,7 @@ class DashboardController extends Controller
                     'titulo' => $info['titulo'],
                     'icone' => $info['icone'],
                     'cor' => $info['cor'],
-                    'descricao' => $log->description ?? '',
+                    'descricao' => self::atividadeDescricao($log),
                 ];
             });
 

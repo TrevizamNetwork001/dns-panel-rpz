@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -14,11 +15,14 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): Response
     {
         $usuarios = User::with('empresa')->orderBy('name')->paginate(20);
 
-        return view('usuarios.index', compact('usuarios'));
+        $passwordReset = $request->session()->pull('admin_user_password_reset');
+
+        return response()->view('usuarios.index', compact('usuarios', 'passwordReset'))
+            ->header('Cache-Control', 'no-store, private');
     }
 
     public function create(Request $request): View
@@ -92,7 +96,9 @@ class UserController extends Controller
 
         AuditLog::record('user.password_reset', "Senha de {$usuario->email} redefinida pelo admin", $usuario->empresa_id, 'user', $usuario->id);
 
-        return back()->with('status', "Senha redefinida. Nova senha temporária (mostrada só agora): {$senha}");
+        return redirect()->route('usuarios.index')
+            ->with('status', 'Senha redefinida com sucesso.')
+            ->with('admin_user_password_reset', ['password' => $senha, 'user_id' => $usuario->id]);
     }
 
     private function validated(Request $request, ?User $usuario = null): array
