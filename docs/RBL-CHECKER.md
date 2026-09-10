@@ -1,4 +1,33 @@
-# RBL Checker — RBL-5B
+# RBL Checker — RBL-5C
+
+## Operação visual dos blocos CGNAT — RBL-5C
+
+O detalhe de um alvo CIDR em `/rbl/targets/{target}` concentra a operação da
+varredura incremental. **Progresso do bloco CGNAT** mostra o total de IPs, ciclo,
+cursor, verificados, pendentes estimados, listados, limpos, ignorados, erros/timeout,
+percentual e horário do último check. A seção **IPs listados neste bloco** contém
+somente eventos abertos, com IP (`checked_value`), RBL, datas, resposta, situação da
+investigação e acesso ao evento. **Últimos IPs verificados** apresenta os checks mais
+recentes com paginação.
+
+`partial` aparece como **Parcial** e significa que o ciclo ainda não terminou; não é
+sucesso nem equivale a limpo. **Listado** indica ao menos um IP com evento aberto.
+**Limpo** exige ciclo completo sem listagens abertas. **Erro** identifica um ciclo
+com erro/timeout e **Ignorado**, consultas skipped. O dashboard exibe esses labels
+em português e um resumo compacto; grupos CGNAT exibem totais agregados e progresso
+ponderado pelos IPs de cada bloco. Relatórios ordenam blocos por listados, pendentes
+e erros, sem gráficos ou consultas DNS adicionais.
+
+O quadro **Próximo lote planejado** é apenas uma estimativa local: mostra até 16 IPs,
+listas ativas, checks planejados e o limite por alvo. O botão **Verificar agora —
+próximo lote** executa exatamente o próximo lote permitido, nunca o bloco inteiro.
+Isso distribui um `/24` (256 endereços, incluindo network e broadcast) por várias
+execuções e evita excesso de consultas às RBLs. Com quatro listas IP ativas e teto
+de dez consultas, por exemplo, o lote efetivo é de dois IPs e oito checks.
+
+Esta apresentação não integra MikroTik, não lê NAT ou logs CGNAT, não identifica nem
+bloqueia cliente, não altera firewall, não faz delist, não executa scripts externos,
+não envia alertas de progresso e não altera geração, preview ou download RPZ.
 
 ## Blocos IPv4 públicos de CGNAT — RBL-5B
 

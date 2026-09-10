@@ -187,5 +187,7 @@ class RblGroupsCidrTest extends TestCase
         $this->assertStringNotContainsString('Outro bloco', $csv);
         $this->get('/rbl/groups/'.$g->id)->assertOk()->assertSee('203.0.113.1');
         $this->get('/rbl/targets/'.$t->id)->assertOk()->assertSee('203.0.113.1');
+        $this->get('/rbl/groups/'.$g->id)->assertOk()->assertSee('Resumo dos blocos CGNAT')->assertSee('Total de IPs monitorados')->assertSee('IPs listados')->assertSee('Progresso agregado ponderado');
+        $this->get('/rbl/reports?group='.$g->id)->assertOk()->assertSee('Blocos com mais IPs pendentes')->assertSee('Blocos com erro');
     }
 }

@@ -223,10 +223,15 @@ class RblMonitoringController extends Controller
             'IPs com erro' => $scanStates->sum('error_ips'),
             'Progresso médio (%)' => $scanStates->isEmpty() ? 0 : round($scanStates->average(fn ($state) => $state->progressPercent()), 1),
         ];
-        $listedBlocks = $scanStates->where('listed_ips', '>', 0)->sortByDesc('listed_ips')->take(20);
+        $listedBlocks = $blockTargets->filter(fn ($target) => ($target->scanState?->listed_ips ?? 0) > 0)
+            ->sortByDesc(fn ($target) => $target->scanState->listed_ips)->take(20);
+        $pendingBlocks = $blockTargets->filter(fn ($target) => ($target->scanState?->pendingIps() ?? $target->cidrTotalIps()) > 0)
+            ->sortByDesc(fn ($target) => $target->scanState?->pendingIps() ?? $target->cidrTotalIps())->take(20);
+        $errorBlocks = $blockTargets->filter(fn ($target) => ($target->scanState?->error_ips ?? 0) > 0)
+            ->sortByDesc(fn ($target) => $target->scanState->error_ips)->take(20);
         $listedBlockIps = (clone $checks)->where('status', 'listed')->whereHas('target', fn ($q) => $q->where('type', 'cidr'))
             ->with(['target.group', 'list'])->latest('checked_at')->limit(50)->get();
 
-        return view('rbl.reports', compact('summary', 'alertSummary', 'topTargets', 'topLists', 'groups', 'groupSummary', 'recurringTargets', 'recurringValues', 'eventLists', 'blockSummary', 'listedBlocks', 'listedBlockIps'));
+        return view('rbl.reports', compact('summary', 'alertSummary', 'topTargets', 'topLists', 'groups', 'groupSummary', 'recurringTargets', 'recurringValues', 'eventLists', 'blockSummary', 'listedBlocks', 'pendingBlocks', 'errorBlocks', 'listedBlockIps'));
     }
 }

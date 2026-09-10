@@ -103,11 +103,33 @@ class RblIncrementalCidrTest extends TestCase
         $this->cleanDns(16);
         app(RblChecker::class)->check($target);
         $this->actingAs(User::factory()->admin()->create())->get('/rbl')->assertOk()->assertSee('16/256')->assertSee('Parcial');
-        $this->get(route('rbl.targets.show', $target))->assertOk()->assertSee('Progresso do ciclo')->assertSee('Pendentes: 240');
+        $this->get(route('rbl.targets.show', $target))->assertOk()->assertSee('Progresso do bloco CGNAT')->assertSee('Pendentes estimados')->assertSee('240');
         $this->get('/rbl/reports')->assertOk()->assertSee('Resumo de blocos CIDR')->assertSee('Total de IPs nos blocos');
         $csv = $this->get('/rbl/reports?format=csv')->assertOk()->streamedContent();
         foreach (['target_type', 'target_value', 'checked_value', 'scan_cycle', 'block_progress_percent', 'aggregate_status'] as $header) {
             $this->assertStringContainsString($header, $csv);
         }
+    }
+
+    public function test_cidr_detail_shows_next_batch_open_listed_ips_and_recent_checks(): void
+    {
+        $target = $this->target();
+        $target->update(['category' => 'cgnat']);
+        $mock = $this->mock(DnsblResolver::class);
+        $mock->shouldReceive('queryFor')->times(16)->andReturnUsing(fn ($ip, $zone) => implode('.', array_reverse(explode('.', $ip))).'.'.$zone);
+        $mock->shouldReceive('resolve')->times(16)->andReturn(
+            ['status' => 'listed', 'response' => '127.0.0.2'],
+            ...array_fill(0, 15, ['status' => 'clean'])
+        );
+        app(RblChecker::class)->check($target);
+
+        $this->actingAs(User::factory()->admin()->create());
+        $this->get(route('rbl.targets.show', $target))->assertOk()
+            ->assertSee('Listado')->assertSee('Há pelo menos um IP com evento aberto.')
+            ->assertSee('Próximo lote planejado')->assertSee('16 IPs')->assertSee('16 checks planejados')
+            ->assertSee('203.0.113.16')->assertSee('IPs listados neste bloco')->assertSee('203.0.113.0')
+            ->assertSee('Ver evento')->assertSee('Últimos IPs verificados')
+            ->assertSee('Verificar agora — próximo lote');
+        $this->get('/rbl')->assertOk()->assertSee('CGNAT')->assertSee('Listado')->assertSee('P 240');
     }
 }

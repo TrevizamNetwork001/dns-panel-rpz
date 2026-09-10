@@ -66,12 +66,16 @@ class RblTargetGroupController extends Controller
     {
         $events = RblEvent::whereHas('target', fn ($q) => $q->where('rbl_target_group_id', $group->id));
         $cidrTargets = $group->targets()->where('type', 'cidr')->with('scanState')->get();
+        $totalIps = $cidrTargets->sum(fn ($target) => $target->scanState?->total_ips ?? $target->cidrTotalIps());
+        $scannedIps = $cidrTargets->sum(fn ($target) => $target->scanState?->scanned_ips ?? 0);
         $scanSummary = [
             'blocks' => $cidrTargets->count(),
-            'total_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->total_ips ?? $target->cidrTotalIps()),
-            'scanned_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->scanned_ips ?? 0),
+            'total_ips' => $totalIps,
+            'scanned_ips' => $scannedIps,
             'listed_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->listed_ips ?? 0),
+            'error_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->error_ips ?? 0),
             'pending_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->pendingIps() ?? $target->cidrTotalIps()),
+            'progress' => $totalIps > 0 ? round(($scannedIps / $totalIps) * 100, 1) : 0,
         ];
 
         return view('rbl.groups.show', [
@@ -79,7 +83,7 @@ class RblTargetGroupController extends Controller
             'listed' => $group->targets()->where('last_status', 'listed')->count(),
             'open' => (clone $events)->where('status', 'open')->count(),
             'lastCheck' => RblCheck::whereHas('target', fn ($q) => $q->where('rbl_target_group_id', $group->id))->latest('id')->first(),
-            'targets' => $group->targets()->orderBy('name')->paginate(25),
+            'targets' => $group->targets()->with('scanState')->orderBy('name')->paginate(25),
             'events' => $events->with(['target.group', 'list', 'alerts'])->latest('last_seen_at')->limit(10)->get(),
             'scanSummary' => $scanSummary,
         ]);

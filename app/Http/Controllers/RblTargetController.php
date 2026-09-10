@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RblList;
 use App\Models\RblTarget;
 use App\Models\RblTargetGroup;
 use App\Services\Rbl\DnsblResolver;
 use App\Services\Rbl\RblChecker;
+use App\Services\Rbl\TargetExpansion;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -72,18 +74,25 @@ class RblTargetController extends Controller
             && ctype_digit($parts[1]) && (int) $parts[1] <= (str_contains($parts[0], ':') ? 128 : 32);
     }
 
-    public function show(RblTarget $target)
+    public function show(RblTarget $target, TargetExpansion $expansion)
     {
         $target->load(['group', 'scanState']);
+        $activeLists = RblList::where('enabled', true)->count();
+        $activeIpLists = RblList::where('enabled', true)->where('type', 'ip')->count();
+        $maxChecks = max(1, min(1000, (int) config('rbl.max_checks_per_target', 10)));
+        $batchLimit = min((int) config('rbl.batch_ips_per_run', 16), max(1, intdiv($maxChecks, max(1, $activeIpLists))));
+        $nextBatch = $target->type === 'cidr' ? $expansion->plan($target, $batchLimit) : null;
 
         return view('rbl.show', [
             'target' => $target,
             'checks' => $target->checks()->with('list')->latest('id')->paginate(25, ['*'], 'checks_page'),
             'events' => $target->events()->with('list')->latest('id')->paginate(25, ['*'], 'events_page'),
-            'listedChecks' => $target->checks()->with('list')->whereIn('id',
-                $target->checks()->selectRaw('MAX(id)')->groupBy('rbl_list_id', 'checked_value')
-            )->where('status', 'listed')->get(),
             'scanState' => $target->scanState,
+            'openEvents' => $target->events()->with('list')->where('status', 'open')->latest('last_seen_at')->limit(50)->get(),
+            'nextBatch' => $nextBatch,
+            'activeLists' => $activeLists,
+            'activeIpLists' => $activeIpLists,
+            'maxChecks' => $maxChecks,
         ]);
     }
 
