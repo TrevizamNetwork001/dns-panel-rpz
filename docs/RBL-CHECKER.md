@@ -322,16 +322,51 @@ compartilhado. Após interrupção abrupta, o lock pode impedir novos lotes até
 Aumentar o lote aumenta o tempo sequencial e o volume DNS; a frequência inicial
 recomendada permanece a cada 6 horas. Não há fila/worker nesta fase.
 
-O operador ainda precisa configurar o cron do Laravel Scheduler:
+### Configuração do cron do Laravel Scheduler
+
+O agendamento em `routes/console.php` não inicia o Scheduler por conta própria. O
+cron do sistema deve chamar `php artisan schedule:run` a cada minuto; o Laravel
+decide quando executar `rbl:check --only-enabled --limit=100`, mantendo a frequência
+configurada de seis horas e o `withoutOverlapping`.
+
+No servidor em que este projeto está instalado, configure a seguinte entrada no
+crontab do usuário que executa a aplicação:
 
 ```cron
-* * * * * cd /caminho/do/projeto && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /opt/dns-panel-rpz && php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Use o usuário de execução da aplicação, com acesso ao banco SQLite e cache.
-A frequência segue `config('app.timezone')`. Nenhum cron foi instalado e nenhum
-comando de monitoramento real foi executado durante esta implementação.
-O Scheduler apenas agenda o comando Laravel; não foram adicionados scripts externos.
+Esse usuário deve ter acesso ao projeto, ao banco SQLite e ao cache. O painel não
+instala nem altera o crontab automaticamente.
+
+Para verificar a instalação no crontab do usuário atual:
+
+```bash
+crontab -l | grep 'artisan schedule:run'
+```
+
+Se o cron estiver configurado para outro usuário, consulte o crontab desse usuário.
+Instalações também podem usar `/etc/crontab` ou um arquivo em `/etc/cron.d`; nesse
+caso, `crontab -l` sozinho não mostra a entrada. Confirme ainda que o serviço de cron
+do sistema está ativo conforme a distribuição usada pelo servidor.
+
+Para diferenciar configuração Laravel de execução pelo cron, use:
+
+```bash
+cd /opt/dns-panel-rpz
+php artisan schedule:list
+php artisan schedule:run
+```
+
+`schedule:list` confirma que a tarefa é conhecida pelo Laravel. `schedule:run`
+executado manualmente confirma que o Scheduler pode ser iniciado naquele ambiente,
+mas não comprova que o cron do sistema o esteja chamando continuamente. Se
+`rbl:check --target=ID --dry-run` mantém o cursor parado e uma execução manual sem
+`--dry-run` avança o bloco, verifique primeiro a chamada periódica de
+`schedule:run`, o usuário do cron, o diretório do projeto e as permissões.
+
+A frequência segue `config('app.timezone')`. O Scheduler apenas agenda o comando
+Laravel; não foram adicionados scripts externos.
 
 ## Dashboard, eventos e relatórios
 
