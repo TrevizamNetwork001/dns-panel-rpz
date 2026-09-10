@@ -2177,4 +2177,21 @@ html[data-theme="light"] .button-secondary:hover {
 .rbl-list-registration summary:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
 .rbl-list-registration form > .button { margin-top: 18px; }
 .rbl-dashboard .field-group, .rbl-dashboard .page-heading > div { min-width: 0; }
+.rbl-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.rbl-actions form { margin: 0; }
+.rbl-status-explanation { padding-left: 12px; border-left: 3px solid var(--amber); color: var(--text-soft); }
+.rbl-scan-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 18px 0; }
+.rbl-scan-grid > div { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
+.rbl-scan-grid span, .rbl-scan-grid strong { display: block; }
+.rbl-scan-grid span { margin-bottom: 6px; color: var(--text-muted); font-size: 12px; }
+.rbl-scan-grid strong { overflow-wrap: anywhere; font-size: 15px; }
+.rbl-progress-label { display: flex; justify-content: space-between; gap: 12px; margin: 12px 0 7px; font-size: 13px; }
+.rbl-progress { width: 100%; height: 12px; overflow: hidden; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-raised); }
+.rbl-progress > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--green)); transition: width .2s ease; }
+.rbl-next-batch { margin-top: 18px; padding: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-soft); }
+.rbl-next-batch h3 { margin-top: 0; }
+.rbl-next-batch p:last-child { margin-bottom: 0; }
+.rbl-ip-preview { color: var(--text-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; overflow-wrap: anywhere; }
+.rbl-compact-progress { font-size: 12px; line-height: 1.45; white-space: nowrap; }
+.rbl-compact-note { display: block; margin-top: 3px; color: var(--text-muted); white-space: nowrap; }
 @media (max-width: 520px) { .rbl-dashboard .panel { padding: 14px; } }
