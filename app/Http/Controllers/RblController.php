@@ -28,8 +28,8 @@ class RblController extends Controller
             'lastRun' => RblRun::latest('id')->first(),
             'resolved24h' => RblEvent::where('status', 'resolved')->where('resolved_at', '>=', now()->subDay())->count(),
             'errors24h' => RblCheck::whereIn('status', ['error', 'timeout'])->where('checked_at', '>=', now()->subDay())->count(),
-            'openEvents' => RblEvent::with(['target.group', 'list', 'alerts'])->where('status', 'open')->latest('last_seen_at')->limit(10)->get(),
-            'resolvedEvents' => RblEvent::with(['target.group', 'list', 'alerts'])->where('status', 'resolved')->latest('resolved_at')->limit(10)->get(),
+            'openEvents' => RblEvent::with(['target.group', 'list', 'alerts', 'latestDelistRequest'])->where('status', 'open')->latest('last_seen_at')->limit(10)->get(),
+            'resolvedEvents' => RblEvent::with(['target.group', 'list', 'alerts', 'latestDelistRequest'])->where('status', 'resolved')->latest('resolved_at')->limit(10)->get(),
             'errorChecks' => RblCheck::with(['target.group', 'list'])->whereIn('status', ['error', 'timeout'])->latest('checked_at')->limit(10)->get(),
             'uncheckedTargets' => RblTarget::where('enabled', true)->whereNull('last_checked_at')->orderBy('id')->limit(10)->get(),
         ]);
@@ -63,5 +63,21 @@ class RblController extends Controller
         $list->update(['enabled' => ! $list->enabled]);
 
         return back()->with('status', 'Lista RBL atualizada.');
+    }
+
+    public function updateListGuidance(Request $request, RblList $list)
+    {
+        $data = $request->validate([
+            'lookup_url' => ['nullable', 'url:http,https', 'max:2048'],
+            'delist_url' => ['nullable', 'url:http,https', 'max:2048'],
+            'delist_instructions' => ['nullable', 'string', 'max:5000'],
+            'delist_requires_manual_review' => ['required', 'boolean'],
+        ]);
+        foreach (['lookup_url', 'delist_url', 'delist_instructions'] as $field) {
+            $data[$field] = filled($data[$field] ?? null) ? trim($data[$field]) : null;
+        }
+        $list->update($data);
+
+        return back()->with('status', 'Orientação de delist da lista atualizada.');
     }
 }

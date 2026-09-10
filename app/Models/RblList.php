@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RblList extends Model
 {
-    protected $fillable = ['name', 'dns_zone', 'type', 'enabled', 'timeout_seconds', 'description'];
+    protected $fillable = ['name', 'dns_zone', 'type', 'enabled', 'timeout_seconds', 'description', 'lookup_url', 'delist_url', 'delist_instructions', 'delist_requires_manual_review'];
 
     protected function casts(): array
     {
-        return ['enabled' => 'boolean', 'timeout_seconds' => 'integer'];
+        return ['enabled' => 'boolean', 'timeout_seconds' => 'integer', 'delist_requires_manual_review' => 'boolean'];
     }
 
     public function checks(): HasMany

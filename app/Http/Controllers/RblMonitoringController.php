@@ -9,6 +9,7 @@ use App\Models\RblEvent;
 use App\Models\RblList;
 use App\Models\RblTarget;
 use App\Models\RblTargetGroup;
+use App\Services\Rbl\RblDelistService;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -41,7 +42,7 @@ class RblMonitoringController extends Controller
         ]);
         $status = $filters['status'] ?? 'all';
         // Events active at any point in the interval, including older open events.
-        $events = RblEvent::with(['target.group', 'list', 'alerts'])->when($request->input('group'), fn ($q, $id) => $q->whereHas('target', fn ($t) => $t->where('rbl_target_group_id', $id)))->where('first_seen_at', '<', $until)
+        $events = RblEvent::with(['target.group', 'list', 'alerts', 'latestDelistRequest'])->when($request->input('group'), fn ($q, $id) => $q->whereHas('target', fn ($t) => $t->where('rbl_target_group_id', $id)))->where('first_seen_at', '<', $until)
             ->where(fn ($q) => $q->whereNull('resolved_at')->orWhere('resolved_at', '>=', $start))
             ->when($status !== 'all', fn ($q) => $q->where('status', $status))
             ->when($filters['target'] ?? null, fn ($q, $id) => $q->where('rbl_target_id', $id))
@@ -95,7 +96,8 @@ class RblMonitoringController extends Controller
 
     private function eventDetails(RblEvent $event): array
     {
-        $event->load(['target.group', 'list', 'alerts', 'investigator']);
+        $event->load(['target.group', 'list', 'alerts', 'investigator', 'delistRequests.user', 'latestDelistRequest']);
+        $suggestedDelistText = app(RblDelistService::class)->suggestedText($event);
         $until = $event->resolved_at ?? now();
         $checks = RblCheck::where('rbl_target_id', $event->rbl_target_id)->where('rbl_list_id', $event->rbl_list_id)
             ->where('checked_at', '>=', $event->first_seen_at)->where('checked_at', '<=', $until)
@@ -118,7 +120,7 @@ class RblMonitoringController extends Controller
             ->when($event->resolved_at, fn ($items) => $items->push(['at' => $event->resolved_at, 'type' => 'event', 'description' => 'Evento resolvido']))
             ->sortBy('at')->values();
 
-        return compact('event', 'checks', 'audits', 'recurrence', 'timeline');
+        return compact('event', 'checks', 'audits', 'recurrence', 'timeline', 'suggestedDelistText');
     }
 
     public function reports(Request $request)
@@ -160,8 +162,12 @@ class RblMonitoringController extends Controller
             'Eventos em investigação' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->where('investigation_status', 'investigating')->count(),
             'Eventos investigados' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->where('investigation_status', 'investigated')->count(),
             'Falsos positivos' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->where('investigation_status', 'false_positive')->count(),
+            'Eventos com delist solicitado' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->whereHas('delistRequests', fn ($q) => $q->where('status', 'requested'))->count(),
+            'Eventos aguardando resposta de delist' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->whereHas('latestDelistRequest', fn ($q) => $q->where('status', 'waiting'))->count(),
+            'Eventos com delist aceito' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->whereHas('latestDelistRequest', fn ($q) => $q->where('status', 'accepted'))->count(),
+            'Eventos com delist rejeitado' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->whereHas('latestDelistRequest', fn ($q) => $q->where('status', 'rejected'))->count(),
         ];
-        $periodEvents = (clone $events)->with(['target.group', 'target.scanState', 'list'])->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until);
+        $periodEvents = (clone $events)->with(['target.group', 'target.scanState', 'list', 'latestDelistRequest'])->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until);
         $durations = (clone $periodEvents)->get()->map->durationMinutes();
         $summary['Duração média aproximada (min)'] = $durations->isEmpty() ? 0 : (int) round($durations->average());
         if ($request->input('format') === 'csv') {
@@ -190,10 +196,10 @@ class RblMonitoringController extends Controller
                     $row([]);
                 }
                 $row(['Eventos']);
-                $row(['Alvo', 'target_type', 'target_value', 'IP afetado / checked_value', 'RBL', 'group', 'Status técnico', 'Status investigação', 'Observações', 'Reincidências anteriores', 'scan_cycle', 'block_progress_percent', 'aggregate_status']);
+                $row(['Alvo', 'target_type', 'target_value', 'IP afetado / checked_value', 'RBL', 'group', 'Status técnico', 'Status investigação', 'Observações', 'Reincidências anteriores', 'scan_cycle', 'block_progress_percent', 'aggregate_status', 'delist_status', 'delist_requested_at', 'delist_protocol']);
                 foreach ((clone $periodEvents)->lazyById(500) as $event) {
                     $recurrences = RblEvent::where('first_seen_at', '<', $event->first_seen_at)->where('rbl_target_id', $event->rbl_target_id)->where('rbl_list_id', $event->rbl_list_id)->count();
-                    $row([$event->target?->name, $event->target?->type, $event->target?->value, $event->last_checked_value, $event->list?->name, $event->target?->group?->name, $event->status, $event->investigation_status, $event->operator_notes, $recurrences, $event->target?->scanState?->cycle, $event->target?->scanState?->progressPercent(), $event->target?->last_status]);
+                    $row([$event->target?->name, $event->target?->type, $event->target?->value, $event->last_checked_value, $event->list?->name, $event->target?->group?->name, $event->status, $event->investigation_status, $event->operator_notes, $recurrences, $event->target?->scanState?->cycle, $event->target?->scanState?->progressPercent(), $event->target?->last_status, $event->latestDelistRequest?->status ?? 'not_requested', $event->latestDelistRequest?->requested_at?->format('Y-m-d H:i:s'), $event->latestDelistRequest?->protocol]);
                 }
                 $row([]);
                 $row(['Grupo', 'Alvo', 'Valor verificado', 'RBL', 'Status', 'Data', 'Resposta', 'Erro']);

@@ -25,6 +25,16 @@ class RblEvent extends Model
         return $this->hasMany(RblAlert::class)->orderByDesc('id');
     }
 
+    public function delistRequests(): HasMany
+    {
+        return $this->hasMany(RblDelistRequest::class)->orderByDesc('id');
+    }
+
+    public function latestDelistRequest()
+    {
+        return $this->hasOne(RblDelistRequest::class)->latestOfMany();
+    }
+
     public function target(): BelongsTo
     {
         return $this->belongsTo(RblTarget::class, 'rbl_target_id');

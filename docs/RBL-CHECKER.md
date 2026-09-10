@@ -1,4 +1,36 @@
-# RBL Checker — RBL-5C
+# RBL Checker — RBL-6
+
+## Delist assistido — RBL-6
+
+O detalhe de cada evento em `/rbl/events/{event}` possui a seção **Delist assistido**.
+Ela mostra o IP afetado, lista, resposta DNSBL, datas, grupo, orientação cadastrada,
+links de consulta/solicitação e um texto base editável para o operador copiar. Links
+e instruções pertencem à configuração de cada RBL e devem ser revisados pelo
+administrador, pois Spamhaus, SpamCop, Barracuda e SORBS mantêm fluxos e políticas
+próprios que podem mudar.
+
+O operador pode registrar instruções visualizadas, solicitação, espera, aceite,
+rejeição, não aplicabilidade ou cancelamento, além de data, protocolo, URL usada,
+e-mail de contato e observações. O histórico identifica o responsável. Observações
+não são copiadas para a descrição do `AuditLog`; a auditoria registra somente o
+evento e o status operacional. `/rbl/events` mostra o último status, o relatório do
+evento traz orientação e histórico resumido, `/rbl/reports` resume os principais
+estados e o CSV inclui `delist_status`, `delist_requested_at` e `delist_protocol`
+com a mesma neutralização contra fórmulas das demais colunas.
+
+Delist assistido não é delist automático: o painel não envia formulário, e-mail ou
+pedido/API externa, não faz login em portal, não burla CAPTCHA e não executa script.
+Também não altera firewall, não bloqueia cliente, não integra MikroTik, não importa
+logs NAT/CGNAT e não altera checks DNSBL nem o fluxo RPZ. Nenhuma mudança de delist
+envia Telegram. Um aceite operacional não altera `status` ou `resolved_at`; o evento
+só é resolvido tecnicamente quando uma consulta DNSBL normal voltar `clean`.
+
+As colunas de orientação são opcionais. O `RblListSeeder` adiciona instruções gerais
+somente quando ainda estão nulas e não sobrescreve nome, estado ou texto customizado.
+URLs não são presumidas pelo seeder: o administrador deve cadastrar e revisar os
+endereços oficiais no painel.
+
+## Histórico anterior — RBL-5C
 
 ## Operação visual dos blocos CGNAT — RBL-5C
 
