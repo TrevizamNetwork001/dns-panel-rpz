@@ -70,6 +70,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/targets/{target}/edit', [RblTargetController::class, 'edit'])->name('targets.edit');
             Route::patch('/targets/{target}', [RblTargetController::class, 'update'])->name('targets.update');
             Route::get('/events', [RblMonitoringController::class, 'events'])->name('events');
+            Route::get('/events/{event}', [RblMonitoringController::class, 'showEvent'])->name('events.show');
+            Route::get('/events/{event}/report', [RblMonitoringController::class, 'eventReport'])->name('events.report');
+            Route::patch('/events/{event}/investigation', [RblMonitoringController::class, 'updateInvestigation'])->name('events.investigation.update');
             Route::get('/reports', [RblMonitoringController::class, 'reports'])->name('reports');
             Route::post('/lists', [RblController::class, 'storeList'])->name('lists.store');
             Route::patch('/lists/{list}/toggle', [RblController::class, 'toggleList'])->name('lists.toggle');
