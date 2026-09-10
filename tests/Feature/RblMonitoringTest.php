@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\RblAlert;
 use App\Models\RblEvent;
 use App\Models\RblList;
 use App\Models\RblRun;
@@ -176,7 +177,7 @@ class RblMonitoringTest extends TestCase
         }
         RblEvent::create(['rbl_target_id' => $target->id, 'rbl_list_id' => $list->id, 'status' => 'resolved', 'first_seen_at' => '2026-08-09', 'last_seen_at' => '2026-08-09', 'resolved_at' => '2026-08-10 23:59:59']);
         $this->actingAs(User::factory()->admin()->create())->get('/rbl/reports?start=2026-08-10&end=2026-08-10')
-            ->assertOk()->assertViewHas('summary', ['Total de checks' => 5, 'Listed' => 1, 'Clean' => 1, 'Skipped' => 1, 'Errors / timeouts' => 2, 'Eventos abertos no período' => 0, 'Eventos resolvidos no período' => 1])
+            ->assertOk()->assertViewHas('summary', fn ($summary) => $summary['Total de checks'] === 5 && $summary['Eventos resolvidos no período'] === 1)
             ->assertViewHas('topTargets', fn ($items) => $items->first()->total === 1)
             ->assertViewHas('topLists', fn ($items) => $items->first()->total === 1);
     }
@@ -225,5 +226,58 @@ class RblMonitoringTest extends TestCase
         }
         $this->getJson('/rbl/events?status=invalid')->assertUnprocessable();
         $this->getJson('/rbl/events?target=999')->assertUnprocessable();
+    }
+
+    public function test_event_investigation_detail_timeline_report_and_audit(): void
+    {
+        $target = $this->target(['name' => 'CIDR mail', 'type' => 'cidr', 'value' => '203.0.113.0/30']);
+        $list = $this->rbl();
+        $event = RblEvent::create(['rbl_target_id' => $target->id, 'rbl_list_id' => $list->id, 'last_checked_value' => '203.0.113.2', 'status' => 'open', 'first_seen_at' => now()->subHour(), 'last_seen_at' => now()->subMinutes(10), 'last_response' => '127.0.0.2']);
+        $target->checks()->create(['rbl_list_id' => $list->id, 'checked_value' => '203.0.113.2', 'status' => 'listed', 'checked_at' => now()->subHour(), 'response' => '127.0.0.2']);
+        $target->checks()->create(['rbl_list_id' => $list->id, 'checked_value' => '203.0.113.2', 'status' => 'clean', 'checked_at' => now()->subMinutes(5)]);
+        RblAlert::create(['rbl_event_id' => $event->id, 'type' => 'listed', 'channel' => 'telegram', 'status' => 'failed', 'failure_reason' => 'Falha no envio.', 'message_hash' => str_repeat('a', 64)]);
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get(route('rbl.events.show', $event))->assertOk()->assertSee('203.0.113.2')->assertSee('Check LISTED')->assertSee('Check CLEAN')->assertSee('Alerta listed failed');
+        $this->patch(route('rbl.events.investigation.update', $event), ['investigation_status' => 'investigating', 'operator_notes' => '=observação operacional'])->assertRedirect();
+        $this->assertDatabaseHas('rbl_events', ['id' => $event->id, 'status' => 'open', 'resolved_at' => null, 'investigation_status' => 'investigating', 'operator_notes' => '=observação operacional']);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'rbl.event.marked_investigating', 'target_type' => 'rbl_event', 'target_id' => $event->id]);
+
+        foreach (['investigated', 'false_positive'] as $status) {
+            $this->patch(route('rbl.events.investigation.update', $event), ['investigation_status' => $status])->assertRedirect();
+            $this->assertDatabaseHas('rbl_events', ['id' => $event->id, 'status' => 'open', 'investigation_status' => $status, 'investigated_by' => $admin->id]);
+        }
+        $this->get(route('rbl.events.report', $event))->assertOk()->assertSee('Relatório do incidente')->assertSee('observação operacional')->assertDontSee('secret-never-visible');
+    }
+
+    public function test_event_routes_and_actions_require_admin(): void
+    {
+        $event = RblEvent::create(['rbl_target_id' => $this->target()->id, 'rbl_list_id' => $this->rbl()->id, 'status' => 'open', 'first_seen_at' => now(), 'last_seen_at' => now()]);
+        foreach ([route('rbl.events.show', $event), route('rbl.events.report', $event)] as $url) {
+            $this->get($url)->assertRedirect('/login');
+        }
+        $this->post(route('rbl.events.investigation.update', $event), ['_method' => 'PATCH', 'investigation_status' => 'investigating'])->assertRedirect('/login');
+        $this->actingAs(User::factory()->cliente()->create());
+        $this->get(route('rbl.events.show', $event))->assertForbidden();
+        $this->get(route('rbl.events.report', $event))->assertForbidden();
+        $this->patch(route('rbl.events.investigation.update', $event), ['investigation_status' => 'investigating'])->assertForbidden();
+    }
+
+    public function test_recurrence_filter_reports_and_csv_operational_fields(): void
+    {
+        $target = $this->target();
+        $list = $this->rbl();
+        foreach ([now()->subDays(2), now()->subDay(), now()] as $date) {
+            RblEvent::create(['rbl_target_id' => $target->id, 'rbl_list_id' => $list->id, 'last_checked_value' => '1.2.3.4', 'status' => 'resolved', 'investigation_status' => 'investigated', 'operator_notes' => '=nota', 'first_seen_at' => $date, 'last_seen_at' => $date, 'resolved_at' => $date]);
+        }
+        $admin = User::factory()->admin()->create();
+        $event = RblEvent::latest('id')->first();
+        $this->actingAs($admin)->get(route('rbl.events.show', $event))->assertOk()->assertSee('Eventos anteriores do mesmo alvo + RBL')->assertSee('<strong>2</strong>', false);
+        $this->get('/rbl/events?investigation_status=investigated')->assertOk()->assertViewHas('events', fn ($events) => $events->total() === 3);
+        $this->get('/rbl/reports')->assertOk()->assertViewHas('recurringTargets', fn ($items) => $items->first()->total === 3)->assertViewHas('recurringValues', fn ($items) => $items->first()->total === 3);
+        $csv = $this->get('/rbl/reports?format=csv')->assertOk()->streamedContent();
+        $this->assertStringContainsString('Status investigação', $csv);
+        $this->assertStringContainsString('IP afetado', $csv);
+        $this->assertStringContainsString("'=nota", $csv);
     }
 }

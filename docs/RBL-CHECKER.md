@@ -1,4 +1,35 @@
-# RBL Checker — RBL-4
+# RBL Checker — RBL-5A
+
+## Investigação operacional — RBL-5A
+
+Em `/rbl/events`, o administrador pode filtrar a classificação de investigação e
+abrir **Detalhes**. A rota `/rbl/events/{event}` reúne dados técnicos, último check,
+alertas, checks relacionados, reincidência e uma linha do tempo cronológica. A tela
+permite registrar uma observação de até 5.000 caracteres e classificar o trabalho
+como `pending` (pendente), `investigating` (em investigação), `investigated`
+(investigado) ou `false_positive` (falso positivo). Também é possível limpar a
+classificação. Cada atualização registra o administrador e um `AuditLog`.
+
+`status` (`open`/`resolved`) é o estado técnico obtido pelos checks DNSBL.
+`investigation_status` é somente uma classificação humana independente: um evento
+pode estar aberto e investigado. Investigar ou classificar como falso positivo não
+resolve o evento, não altera checks históricos e não remove o IP da blacklist.
+
+O botão **Relatório imprimível** abre `/rbl/events/{event}/report`, com dados do
+incidente, checks, alertas na timeline, notas e reincidência, além da data e do
+administrador que gerou a página. Tokens, destinos Telegram, stack traces e erros
+internos não são exibidos. O relatório usa `Cache-Control: private, no-store`.
+
+Reincidência significa quantidade de eventos anteriores para o mesmo alvo + RBL e,
+quando existe IP individual, para o mesmo IP + RBL. É um indicador operacional sem
+pontuação ou ação automática. `/rbl/reports` apresenta classificações, duração média
+aproximada e rankings de eventos reincidentes no período. O CSV ganhou uma seção de
+eventos com classificação, IP, observação sanitizada e número de ocorrências anteriores;
+a proteção existente contra fórmulas de planilha também cobre esses campos.
+
+Esta fase não implementa delist automático, firewall, bloqueio de clientes,
+MikroTik/CGNAT, importação ou correlação de logs NAT, scripts externos, ASN, IPv6,
+CIDR grande ou alertas repetitivos. Geração, preview e download RPZ não são alterados.
 
 ## Alertas operacionais — RBL-4
 
