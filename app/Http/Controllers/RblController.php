@@ -20,7 +20,7 @@ class RblController extends Controller
 
         return view('rbl.index', [
             'groups' => RblTargetGroup::withCount(['targets', 'targets as listed_count' => fn ($q) => $q->where('last_status', 'listed'), 'events as open_count' => fn ($q) => $q->where('status', 'open')])->orderBy('name')->get(),
-            'targets' => RblTarget::with('group')->when($request->input('group'), fn ($q, $id) => $q->where('rbl_target_group_id', $id))->latest('id')->paginate(25)->withQueryString(),
+            'targets' => RblTarget::with(['group', 'scanState'])->when($request->input('group'), fn ($q, $id) => $q->where('rbl_target_group_id', $id))->latest('id')->paginate(25)->withQueryString(),
             'lists' => RblList::orderBy('name')->get(),
             'total' => RblTarget::where('enabled', true)->count(),
             'listed' => RblTarget::where('enabled', true)->where('last_status', 'listed')->count(),

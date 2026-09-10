@@ -1,4 +1,51 @@
-# RBL Checker — RBL-5A
+# RBL Checker — RBL-5B
+
+## Blocos IPv4 públicos de CGNAT — RBL-5B
+
+Alvos CIDR IPv4 podem representar os blocos públicos usados por um CGNAT
+estático/determinístico. O sistema monitora somente a reputação DNSBL de cada IP
+público: ele não consulta configuração do CGNAT e não correlaciona assinante,
+porta, sessão ou log NAT.
+
+Por padrão, blocos de até 1.024 endereços (prefixo mínimo `/22`) são aceitos.
+CIDRs de até 8 IPs mantêm a verificação compacta existente. Blocos maiores usam
+cursor persistente e lotes de até 16 IPs. O lote efetivo pode ser menor para
+respeitar simultaneamente os limites de 10 consultas DNSBL e 20 segundos por
+alvo. Todos os endereços, inclusive network e broadcast, são considerados.
+
+As opções em `config/rbl.php` são `large_cidr_enabled`, `max_cidr_total_ips`,
+`min_cidr_prefix`, `batch_ips_per_run`, `max_checks_per_target` e
+`max_seconds_per_target`. Os padrões correspondentes são `true`, `1024`, `22`,
+`16`, `10` e `20`. Um `/24` tem 256 IPs, um `/23` tem 512 e um `/22` tem
+1.024; `/21` é skipped no padrão. Não aumente o lote sem considerar a quantidade
+de RBLs ativas e as condições de uso dos provedores.
+
+`rbl_target_scan_states` registra cursor, ciclo, totais por resultado e um resumo
+JSON por IP do ciclo. Cada execução consulta o próximo lote e avança o cursor. Ao
+alcançar o fim, o ciclo é concluído e o cursor volta a zero; a execução seguinte
+inicia outro ciclo. `rbl_checks.checked_value` e `query` continuam identificando o
+IP individual e a consulta reversa. Eventos de dois IPs do mesmo bloco são
+independentes por alvo + RBL + IP.
+
+O status `partial` (“Parcial”) significa que o ciclo ainda não cobriu o bloco
+inteiro; nunca deve ser interpretado como limpo. `listed` prevalece enquanto
+qualquer IP do bloco tiver evento aberto. Somente um ciclo completo, sem listagem,
+erro ou skipped, resulta em `clean`. Dashboard, grupo e detalhe do alvo mostram
+total, verificados, pendentes, listados, limpos, erros, percentual e ciclo. O
+relatório resume blocos e IPs listados; o CSV inclui tipo/valor do alvo, IP
+verificado, grupo, ciclo, progresso e status agregado, mantendo neutralização de
+fórmulas.
+
+Exemplo: cadastre `45.239.156.0/24` como alvo `cidr`, associe-o a um grupo CGNAT e
+use **Verificar agora** ou o scheduler. O botão sempre verifica apenas o próximo
+lote. `php artisan rbl:check --target=ID --dry-run` mostra total, cursor, ciclo,
+progresso, IPs e checks planejados sem avançar estado ou gravar checks.
+
+Esta fase não integra MikroTik, não lê ou interpreta logs NAT/CGNAT, não identifica
+clientes, não executa scripts, não bloqueia cliente, não altera firewall/RPZ, não
+faz delist, não consulta ASN e não gera alerta de progresso. IPv6 permanece fora
+do escopo e CIDRs acima do limite são skipped. Alertas Telegram continuam somente
+nas transições de evento listed/resolved, sem recorrência por lote.
 
 ## Investigação operacional — RBL-5A
 
@@ -28,8 +75,8 @@ eventos com classificação, IP, observação sanitizada e número de ocorrênci
 a proteção existente contra fórmulas de planilha também cobre esses campos.
 
 Esta fase não implementa delist automático, firewall, bloqueio de clientes,
-MikroTik/CGNAT, importação ou correlação de logs NAT, scripts externos, ASN, IPv6,
-CIDR grande ou alertas repetitivos. Geração, preview e download RPZ não são alterados.
+integração MikroTik, importação ou correlação de logs NAT, scripts externos, ASN,
+IPv6 ou alertas repetitivos. Geração, preview e download RPZ não são alterados.
 
 ## Alertas operacionais — RBL-4
 
@@ -135,7 +182,8 @@ Cada nova lista cadastrada pela tela começa desativada.
 
 ## Consulta e interpretação
 
-IPv4 individual e CIDR IPv4 de até 8 endereços são consultados. `1.2.3.4` em `zen.spamhaus.org` gera
+IPv4 individual e CIDR IPv4 de até 1.024 endereços são consultados; acima de 8,
+a consulta é incremental. `1.2.3.4` em `zen.spamhaus.org` gera
 `4.3.2.1.zen.spamhaus.org`. O transporte usa sockets PHP UDP, porta 53, e o primeiro
 nameserver IP de `/etc/resolv.conf`. Não usa shell, scripts, subprocessos, fallback
 para DNS público, nem modifica serviços do sistema.
@@ -155,9 +203,9 @@ cache compartilhado com suporte a locks. Não configurar cache array em produç�
 - CIDR acima do limite, domínio, hostname, IPv6 e listas incompatíveis geram skipped, sem resolução DNS.
 - Sem listas ativas ou alvo desativado: mensagem controlada, sem histórico fictício.
 
-Cada combinação de IP expandido e lista ativa recebe um check (inclusive as ignoradas). CIDR incompatível ou grande recebe um skipped por lista, com o valor original. O status agregado
-prioriza listed, depois error/timeout; se houver skipped sem erros/listagem, fica
-skipped para CIDR e unchecked para outros tipos; somente uma execução integralmente clean recebe clean.
+Cada combinação de IP selecionado e lista ativa recebe um check (inclusive as ignoradas). CIDR incompatível ou acima do limite recebe um skipped por lista, com o valor original. O status agregado
+de bloco incremental prioriza listed, usa partial durante o ciclo e somente fica
+clean após cobertura integral sem erros ou skips.
 A data do alvo registra a última execução, mesmo quando todas as consultas são skipped.
 
 Checks, eventos e status do alvo são persistidos em uma transação após o DNS.
@@ -248,7 +296,7 @@ Sem delist automático, firewall, bloqueio de clientes, integração MikroTik/CG
 ações CLI operacionais sobre infraestrutura, Unbound, agente remoto, reload ou apply.
 O único novo comando é o monitor Laravel `rbl:check`. Não há scripts externos,
 consulta agressiva de blocos, fila assíncrona ou recuperação automática de runs.
-CIDR grande, domínio, hostname e IPv6 continuam skipped. Grupos CGNAT organizam reputação de IPs públicos; não correlacionam clientes ou traduções NAT.
+CIDR acima de 1.024 IPs, domínio, hostname e IPv6 continuam skipped. Grupos CGNAT organizam reputação de IPs públicos; não correlacionam clientes ou traduções NAT.
 A geração/download/preview RPZ e o RpzZoneBuilder não participam do módulo.
 
 Resultados clean significam ausência de listagem na resposta recebida; não garantem
@@ -330,13 +378,14 @@ posteriormente resolvidas; no dashboard/detalhe conta eventos atualmente open.
 
 ### Limite e exemplos
 
-`config/rbl.php`: `RBL_MAX_CIDR_IPS`, padrão 8, configurável para reduzir o limite,
-com teto rígido de 8 nesta fase. Vale igualmente para botão manual e comando.
+Historicamente, `RBL_MAX_CIDR_IPS` definiu o teto compacto de 8 endereços. Na
+RBL-5B ele separa CIDR compacto de incremental; o teto global é
+`RBL_MAX_CIDR_TOTAL_IPS` (1.024 no padrão).
 A expansão inclui endereços de rede e broadcast; não limita a IPs úteis.
 
 - `203.0.113.0/30`: .0, .1, .2 e .3 (4 IPs).
 - `192.0.2.0/29`: .0 até .7 (8 IPs).
-- `192.0.2.0/24`: skipped com motivo explícito, nenhuma consulta DNS.
+- `192.0.2.0/24`: 256 IPs, consultados incrementalmente.
 - `2001:db8::/126`: skipped, IPv6 ainda não suportado.
 - CIDR com bits de host, como `203.0.113.2/30`, expande a rede .0/30;
   o valor cadastrado permanece intacto.
@@ -345,7 +394,7 @@ O teto anterior de **10 consultas / 20 segundos de DNS por alvo**, timeout de
 1–5 segundos por RBL, cooldown de um minuto e locks foram preservados.
 Assim, /30 com duas RBLs planeja 8 consultas; /29 com duas RBLs permite no máximo
 10 consultas e registra as seis restantes como skipped. A ordem é por lista e IP;
-não há rotação interna dos IPs/listas excedentes nesta fase. Não interpretar uma
+blocos maiores reduzem o lote efetivo quando necessário. Não interpretar uma
 verificação parcial como bloco limpo. `--limit=N` limita alvos, não IPs internos.
 `rbl:check --target=ID --dry-run` informa o planejamento sem criar checks ou runs.
 
@@ -362,7 +411,7 @@ grupo, bloco monitorado, IP listado, RBL e resposta 127.0.0.4. Vários IPs lista
 produzem eventos distintos. Clean de .1 não resolve evento de .2; clean de .2
 resolve o evento correspondente. Error/timeout/skipped mantêm eventos abertos.
 
-CIDR grande, IPv6, ASN, integração real CGNAT/logs NAT, MikroTik, firewall,
+CIDR acima do limite, IPv6, ASN, integração real CGNAT/logs NAT, MikroTik, firewall,
 bloqueio de clientes, delist automático, scripts externos e ações CLI sobre
 infraestrutura continuam fora do escopo. Apenas o comando Laravel já existente
 foi atualizado. Geração, preview, download e bloqueio RPZ foram preservados.

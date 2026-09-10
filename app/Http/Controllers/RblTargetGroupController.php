@@ -65,6 +65,14 @@ class RblTargetGroupController extends Controller
     public function show(RblTargetGroup $group)
     {
         $events = RblEvent::whereHas('target', fn ($q) => $q->where('rbl_target_group_id', $group->id));
+        $cidrTargets = $group->targets()->where('type', 'cidr')->with('scanState')->get();
+        $scanSummary = [
+            'blocks' => $cidrTargets->count(),
+            'total_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->total_ips ?? $target->cidrTotalIps()),
+            'scanned_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->scanned_ips ?? 0),
+            'listed_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->listed_ips ?? 0),
+            'pending_ips' => $cidrTargets->sum(fn ($target) => $target->scanState?->pendingIps() ?? $target->cidrTotalIps()),
+        ];
 
         return view('rbl.groups.show', [
             'group' => $group, 'total' => $group->targets()->count(),
@@ -73,6 +81,7 @@ class RblTargetGroupController extends Controller
             'lastCheck' => RblCheck::whereHas('target', fn ($q) => $q->where('rbl_target_group_id', $group->id))->latest('id')->first(),
             'targets' => $group->targets()->orderBy('name')->paginate(25),
             'events' => $events->with(['target.group', 'list', 'alerts'])->latest('last_seen_at')->limit(10)->get(),
+            'scanSummary' => $scanSummary,
         ]);
     }
 }

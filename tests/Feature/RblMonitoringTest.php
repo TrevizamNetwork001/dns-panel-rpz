@@ -96,7 +96,7 @@ class RblMonitoringTest extends TestCase
     {
         $this->rbl();
         $this->rbl(['dns_zone' => 'disabled.example.org', 'enabled' => false]);
-        foreach (['cidr' => '1.2.3.0/24', 'domain' => 'example.org', 'hostname' => 'mail.example.org', 'ip' => '2001:db8::1'] as $type => $value) {
+        foreach (['cidr' => '1.2.0.0/21', 'domain' => 'example.org', 'hostname' => 'mail.example.org', 'ip' => '2001:db8::1'] as $type => $value) {
             $this->target(compact('type', 'value'));
         }
         $this->mock(DnsblResolver::class)->shouldNotReceive('resolve');

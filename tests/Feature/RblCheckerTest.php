@@ -146,7 +146,7 @@ class RblCheckerTest extends TestCase
     {
         $this->mock(DnsblResolver::class)->shouldNotReceive('resolve');
         $this->list();
-        foreach (['cidr' => '1.2.3.0/24', 'domain' => 'example.org', 'hostname' => 'mail.example.org', 'ip' => '2001:db8::1'] as $type => $value) {
+        foreach (['cidr' => '1.2.0.0/21', 'domain' => 'example.org', 'hostname' => 'mail.example.org', 'ip' => '2001:db8::1'] as $type => $value) {
             $target = $this->target(compact('type', 'value'));
             app(RblChecker::class)->check($target);
             $this->assertSame('skipped', $target->checks()->first()->status);

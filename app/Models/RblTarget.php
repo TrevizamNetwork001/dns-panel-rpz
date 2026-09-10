@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class RblTarget extends Model
 {
@@ -33,5 +34,21 @@ class RblTarget extends Model
     public function events(): HasMany
     {
         return $this->hasMany(RblEvent::class, 'rbl_target_id');
+    }
+
+    public function scanState(): HasOne
+    {
+        return $this->hasOne(RblTargetScanState::class, 'rbl_target_id');
+    }
+
+    public function cidrTotalIps(): int
+    {
+        if ($this->type !== 'cidr') {
+            return 0;
+        }
+        $parts = explode('/', $this->value);
+
+        return count($parts) === 2 && filter_var($parts[0], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) && ctype_digit($parts[1]) && (int) $parts[1] <= 32
+            ? (int) (2 ** (32 - (int) $parts[1])) : 0;
     }
 }

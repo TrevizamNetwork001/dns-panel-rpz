@@ -42,19 +42,25 @@ class RblCheckCommand extends Command
                 ->orderByRaw('CASE WHEN last_checked_at IS NULL THEN 0 ELSE 1 END')->orderBy('last_checked_at')->orderBy('id')
                 ->limit((int) $this->option('limit'));
             if ($this->option('dry-run')) {
-                $targets = $query->get();
+                $targets = $query->with('scanState')->get();
                 $this->info('Simulação: '.$targets->count().' alvo(s) elegível(is).');
                 $lists = RblList::where('enabled', true)->count();
                 $ipLists = RblList::where('enabled', true)->where('type', 'ip')->count();
                 foreach ($targets as $target) {
-                    $plan = app(TargetExpansion::class)->plan($target);
+                    $maxChecks = max(1, (int) config('rbl.max_checks_per_target', 10));
+                    $largeBatchLimit = min((int) config('rbl.batch_ips_per_run', 16), max(1, intdiv($maxChecks, max(1, $ipLists))));
+                    $plan = app(TargetExpansion::class)->plan($target, $largeBatchLimit);
                     $this->line("Target: {$target->name} | Tipo: {$target->type} | Valor: {$target->value}");
-                    $this->line('IPs planejados: '.count($plan['ips']).' | Listas ativas: '.$lists.' | Checks planejados: '.min(10, count($plan['ips']) * $ipLists));
+                    if ($target->type === 'cidr') {
+                        $progress = $target->scanState?->progressPercent() ?? 0;
+                        $this->line("Total de IPs: {$plan['total_ips']} | Cursor atual: {$plan['cursor']} | Ciclo: ".($target->scanState?->cycle ?? 0)." | Progresso atual: {$progress}%");
+                    }
+                    $this->line('IPs planejados: '.count($plan['ips']).' | Listas ativas: '.$lists.' | Checks planejados: '.min($maxChecks, count($plan['ips']) * $ipLists));
                     if ($plan['reason']) {
                         $this->line('Skipped: '.$plan['reason']);
                     }
                 }
-                $this->info('Dry-run: nenhuma consulta realizada. Teto de 10 consultas e 20 segundos por alvo.');
+                $this->info('Dry-run: nenhuma consulta realizada. Limites por alvo preservados.');
 
                 return self::SUCCESS;
             }

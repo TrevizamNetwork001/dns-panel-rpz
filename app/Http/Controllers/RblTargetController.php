@@ -74,6 +74,8 @@ class RblTargetController extends Controller
 
     public function show(RblTarget $target)
     {
+        $target->load(['group', 'scanState']);
+
         return view('rbl.show', [
             'target' => $target,
             'checks' => $target->checks()->with('list')->latest('id')->paginate(25, ['*'], 'checks_page'),
@@ -81,6 +83,7 @@ class RblTargetController extends Controller
             'listedChecks' => $target->checks()->with('list')->whereIn('id',
                 $target->checks()->selectRaw('MAX(id)')->groupBy('rbl_list_id', 'checked_value')
             )->where('status', 'listed')->get(),
+            'scanState' => $target->scanState,
         ]);
     }
 
@@ -105,6 +108,7 @@ class RblTargetController extends Controller
 
         return redirect()->route('rbl.targets.show', $target)->with('status', match ($target->last_status) {
             'listed' => 'Verificação concluída: alvo listado. Consulte os resultados por lista.',
+            'partial' => 'Próximo lote verificado. O ciclo do bloco ainda está parcial.',
             'error' => 'Verificação registrada com erros DNS. Consulte o histórico.',
             'unchecked', 'skipped' => 'Verificação registrada com consultas ignoradas (skipped). Consulte o histórico.',
             default => 'Verificação concluída: alvo limpo nas listas consultadas.',

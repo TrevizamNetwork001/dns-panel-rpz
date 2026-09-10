@@ -161,7 +161,7 @@ class RblMonitoringController extends Controller
             'Eventos investigados' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->where('investigation_status', 'investigated')->count(),
             'Falsos positivos' => (clone $events)->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until)->where('investigation_status', 'false_positive')->count(),
         ];
-        $periodEvents = (clone $events)->with(['target', 'list'])->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until);
+        $periodEvents = (clone $events)->with(['target.group', 'target.scanState', 'list'])->where('first_seen_at', '>=', $start)->where('first_seen_at', '<', $until);
         $durations = (clone $periodEvents)->get()->map->durationMinutes();
         $summary['Duração média aproximada (min)'] = $durations->isEmpty() ? 0 : (int) round($durations->average());
         if ($request->input('format') === 'csv') {
@@ -190,10 +190,10 @@ class RblMonitoringController extends Controller
                     $row([]);
                 }
                 $row(['Eventos']);
-                $row(['Alvo', 'Valor monitorado', 'IP afetado', 'RBL', 'Status técnico', 'Status investigação', 'Observações', 'Reincidências anteriores']);
+                $row(['Alvo', 'target_type', 'target_value', 'IP afetado / checked_value', 'RBL', 'group', 'Status técnico', 'Status investigação', 'Observações', 'Reincidências anteriores', 'scan_cycle', 'block_progress_percent', 'aggregate_status']);
                 foreach ((clone $periodEvents)->lazyById(500) as $event) {
                     $recurrences = RblEvent::where('first_seen_at', '<', $event->first_seen_at)->where('rbl_target_id', $event->rbl_target_id)->where('rbl_list_id', $event->rbl_list_id)->count();
-                    $row([$event->target?->name, $event->target?->value, $event->last_checked_value, $event->list?->name, $event->status, $event->investigation_status, $event->operator_notes, $recurrences]);
+                    $row([$event->target?->name, $event->target?->type, $event->target?->value, $event->last_checked_value, $event->list?->name, $event->target?->group?->name, $event->status, $event->investigation_status, $event->operator_notes, $recurrences, $event->target?->scanState?->cycle, $event->target?->scanState?->progressPercent(), $event->target?->last_status]);
                 }
                 $row([]);
                 $row(['Grupo', 'Alvo', 'Valor verificado', 'RBL', 'Status', 'Data', 'Resposta', 'Erro']);
@@ -211,7 +211,22 @@ class RblMonitoringController extends Controller
         $recurringTargets = (clone $periodEvents)->selectRaw('rbl_target_id, COUNT(*) AS total')->groupBy('rbl_target_id')->havingRaw('COUNT(*) > 1')->with('target')->orderByDesc('total')->limit(20)->get();
         $recurringValues = (clone $periodEvents)->whereNotNull('last_checked_value')->selectRaw('last_checked_value, COUNT(*) AS total')->groupBy('last_checked_value')->havingRaw('COUNT(*) > 1')->orderByDesc('total')->limit(20)->get();
         $eventLists = (clone $periodEvents)->selectRaw('rbl_list_id, COUNT(*) AS total')->groupBy('rbl_list_id')->with('list')->orderByDesc('total')->limit(20)->get();
+        $blockTargets = RblTarget::with(['group', 'scanState'])->where('type', 'cidr')
+            ->when($request->input('group'), fn ($target, $id) => $target->where('rbl_target_group_id', $id))->get();
+        $scanStates = $blockTargets->pluck('scanState')->filter();
+        $blockSummary = [
+            'Blocos monitorados' => $blockTargets->count(),
+            'Total de IPs nos blocos' => $blockTargets->sum(fn ($target) => $target->scanState?->total_ips ?? $target->cidrTotalIps()),
+            'IPs verificados no ciclo' => $scanStates->sum('scanned_ips'),
+            'IPs pendentes' => $blockTargets->sum(fn ($target) => $target->scanState?->pendingIps() ?? $target->cidrTotalIps()),
+            'IPs listados' => $scanStates->sum('listed_ips'),
+            'IPs com erro' => $scanStates->sum('error_ips'),
+            'Progresso médio (%)' => $scanStates->isEmpty() ? 0 : round($scanStates->average(fn ($state) => $state->progressPercent()), 1),
+        ];
+        $listedBlocks = $scanStates->where('listed_ips', '>', 0)->sortByDesc('listed_ips')->take(20);
+        $listedBlockIps = (clone $checks)->where('status', 'listed')->whereHas('target', fn ($q) => $q->where('type', 'cidr'))
+            ->with(['target.group', 'list'])->latest('checked_at')->limit(50)->get();
 
-        return view('rbl.reports', compact('summary', 'alertSummary', 'topTargets', 'topLists', 'groups', 'groupSummary', 'recurringTargets', 'recurringValues', 'eventLists'));
+        return view('rbl.reports', compact('summary', 'alertSummary', 'topTargets', 'topLists', 'groups', 'groupSummary', 'recurringTargets', 'recurringValues', 'eventLists', 'blockSummary', 'listedBlocks', 'listedBlockIps'));
     }
 }

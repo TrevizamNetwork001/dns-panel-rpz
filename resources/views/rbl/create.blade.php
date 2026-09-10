@@ -3,7 +3,7 @@
 @section('content')
 <div class="page-heading"><h1>{{ $target->exists ? 'Editar alvo RBL' : 'Novo alvo RBL' }}</h1><a href="{{ route('rbl.index') }}">Voltar</a></div>
 <div class="panel form-panel">
-<p>IPv4 individual e CIDR IPv4 de até 8 endereços são suportados. IPv6, domínio e hostname continuam skipped. Ao editar, tipo e valor permanecem fixos para preservar o histórico.</p>
+<p>IPv4 individual e CIDR IPv4 até /{{ config('rbl.min_cidr_prefix', 22) }} (máximo de {{ config('rbl.max_cidr_total_ips', 1024) }} IPs) são suportados. Blocos acima de {{ config('rbl.max_cidr_ips', 8) }} IPs avançam em lotes conservadores. IPv6, domínio e hostname continuam skipped. Ao editar, tipo e valor permanecem fixos para preservar o histórico.</p>
 <form method="POST" action="{{ $target->exists ? route('rbl.targets.update', $target) : route('rbl.targets.store') }}">
 @csrf
 @if($target->exists) @method('PATCH') @endif

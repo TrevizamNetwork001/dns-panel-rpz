@@ -88,8 +88,8 @@ class RblGroupsCidrTest extends TestCase
         $this->assertCount(8, $expander->plan($this->target(['value' => '203.0.113.0/29']))['ips']);
         $this->assertSame(['255.255.255.255'], $expander->plan($this->target(['value' => '255.255.255.255/32']))['ips']);
         config(['rbl.max_cidr_ips' => 4]);
-        $this->assertSame([], $expander->plan($this->target(['value' => '203.0.113.0/29']))['ips']);
-        config(['rbl.max_cidr_ips' => 65536]);
+        $this->assertCount(8, $expander->plan($this->target(['value' => '203.0.113.0/29']))['ips']);
+        config(['rbl.max_cidr_total_ips' => 128]);
         $this->assertSame([], $expander->plan($this->target(['value' => '203.0.113.0/24']))['ips']);
     }
 
@@ -97,7 +97,7 @@ class RblGroupsCidrTest extends TestCase
     {
         $this->lists();
         $this->mock(DnsblResolver::class)->shouldNotReceive('resolve');
-        foreach (['203.0.113.0/24', '2001:db8::/126'] as $value) {
+        foreach (['203.0.112.0/21', '2001:db8::/126'] as $value) {
             $target = $this->target(['value' => $value]);
             app(RblChecker::class)->check($target);
             $this->assertSame('skipped', $target->fresh()->last_status);
@@ -135,7 +135,7 @@ class RblGroupsCidrTest extends TestCase
         app(RblChecker::class)->check($target);
         $this->assertDatabaseHas('rbl_events', ['last_checked_value' => '203.0.113.0', 'status' => 'resolved']);
         $this->assertDatabaseHas('rbl_events', ['last_checked_value' => '203.0.113.2', 'status' => 'open']);
-        $this->assertSame('error', $target->fresh()->last_status);
+        $this->assertSame('listed', $target->fresh()->last_status);
         $this->travel(2)->minutes();
         $this->dns(array_fill(0, 4, ['status' => 'clean']));
         app(RblChecker::class)->check($target);
