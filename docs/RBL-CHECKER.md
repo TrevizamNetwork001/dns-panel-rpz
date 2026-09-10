@@ -1,4 +1,89 @@
-# RBL Checker — RBL-3
+# RBL Checker — RBL-4
+
+## Alertas operacionais — RBL-4
+
+A migration `2026_09_10_000001_create_rbl_alerts_table.php` adiciona a auditoria
+de alertas. Aplicá-la pelo processo normal de implantação antes de usar esta versão.
+Esta entrega não aplica migrations ao banco operacional nem envia mensagens reais.
+
+Os alertas começam **desativados**. Em `config/rbl.php`, as opções são:
+
+| Variável | Padrão | Uso |
+| --- | --- | --- |
+| `RBL_ALERTS_ENABLED` | `false` | Habilita alertas RBL |
+| `RBL_ALERT_ON_LISTED` | `true` | Alerta de novo evento |
+| `RBL_ALERT_ON_RESOLVED` | `true` | Alerta de resolução |
+| `RBL_ALERT_INCLUDE_RESPONSE_CODES` | `true` | Inclui resposta DNSBL |
+| `RBL_ALERT_INCLUDE_GROUP` | `true` | Inclui grupo quando existente |
+
+`alert_channels` contém apenas `telegram`; não há canal e-mail nesta fase.
+Reutiliza **Configurações → Telegram**: integração ativa, token existente, chat
+e tópico opcionais. Também respeita os fallbacks existentes em `services.telegram`.
+Nenhum token é copiado para tabelas RBL. Após configurar `RBL_ALERTS_ENABLED=true`
+no ambiente, atualizar o cache de configuração pelo processo normal de implantação.
+O botão existente de teste Telegram realiza envio real quando acionado pelo operador;
+todos os testes automatizados desta entrega usam HTTP fake, sem envio real.
+
+Um novo evento open gera uma tentativa listed; preencher resolved_at por um check
+clean gera uma tentativa resolved. Atualizar last_seen_at não reenvia. Error,
+timeout, skipped e dry-run não geram alertas. Eventos anteriores não recebem
+backfill de listed. Uma nova listagem após resolução cria outro evento e pode alertar.
+CIDR mostra o bloco monitorado e o IP individual afetado; mensagens incluem alvo,
+lista, datas no fuso da aplicação e duração aproximada em minutos na resolução.
+Campos dinâmicos são limitados, sem caracteres de controle, e escapados para HTML.
+
+Os envios ocorrem após commit dos checks/eventos, fora da transação SQLite, pelo
+TelegramNotifier existente, com timeout de 5 segundos e sem retries automáticos.
+Uma reserva com índice único `(rbl_event_id, type, channel)` impede duplicidade,
+inclusive após falhas. Não há lembretes nem cooldown temporal: a deduplicação vale
+por toda a vida do evento para cada tipo/canal. Cada IP/lista tem seu próprio evento;
+eventos diferentes podem gerar mensagens no mesmo lote, sem agregação nesta fase.
+O tempo dos envios soma-se ao orçamento DNS; até dez transições por alvo podem
+acrescentar cerca de 50 segundos. Os limites DNS permanecem inalterados.
+
+`rbl_alerts` registra sent, skipped ou failed, hash da mensagem, sent_at e motivo
+genérico. Não armazena corpo da mensagem, token ou destino (destination fica null).
+sent significa resposta HTTP de sucesso com `ok=true`, sem garantia de leitura.
+skipped indica configuração desativada/ausente ou tentativa reservada não concluída.
+Interrupção entre reserva e confirmação pode deixar skipped, mesmo após entrega;
+interrupção entre commit do evento e callback pode deixar evento sem registro de alerta.
+Não há recuperação/reenvio automático nem garantia de entrega exatamente uma vez.
+Se o banco de auditoria estiver indisponível, pode ser impossível registrar failed;
+a falha é sanitizada e os checks já confirmados são preservados.
+
+Em `/rbl/events`, cada tipo apresenta badge, canal e horário quando enviado; o
+motivo genérico de falha/skipped aparece ao passar o cursor no badge. Eventos antigos
+sem registro mostram “Sem alerta”. `/rbl/reports` resume enviados, falhos, listed e
+resolved enviados pela data de criação do alerta e pelo grupo atual do alvo.
+O CSV mantém as colunas anteriores de checks, sem colunas ou resumo de alertas:
+checks repetidos não correspondem um a um a transições de evento.
+O comando `rbl:check` informa eventos novos/resolvidos e alertas enviados/falhos
+da execução; falha Telegram não altera o resultado DNS nem impede completed.
+
+Para investigar failed, verificar configuração administrativa, permissões do bot
+no chat/tópico e conectividade. Os logs Telegram guardam apenas status HTTP ou
+erro genérico, sem URL, corpo de resposta ou exception contendo credenciais.
+Não existe botão de reenvio nesta fase. Corrigir a configuração afeta transições futuras.
+
+Alertas **não fazem delist, não bloqueiam clientes, não alteram firewall e não
+integram com CGNAT/MikroTik**. Não há e-mail, scripts externos, ASN, IPv6 ou CIDR
+grande nesta entrega. Geração/download/preview e fluxo principal RPZ permanecem
+preservados. Investigar a origem do tráfego e qualquer ação operacional continuam
+sendo responsabilidades humanas.
+
+### Validação RBL-4 — 10/09/2026
+
+- `php artisan test`: 304 testes passaram, 2.052 assertions, incluindo dez testes novos.
+- `composer test`: os mesmos 304 testes passaram; `APP_CONFIG_CACHE` isolado em
+  `/tmp/rbl4-composer-config.php`, preservando o cache operacional.
+- `php artisan route:list --json`: 117 rotas, 20 RBL com auth/admin.
+- `migrate:fresh --seed --force`: passou exclusivamente com `APP_ENV=testing`,
+  SQLite `:memory:`, `DB_URL` vazio, cache array e log null.
+- `php -l` e `git diff --check`: passaram nos arquivos novos/alterados.
+- Cobertura de ciclo listed/resolved, deduplicação, nova ocorrência, CIDR, escapes,
+  opções de configuração, erros HTTP/API/transporte, comando resiliente, rollback,
+  índice único, UI e filtros de relatórios; testes anteriores de RPZ preservados.
+- Sem envio real, migração operacional, inspeção visual em navegador ou commit.
 
 Módulo administrativo independente em `/rbl`, protegido por `auth` e `admin`.
 Banco confirmado no `.env` durante a implementação: `DB_CONNECTION=sqlite`.
@@ -28,7 +113,7 @@ Timeout configurável entre 1 e 5 segundos por consulta; orçamento de 20 segund
 para DNS e máximo de 10 consultas por alvo. Listas excedentes recebem skipped.
 O limite de 20 segundos refere-se ao DNS; persistência e renderização têm custo adicional.
 Há cooldown de um minuto por alvo, throttle de 6 requisições/minuto por administrador
-e lock global de 60 segundos via cache Laravel. Em múltiplas instâncias, utilizar
+e lock global de 120 segundos via cache Laravel (inclui margem para alertas). Em múltiplas instâncias, utilizar
 cache compartilhado com suporte a locks. Não configurar cache array em produção.
 
 - Respostas A em `127.0.0.x`: listed.
@@ -131,7 +216,7 @@ O Scheduler apenas agenda o comando Laravel; não foram adicionados scripts exte
 Sem delist automático, firewall, bloqueio de clientes, integração MikroTik/CGNAT,
 ações CLI operacionais sobre infraestrutura, Unbound, agente remoto, reload ou apply.
 O único novo comando é o monitor Laravel `rbl:check`. Não há scripts externos,
-consulta agressiva de blocos, alertas, fila assíncrona ou recuperação automática de runs.
+consulta agressiva de blocos, fila assíncrona ou recuperação automática de runs.
 CIDR grande, domínio, hostname e IPv6 continuam skipped. Grupos CGNAT organizam reputação de IPs públicos; não correlacionam clientes ou traduções NAT.
 A geração/download/preview RPZ e o RpzZoneBuilder não participam do módulo.
 
@@ -143,7 +228,7 @@ https://docs.spamhaus.com/datasets/docs/source/70-access-methods/data-query-serv
 ## Próximas fases
 
 - Fase posterior: avaliar fila assíncrona e limites por provedor, mediante escopo próprio.
-- RBL-4: alertas por e-mail/Telegram.
+- RBL-4: alertas Telegram implementados; e-mail fora desta entrega.
 - RBL-5: correlação com logs CGNAT para investigação de clientes suspeitos.
 - RBL-6: ações CLI auditadas, com allowlist e confirmação humana.
 

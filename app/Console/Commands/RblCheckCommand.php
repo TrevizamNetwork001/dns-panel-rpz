@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\RblList;
 use App\Models\RblRun;
 use App\Models\RblTarget;
+use App\Services\Rbl\RblAlertService;
 use App\Services\Rbl\RblChecker;
 use App\Services\Rbl\TargetExpansion;
 use Illuminate\Console\Command;
@@ -17,8 +18,9 @@ class RblCheckCommand extends Command
 
     protected $description = 'Verifica alvos RBL ativos e registra a execução';
 
-    public function handle(RblChecker $checker): int
+    public function handle(RblChecker $checker, RblAlertService $alerts): int
     {
+        $alerts->resetCounts();
         foreach (['target', 'limit'] as $option) {
             $value = $this->option($option);
             if ($value !== null && (filter_var($value, FILTER_VALIDATE_INT) === false || (int) $value < 1 || ($option === 'limit' && (int) $value > 1000))) {
@@ -70,6 +72,7 @@ class RblCheckCommand extends Command
             $this->finish($run, $started, 'completed');
             $run->refresh();
             $this->info("Execução {$run->id} completed: {$run->targets_checked} alvos; {$run->checks_created} checks; {$run->listed_count} listed; {$run->clean_count} clean; {$run->skipped_count} skipped; {$run->error_count} errors/timeouts.");
+            $this->info("Eventos novos: {$alerts->counts['listed']}; eventos resolvidos: {$alerts->counts['resolved']}; alertas enviados: {$alerts->counts['sent']}; alertas falhos: {$alerts->counts['failed']}.");
 
             return self::SUCCESS;
         } catch (Throwable) {

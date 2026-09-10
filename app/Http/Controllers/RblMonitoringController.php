@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RblAlert;
 use App\Models\RblCheck;
 use App\Models\RblEvent;
 use App\Models\RblList;
@@ -38,7 +39,7 @@ class RblMonitoringController extends Controller
         ]);
         $status = $filters['status'] ?? 'all';
         // Events active at any point in the interval, including older open events.
-        $events = RblEvent::with(['target.group', 'list'])->when($request->input('group'), fn ($q, $id) => $q->whereHas('target', fn ($t) => $t->where('rbl_target_group_id', $id)))->where('first_seen_at', '<', $until)
+        $events = RblEvent::with(['target.group', 'list', 'alerts'])->when($request->input('group'), fn ($q, $id) => $q->whereHas('target', fn ($t) => $t->where('rbl_target_group_id', $id)))->where('first_seen_at', '<', $until)
             ->where(fn ($q) => $q->whereNull('resolved_at')->orWhere('resolved_at', '>=', $start))
             ->when($status !== 'all', fn ($q) => $q->where('status', $status))
             ->when($filters['target'] ?? null, fn ($q, $id) => $q->where('rbl_target_id', $id))
@@ -55,6 +56,14 @@ class RblMonitoringController extends Controller
     {
         [$start, $until] = $this->period($request);
         $request->validate(['format' => ['nullable', Rule::in(['csv'])]]);
+        $alerts = RblAlert::where('created_at', '>=', $start)->where('created_at', '<', $until)
+            ->when($request->input('group'), fn ($q, $id) => $q->whereHas('event.target', fn ($t) => $t->where('rbl_target_group_id', $id)));
+        $alertSummary = [
+            'Alertas enviados' => (clone $alerts)->where('status', 'sent')->count(),
+            'Alertas falhos' => (clone $alerts)->where('status', 'failed')->count(),
+            'Eventos listed com alerta enviado' => (clone $alerts)->where('status', 'sent')->where('type', 'listed')->count(),
+            'Eventos resolved com alerta enviado' => (clone $alerts)->where('status', 'sent')->where('type', 'resolved')->count(),
+        ];
         $groups = RblTargetGroup::orderBy('name')->get();
         $checks = RblCheck::where('checked_at', '>=', $start)->where('checked_at', '<', $until)
             ->when($request->input('group'), fn ($q, $id) => $q->whereHas('target', fn ($t) => $t->where('rbl_target_group_id', $id)));
@@ -118,6 +127,6 @@ class RblMonitoringController extends Controller
         $topLists = (clone $checks)->where('status', 'listed')->selectRaw('rbl_list_id, COUNT(*) AS total')
             ->groupBy('rbl_list_id')->with('list')->orderByDesc('total')->orderBy('rbl_list_id')->limit(20)->get();
 
-        return view('rbl.reports', compact('summary', 'topTargets', 'topLists', 'groups', 'groupSummary'));
+        return view('rbl.reports', compact('summary', 'alertSummary', 'topTargets', 'topLists', 'groups', 'groupSummary'));
     }
 }

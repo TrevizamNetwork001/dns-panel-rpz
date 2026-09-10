@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RblEvent extends Model
 {
@@ -17,6 +18,11 @@ class RblEvent extends Model
     public function durationMinutes(): int
     {
         return $this->first_seen_at ? max(0, (int) $this->first_seen_at->diffInMinutes($this->resolved_at ?? now(), false)) : 0;
+    }
+
+    public function alerts(): HasMany
+    {
+        return $this->hasMany(RblAlert::class)->orderByDesc('id');
     }
 
     public function target(): BelongsTo

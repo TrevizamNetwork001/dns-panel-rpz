@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 
 class RblEventService
 {
+    public function __construct(private RblAlertService $alerts) {}
+
     public function record(RblCheck $check): void
     {
         if (! in_array($check->status, ['listed', 'clean'], true)) {
@@ -22,7 +24,10 @@ class RblEventService
                 $events->where('last_checked_value', $check->checked_value);
             }
             if ($check->status === 'clean') {
-                $events->update(['status' => 'resolved', 'resolved_at' => $check->checked_at]);
+                foreach ($events->get() as $event) {
+                    $event->update(['status' => 'resolved', 'resolved_at' => $check->checked_at]);
+                    DB::afterCommit(fn () => $this->alerts->notify($event, 'resolved'));
+                }
 
                 return;
             }
@@ -30,11 +35,12 @@ class RblEventService
             if ($event) {
                 $event->update(['last_seen_at' => $check->checked_at, 'last_checked_value' => $check->checked_value, 'last_response' => $check->response]);
             } else {
-                RblEvent::create([
+                $event = RblEvent::create([
                     'rbl_target_id' => $check->rbl_target_id, 'rbl_list_id' => $check->rbl_list_id,
                     'status' => 'open', 'first_seen_at' => $check->checked_at,
                     'last_seen_at' => $check->checked_at, 'last_checked_value' => $check->checked_value, 'last_response' => $check->response,
                 ]);
+                DB::afterCommit(fn () => $this->alerts->notify($event, 'listed'));
             }
         });
     }

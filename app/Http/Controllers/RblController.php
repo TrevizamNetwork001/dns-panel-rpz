@@ -28,8 +28,8 @@ class RblController extends Controller
             'lastRun' => RblRun::latest('id')->first(),
             'resolved24h' => RblEvent::where('status', 'resolved')->where('resolved_at', '>=', now()->subDay())->count(),
             'errors24h' => RblCheck::whereIn('status', ['error', 'timeout'])->where('checked_at', '>=', now()->subDay())->count(),
-            'openEvents' => RblEvent::with(['target.group', 'list'])->where('status', 'open')->latest('last_seen_at')->limit(10)->get(),
-            'resolvedEvents' => RblEvent::with(['target.group', 'list'])->where('status', 'resolved')->latest('resolved_at')->limit(10)->get(),
+            'openEvents' => RblEvent::with(['target.group', 'list', 'alerts'])->where('status', 'open')->latest('last_seen_at')->limit(10)->get(),
+            'resolvedEvents' => RblEvent::with(['target.group', 'list', 'alerts'])->where('status', 'resolved')->latest('resolved_at')->limit(10)->get(),
             'errorChecks' => RblCheck::with(['target.group', 'list'])->whereIn('status', ['error', 'timeout'])->latest('checked_at')->limit(10)->get(),
             'uncheckedTargets' => RblTarget::where('enabled', true)->whereNull('last_checked_at')->orderBy('id')->limit(10)->get(),
         ]);

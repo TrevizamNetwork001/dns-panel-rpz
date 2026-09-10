@@ -51,6 +51,11 @@ class TelegramNotifier
         return $this->send("🚨 <b>Alerta de saúde do DNS Panel RPZ</b>\n\n".implode("\n", $itens));
     }
 
+    public function notifyRbl(string $texto): bool
+    {
+        return $this->send($texto);
+    }
+
     private function send(string $texto): bool
     {
         $config = $this->config();
@@ -72,15 +77,15 @@ class TelegramNotifier
         try {
             $response = Http::timeout(5)->post("https://api.telegram.org/bot{$config['bot_token']}/sendMessage", $payload);
 
-            if (! $response->successful()) {
-                Log::warning('Falha ao enviar notificação Telegram', ['response' => $response->body()]);
+            if (! $response->successful() || $response->json('ok') !== true) {
+                Log::warning('Falha ao enviar notificação Telegram', ['status' => $response->status()]);
 
                 return false;
             }
 
             return true;
         } catch (\Throwable $e) {
-            Log::warning('Exceção ao enviar notificação Telegram', ['erro' => $e->getMessage()]);
+            Log::warning('Exceção ao enviar notificação Telegram', ['erro' => 'Falha de comunicação com Telegram.']);
 
             return false;
         }

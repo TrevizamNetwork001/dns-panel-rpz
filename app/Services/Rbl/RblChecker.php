@@ -16,7 +16,8 @@ class RblChecker
     public function check(RblTarget $target, ?int $runId = null): RblTarget
     {
         // A shared lock also bounds overall synchronous DNS volume across administrators.
-        $lock = Cache::lock('rbl:manual-check', 60);
+        // DNS (20s) plus up to ten Telegram transitions (5s each), with storage margin.
+        $lock = Cache::lock('rbl:manual-check', 120);
         if (! $lock->get()) {
             throw ValidationException::withMessages(['check' => 'Há uma verificação em andamento. Aguarde e tente novamente.']);
         }

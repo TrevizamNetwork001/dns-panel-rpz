@@ -72,7 +72,7 @@ class RblTargetGroupController extends Controller
             'open' => (clone $events)->where('status', 'open')->count(),
             'lastCheck' => RblCheck::whereHas('target', fn ($q) => $q->where('rbl_target_group_id', $group->id))->latest('id')->first(),
             'targets' => $group->targets()->orderBy('name')->paginate(25),
-            'events' => $events->with(['target.group', 'list'])->latest('last_seen_at')->limit(10)->get(),
+            'events' => $events->with(['target.group', 'list', 'alerts'])->latest('last_seen_at')->limit(10)->get(),
         ]);
     }
 }
