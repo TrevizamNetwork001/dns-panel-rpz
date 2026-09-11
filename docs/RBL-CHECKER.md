@@ -1,4 +1,57 @@
-# RBL Checker — RBL-6
+# RBL Checker — RBL-7
+
+## Fechamento operacional — RBL-7
+
+O módulo e todas as suas 26 rotas permanecem restritos pelos middlewares `web`,
+`auth` e `admin`. Isso inclui páginas, alterações, relatório HTML e CSV. Formulários
+web usam CSRF. O painel não instala nem altera crontab: a entrada do sistema deve
+chamar `php artisan schedule:run` a cada minuto. Dentro do Laravel, o RBL Checker
+permanece a cada seis horas e com `withoutOverlapping(1440)`.
+
+`php artisan rbl:check --dry-run` somente monta e exibe o plano: não consulta DNS,
+não cria run/check/evento/alerta e não avança cursor. `--target=ID` falha de forma
+explícita para ID inexistente, alvo desativado ou grupo desativado. Alvos legados
+com tipo/valor fora do suporte são registrados como `skipped` em execução real,
+sem consulta DNS. `--only-enabled` é mantido por compatibilidade e explicita o
+comportamento padrão; execuções nunca incluem alvos ou grupos desativados.
+
+### Interpretação operacional
+
+- `listed`: uma RBL respondeu positivamente para o IPv4 consultado.
+- `clean`: aquela consulta/lista não indicou listagem; não é garantia global de reputação.
+- `error` ou `timeout`: resultado inconclusivo e nunca equivalente a `clean`.
+- `partial`: o bloco CIDR ainda não completou o ciclo e não pode ser considerado limpo.
+- `skipped`/ignorado: alvo, lista ou parte do orçamento não pôde ser consultado.
+- `SERVFAIL` (`RCODE 2`) é `error` e deve ser acompanhado operacionalmente.
+- Delist aceito ou registrado manualmente não resolve tecnicamente um evento.
+- Um evento somente é resolvido quando check posterior retorna `clean`, conforme a regra existente; erro, timeout e skipped preservam o evento aberto.
+
+### Checklist final
+
+- [ ] Confirmar que o cron do sistema chama `php artisan schedule:run` a cada minuto.
+- [ ] Conferir `php artisan schedule:list` e a expressão de seis horas do RBL.
+- [ ] Rodar `php artisan rbl:check --target=ID --dry-run` para um IPv4 individual.
+- [ ] Rodar `php artisan rbl:check --target=ID --dry-run` para um CIDR.
+- [ ] Conferir eventos abertos, detalhe e relatório HTML imprimível.
+- [ ] Conferir relatório consolidado e exportação CSV em conta administrativa.
+- [ ] Conferir o fluxo e histórico do delist assistido, sem envio externo automático.
+- [ ] Se habilitados, conferir configuração e registros dos alertas Telegram; o padrão é desativado.
+- [ ] Conferir preview e download RPZ sem publicar mudanças.
+- [ ] Conferir logs e saídas do comando, garantindo ausência de tokens, destinos e detalhes internos.
+- [ ] Conferir `git status --short` antes e depois da manutenção.
+
+### Histórico e retenção
+
+Não há limpeza automática nem exclusão de histórico nesta fase. Checks, runs,
+eventos, alertas e delists devem ser preservados. Recomenda-se medir o crescimento
+do SQLite e definir, em fase futura, um comando conservador de prune com período
+configurável, dry-run, preservação de eventos abertos e backup validado antes de
+qualquer exclusão. Nenhum purge deve ser improvisado diretamente no banco.
+
+Uma migration aditiva cria apenas índices para filtros recorrentes de checks,
+eventos, runs, alvos e grupos. Ela usa Schema Builder, é compatível com SQLite e
+não remove nem reescreve dados. Deve ser aplicada apenas pelo processo normal de
+implantação; esta revisão não executa migration no banco operacional.
 
 ## Delist assistido — RBL-6
 

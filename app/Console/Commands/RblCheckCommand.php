@@ -29,6 +29,19 @@ class RblCheckCommand extends Command
                 return self::FAILURE;
             }
         }
+        if ($this->option('target') !== null) {
+            $selectedTarget = RblTarget::with('group')->find((int) $this->option('target'));
+            if (! $selectedTarget) {
+                $this->error('Alvo RBL não encontrado.');
+
+                return self::FAILURE;
+            }
+            if (! $selectedTarget->enabled || ($selectedTarget->group && ! $selectedTarget->group->enabled)) {
+                $this->error('O alvo RBL informado está desativado.');
+
+                return self::FAILURE;
+            }
+        }
         $run = null;
         $lock = null;
         $started = hrtime(true);

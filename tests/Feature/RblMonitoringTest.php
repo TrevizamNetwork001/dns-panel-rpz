@@ -60,7 +60,12 @@ class RblMonitoringTest extends TestCase
         $disabled = $this->target(['enabled' => false]);
         $this->dns(['clean']);
         $this->artisan('rbl:check', ['--target' => $selected->id, '--only-enabled' => true])->assertSuccessful();
-        $this->artisan('rbl:check', ['--target' => $disabled->id])->assertSuccessful();
+        $this->artisan('rbl:check', ['--target' => $disabled->id])
+            ->expectsOutput('O alvo RBL informado está desativado.')
+            ->assertFailed();
+        $this->artisan('rbl:check', ['--target' => 999999])
+            ->expectsOutput('Alvo RBL não encontrado.')
+            ->assertFailed();
         $this->assertSame(0, $other->checks()->count());
         $this->assertSame(1, $selected->checks()->count());
         $this->assertSame(0, $disabled->checks()->count());
@@ -145,6 +150,20 @@ class RblMonitoringTest extends TestCase
         $this->assertNotNull($event);
         $this->assertSame('0 */6 * * *', $event->expression);
         $this->assertTrue($event->withoutOverlapping);
+    }
+
+    public function test_every_rbl_route_has_web_auth_and_admin_middleware(): void
+    {
+        $routes = collect(app('router')->getRoutes()->getRoutes())
+            ->filter(fn ($route) => str_starts_with($route->getName() ?? '', 'rbl.'));
+
+        $this->assertCount(26, $routes);
+        foreach ($routes as $route) {
+            $middleware = $route->gatherMiddleware();
+            $this->assertContains('web', $middleware, $route->getName());
+            $this->assertContains('auth', $middleware, $route->getName());
+            $this->assertContains('admin', $middleware, $route->getName());
+        }
     }
 
     public function test_command_event_lifecycle_dashboard_and_duration(): void

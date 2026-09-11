@@ -1,5 +1,5 @@
 <div class="panel">
-<h2>Delist assistido</h2><p>Este painel apenas orienta e registra ações manuais. O evento só é resolvido quando um check DNSBL posterior voltar clean.</p>
+<h2>Delist assistido</h2><p>Este painel apenas orienta e registra ações manuais; não envia solicitações, formulários ou mensagens para terceiros. O evento só é resolvido quando um check DNSBL posterior voltar clean.</p>
 <div class="table-responsive"><table class="data-table"><tbody><tr><th>RBL/lista</th><td>{{ $event->list?->name ?? '—' }}</td><th>IP afetado</th><td>{{ $event->last_checked_value ?? '—' }}</td></tr><tr><th>Valor monitorado</th><td>{{ $event->target?->value ?? '—' }}</td><th>Grupo</th><td>{{ $event->target?->group?->name ?? '—' }}</td></tr><tr><th>Status técnico</th><td>{{ $event->status }}</td><th>Status atual do delist</th><td>{{ $event->latestDelistRequest?->statusLabel() ?? 'Não solicitado' }}</td></tr></tbody></table></div>
 @if($event->list?->lookup_url)<p><a class="button button-small" href="{{ $event->list->lookup_url }}" target="_blank" rel="noopener noreferrer">Abrir consulta oficial</a></p>@endif
 @if($event->list?->delist_url)<p><a class="button button-small" href="{{ $event->list->delist_url }}" target="_blank" rel="noopener noreferrer">Abrir solicitação oficial</a></p>@endif
