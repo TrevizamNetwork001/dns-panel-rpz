@@ -20,7 +20,7 @@ class RblIncrementalCidrTest extends TestCase
     {
         parent::setUp();
         config(['rbl.alerts_enabled' => false, 'rbl.large_cidr_enabled' => true, 'rbl.max_cidr_total_ips' => 1024,
-            'rbl.min_cidr_prefix' => 22, 'rbl.batch_ips_per_run' => 16, 'rbl.max_checks_per_target' => 100]);
+            'rbl.min_cidr_prefix' => 22, 'rbl.batch_ips_per_run' => 8, 'rbl.max_checks_per_target' => 40]);
         RblList::create(['name' => 'RBL', 'dns_zone' => 'rbl.example.org', 'type' => 'ip', 'enabled' => true, 'timeout_seconds' => 1]);
     }
 
@@ -39,8 +39,9 @@ class RblIncrementalCidrTest extends TestCase
     public function test_default_limits_accept_slash_24_and_reject_slash_21(): void
     {
         $this->assertSame(1024, config('rbl.max_cidr_total_ips'));
-        $this->assertSame(16, config('rbl.batch_ips_per_run'));
-        $this->assertCount(16, app(TargetExpansion::class)->plan($this->target())['ips']);
+        $this->assertSame(8, config('rbl.batch_ips_per_run'));
+        $this->assertSame(40, config('rbl.max_checks_per_target'));
+        $this->assertCount(8, app(TargetExpansion::class)->plan($this->target())['ips']);
         $plan = app(TargetExpansion::class)->plan($this->target('198.51.100.0/21'));
         $this->assertSame([], $plan['ips']);
         $this->assertStringContainsString('limite incremental', $plan['reason']);
@@ -48,18 +49,46 @@ class RblIncrementalCidrTest extends TestCase
 
     public function test_batch_advances_cursor_and_dry_run_does_not_write(): void
     {
+        foreach (range(2, 4) as $i) {
+            RblList::create(['name' => "RBL {$i}", 'dns_zone' => "rbl{$i}.example.org", 'type' => 'ip', 'enabled' => true, 'timeout_seconds' => 1]);
+        }
         $target = $this->target();
         $this->actingAs(User::factory()->admin()->create())->artisan('rbl:check', ['--target' => $target->id, '--dry-run' => true])
-            ->expectsOutputToContain('Total de IPs: 256')->expectsOutputToContain('IPs planejados: 16')->assertSuccessful();
+            ->expectsOutputToContain('Total de IPs: 256')
+            ->expectsOutputToContain('IPs planejados: 8 | Listas ativas: 4 | Checks planejados: 32')
+            ->expectsOutputToContain('Limites atuais: lote 8 IPs | 40 checks | 20 segundos | CIDR até 1024 IPs e /22')
+            ->expectsOutputToContain('Estimativa do ciclo: cerca de 8 dias com scheduler a cada 6 horas.')
+            ->assertSuccessful();
         $this->assertNull($target->fresh()->scanState);
         $this->assertDatabaseCount('rbl_checks', 0);
-        $this->cleanDns(16);
+        $this->cleanDns(32);
         app(RblChecker::class)->check($target);
         $state = $target->fresh()->scanState;
-        $this->assertSame(16, $state->cursor);
-        $this->assertSame(16, $state->scanned_ips);
+        $this->assertSame(8, $state->cursor);
+        $this->assertSame(8, $state->scanned_ips);
         $this->assertSame('partial', $target->fresh()->last_status);
-        $this->assertSame('203.0.113.15', $target->checks()->latest('id')->first()->checked_value);
+        $this->assertSame('203.0.113.7', $target->checks()->latest('id')->first()->checked_value);
+    }
+
+    public function test_more_active_lists_reduce_batch_without_exceeding_check_budget(): void
+    {
+        foreach (range(2, 6) as $i) {
+            RblList::create(['name' => "RBL {$i}", 'dns_zone' => "rbl{$i}.example.org", 'type' => 'ip', 'enabled' => true, 'timeout_seconds' => 1]);
+        }
+        $target = $this->target();
+        $this->artisan('rbl:check', ['--target' => $target->id, '--dry-run' => true])
+            ->expectsOutputToContain('IPs planejados: 6 | Listas ativas: 6 | Checks planejados: 36')
+            ->assertSuccessful();
+        foreach (range(7, 10) as $i) {
+            RblList::create(['name' => "RBL {$i}", 'dns_zone' => "rbl{$i}.example.org", 'type' => 'ip', 'enabled' => true, 'timeout_seconds' => 1]);
+        }
+        $this->artisan('rbl:check', ['--target' => $target->id, '--dry-run' => true])
+            ->expectsOutputToContain('IPs planejados: 4 | Listas ativas: 10 | Checks planejados: 40')
+            ->assertSuccessful();
+        $this->cleanDns(40);
+        app(RblChecker::class)->check($target);
+        $this->assertSame(40, $target->checks()->count());
+        $this->assertSame(4, $target->fresh()->scanState->cursor);
     }
 
     public function test_cursor_restarts_and_clean_only_after_complete_cycle(): void
@@ -100,10 +129,10 @@ class RblIncrementalCidrTest extends TestCase
     public function test_admin_pages_and_csv_show_block_progress(): void
     {
         $target = $this->target();
-        $this->cleanDns(16);
+        $this->cleanDns(8);
         app(RblChecker::class)->check($target);
-        $this->actingAs(User::factory()->admin()->create())->get('/rbl')->assertOk()->assertSee('16/256')->assertSee('Parcial');
-        $this->get(route('rbl.targets.show', $target))->assertOk()->assertSee('Progresso do bloco CGNAT')->assertSee('Pendentes estimados')->assertSee('240');
+        $this->actingAs(User::factory()->admin()->create())->get('/rbl')->assertOk()->assertSee('8/256')->assertSee('Parcial');
+        $this->get(route('rbl.targets.show', $target))->assertOk()->assertSee('Progresso do bloco CGNAT')->assertSee('Pendentes estimados')->assertSee('248');
         $this->get('/rbl/reports')->assertOk()->assertSee('Resumo de blocos CIDR')->assertSee('Total de IPs nos blocos');
         $csv = $this->get('/rbl/reports?format=csv')->assertOk()->streamedContent();
         foreach (['target_type', 'target_value', 'checked_value', 'scan_cycle', 'block_progress_percent', 'aggregate_status'] as $header) {
@@ -116,20 +145,20 @@ class RblIncrementalCidrTest extends TestCase
         $target = $this->target();
         $target->update(['category' => 'cgnat']);
         $mock = $this->mock(DnsblResolver::class);
-        $mock->shouldReceive('queryFor')->times(16)->andReturnUsing(fn ($ip, $zone) => implode('.', array_reverse(explode('.', $ip))).'.'.$zone);
-        $mock->shouldReceive('resolve')->times(16)->andReturn(
+        $mock->shouldReceive('queryFor')->times(8)->andReturnUsing(fn ($ip, $zone) => implode('.', array_reverse(explode('.', $ip))).'.'.$zone);
+        $mock->shouldReceive('resolve')->times(8)->andReturn(
             ['status' => 'listed', 'response' => '127.0.0.2'],
-            ...array_fill(0, 15, ['status' => 'clean'])
+            ...array_fill(0, 7, ['status' => 'clean'])
         );
         app(RblChecker::class)->check($target);
 
         $this->actingAs(User::factory()->admin()->create());
         $this->get(route('rbl.targets.show', $target))->assertOk()
             ->assertSee('Listado')->assertSee('Há pelo menos um IP com evento aberto.')
-            ->assertSee('Próximo lote planejado')->assertSee('16 IPs')->assertSee('16 checks planejados')
-            ->assertSee('203.0.113.16')->assertSee('IPs listados neste bloco')->assertSee('203.0.113.0')
+            ->assertSee('Próximo lote planejado')->assertSee('8 IPs')->assertSee('lote padrão de 8 IPs por execução')->assertSee('8 checks planejados')
+            ->assertSee('203.0.113.8')->assertSee('IPs listados neste bloco')->assertSee('203.0.113.0')
             ->assertSee('Ver evento')->assertSee('Últimos IPs verificados')
             ->assertSee('Verificar agora — próximo lote');
-        $this->get('/rbl')->assertOk()->assertSee('CGNAT')->assertSee('Listado')->assertSee('P 240');
+        $this->get('/rbl')->assertOk()->assertSee('CGNAT')->assertSee('Listado')->assertSee('P 248');
     }
 }

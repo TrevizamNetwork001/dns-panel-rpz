@@ -192,6 +192,7 @@ class RblCheckerTest extends TestCase
 
     public function test_query_limit_records_skipped_and_never_claims_clean(): void
     {
+        config(['rbl.max_checks_per_target' => 10]);
         for ($i = 0; $i < 11; $i++) {
             $this->list(['dns_zone' => "rbl$i.example.org"]);
         }

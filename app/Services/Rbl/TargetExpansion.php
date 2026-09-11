@@ -25,7 +25,7 @@ class TargetExpansion
         }
         $base = (int) (floor((int) sprintf('%u', ip2long($parts[0])) / $size) * $size);
         $cursor = min((int) ($target->scanState?->cursor ?? 0), $size - 1);
-        $batch = $size <= $legacyLimit ? $size : max(1, min(256, $largeBatchLimit ?? (int) config('rbl.batch_ips_per_run', 16)));
+        $batch = $size <= $legacyLimit ? $size : max(1, min(256, $largeBatchLimit ?? (int) config('rbl.batch_ips_per_run', 8)));
         $count = min($batch, $size - $cursor);
         $ips = [];
         for ($i = 0; $i < $count; $i++) {

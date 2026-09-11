@@ -79,8 +79,8 @@ class RblTargetController extends Controller
         $target->load(['group', 'scanState']);
         $activeLists = RblList::where('enabled', true)->count();
         $activeIpLists = RblList::where('enabled', true)->where('type', 'ip')->count();
-        $maxChecks = max(1, min(1000, (int) config('rbl.max_checks_per_target', 10)));
-        $batchLimit = min((int) config('rbl.batch_ips_per_run', 16), max(1, intdiv($maxChecks, max(1, $activeIpLists))));
+        $maxChecks = max(1, min(1000, (int) config('rbl.max_checks_per_target', 40)));
+        $batchLimit = min((int) config('rbl.batch_ips_per_run', 8), max(1, intdiv($maxChecks, max(1, $activeIpLists))));
         $nextBatch = $target->type === 'cidr' ? $expansion->plan($target, $batchLimit) : null;
 
         return view('rbl.show', [

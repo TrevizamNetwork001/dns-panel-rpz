@@ -47,8 +47,9 @@ class RblCheckCommand extends Command
                 $lists = RblList::where('enabled', true)->count();
                 $ipLists = RblList::where('enabled', true)->where('type', 'ip')->count();
                 foreach ($targets as $target) {
-                    $maxChecks = max(1, (int) config('rbl.max_checks_per_target', 10));
-                    $largeBatchLimit = min((int) config('rbl.batch_ips_per_run', 16), max(1, intdiv($maxChecks, max(1, $ipLists))));
+                    $maxChecks = max(1, min(1000, (int) config('rbl.max_checks_per_target', 40)));
+                    $batchConfigured = max(1, min(256, (int) config('rbl.batch_ips_per_run', 8)));
+                    $largeBatchLimit = min($batchConfigured, max(1, intdiv($maxChecks, max(1, $ipLists))));
                     $plan = app(TargetExpansion::class)->plan($target, $largeBatchLimit);
                     $this->line("Target: {$target->name} | Tipo: {$target->type} | Valor: {$target->value}");
                     if ($target->type === 'cidr') {
@@ -56,6 +57,11 @@ class RblCheckCommand extends Command
                         $this->line("Total de IPs: {$plan['total_ips']} | Cursor atual: {$plan['cursor']} | Ciclo: ".($target->scanState?->cycle ?? 0)." | Progresso atual: {$progress}%");
                     }
                     $this->line('IPs planejados: '.count($plan['ips']).' | Listas ativas: '.$lists.' | Checks planejados: '.min($maxChecks, count($plan['ips']) * $ipLists));
+                    $this->line("Limites atuais: lote {$batchConfigured} IPs | {$maxChecks} checks | ".config('rbl.max_seconds_per_target', 20).' segundos | CIDR até '.config('rbl.max_cidr_total_ips', 1024).' IPs e /'.config('rbl.min_cidr_prefix', 22));
+                    if ($target->type === 'cidr' && count($plan['ips']) > 0) {
+                        $days = (int) ceil((int) ceil($plan['total_ips'] / count($plan['ips'])) * 6 / 24);
+                        $this->line("Estimativa do ciclo: cerca de {$days} dias com scheduler a cada 6 horas.");
+                    }
                     if ($plan['reason']) {
                         $this->line('Skipped: '.$plan['reason']);
                     }

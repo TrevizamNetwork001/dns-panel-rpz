@@ -143,8 +143,9 @@ class RblGroupsCidrTest extends TestCase
         $this->assertSame(0, RblEvent::where('status', 'open')->count());
     }
 
-    public function test_query_budget_remains_ten_and_incomplete_cidr_is_not_clean(): void
+    public function test_configured_query_budget_is_enforced_and_incomplete_cidr_is_not_clean(): void
     {
+        config(['rbl.max_checks_per_target' => 10]);
         $this->lists(2);
         $target = $this->target(['value' => '203.0.113.0/29']);
         $this->dns(array_fill(0, 10, ['status' => 'clean']));

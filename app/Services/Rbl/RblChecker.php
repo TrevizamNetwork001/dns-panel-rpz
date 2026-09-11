@@ -34,13 +34,13 @@ class RblChecker
             if ($lists->isEmpty()) {
                 throw ValidationException::withMessages(['check' => 'Ative pelo menos uma lista RBL.']);
             }
-            $maxChecks = max(1, min(1000, (int) config('rbl.max_checks_per_target', 10)));
+            $maxChecks = max(1, min(1000, (int) config('rbl.max_checks_per_target', 40)));
             $maxSeconds = max(1, min(120, (int) config('rbl.max_seconds_per_target', 20)));
             $deadline = microtime(true) + $maxSeconds;
             $results = [];
             $queries = 0;
             $ipListCount = max(1, $lists->where('type', 'ip')->count());
-            $largeBatchLimit = min((int) config('rbl.batch_ips_per_run', 16), max(1, intdiv($maxChecks, $ipListCount)));
+            $largeBatchLimit = min((int) config('rbl.batch_ips_per_run', 8), max(1, intdiv($maxChecks, $ipListCount)));
             $plan = app(TargetExpansion::class)->plan($target, $largeBatchLimit);
             foreach ($lists as $list) {
                 foreach ($plan['ips'] ?: [$target->value] as $ip) {

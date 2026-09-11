@@ -30,6 +30,13 @@ somente quando ainda estão nulas e não sobrescreve nome, estado ou texto custo
 URLs não são presumidas pelo seeder: o administrador deve cadastrar e revisar os
 endereços oficiais no painel.
 
+## Ritmo conservador dos blocos CGNAT — RBL-5D
+
+O padrão operacional passa a ser 8 IPs por execução e até 40 checks por alvo,
+mantendo o orçamento de 20 segundos. O Scheduler permanece a cada seis horas e
+continua protegido por `withoutOverlapping`. Com quatro listas IP ativas, cada
+execução planeja 32 checks e um `/24` completa o ciclo em cerca de oito dias.
+
 ## Histórico anterior — RBL-5C
 
 ## Operação visual dos blocos CGNAT — RBL-5C
@@ -50,12 +57,13 @@ em português e um resumo compacto; grupos CGNAT exibem totais agregados e progr
 ponderado pelos IPs de cada bloco. Relatórios ordenam blocos por listados, pendentes
 e erros, sem gráficos ou consultas DNS adicionais.
 
-O quadro **Próximo lote planejado** é apenas uma estimativa local: mostra até 16 IPs,
+O quadro **Próximo lote planejado** é apenas uma estimativa local: mostra até 8 IPs,
 listas ativas, checks planejados e o limite por alvo. O botão **Verificar agora —
 próximo lote** executa exatamente o próximo lote permitido, nunca o bloco inteiro.
 Isso distribui um `/24` (256 endereços, incluindo network e broadcast) por várias
 execuções e evita excesso de consultas às RBLs. Com quatro listas IP ativas e teto
-de dez consultas, por exemplo, o lote efetivo é de dois IPs e oito checks.
+de 40 consultas, o lote efetivo padrão é de oito IPs e 32 checks. Com o Scheduler
+a cada seis horas, são 32 IPs por dia e cerca de oito dias para completar um `/24`.
 
 Esta apresentação não integra MikroTik, não lê NAT ou logs CGNAT, não identifica nem
 bloqueia cliente, não altera firewall, não faz delist, não executa scripts externos,
@@ -70,16 +78,21 @@ porta, sessão ou log NAT.
 
 Por padrão, blocos de até 1.024 endereços (prefixo mínimo `/22`) são aceitos.
 CIDRs de até 8 IPs mantêm a verificação compacta existente. Blocos maiores usam
-cursor persistente e lotes de até 16 IPs. O lote efetivo pode ser menor para
-respeitar simultaneamente os limites de 10 consultas DNSBL e 20 segundos por
+cursor persistente e lotes de até 8 IPs. O lote efetivo pode ser menor para
+respeitar simultaneamente os limites de 40 consultas DNSBL e 20 segundos por
 alvo. Todos os endereços, inclusive network e broadcast, são considerados.
 
 As opções em `config/rbl.php` são `large_cidr_enabled`, `max_cidr_total_ips`,
 `min_cidr_prefix`, `batch_ips_per_run`, `max_checks_per_target` e
 `max_seconds_per_target`. Os padrões correspondentes são `true`, `1024`, `22`,
-`16`, `10` e `20`. Um `/24` tem 256 IPs, um `/23` tem 512 e um `/22` tem
+`8`, `40` e `20`. Um `/24` tem 256 IPs, um `/23` tem 512 e um `/22` tem
 1.024; `/21` é skipped no padrão. Não aumente o lote sem considerar a quantidade
 de RBLs ativas e as condições de uso dos provedores.
+
+O lote é reduzido automaticamente quando o número de listas IP ativas consumiria
+mais de 40 checks: com cinco listas ainda são 8 IPs/40 checks; com seis listas,
+6 IPs/36 checks; com dez listas, 4 IPs/40 checks. Esse teto continua protegendo
+as RBLs contra excesso de consultas por alvo.
 
 `rbl_target_scan_states` registra cursor, ciclo, totais por resultado e um resumo
 JSON por IP do ciclo. Cada execução consulta o próximo lote e avança o cursor. Ao
@@ -100,7 +113,8 @@ fórmulas.
 Exemplo: cadastre `45.239.156.0/24` como alvo `cidr`, associe-o a um grupo CGNAT e
 use **Verificar agora** ou o scheduler. O botão sempre verifica apenas o próximo
 lote. `php artisan rbl:check --target=ID --dry-run` mostra total, cursor, ciclo,
-progresso, IPs e checks planejados sem avançar estado ou gravar checks.
+progresso, IPs e checks planejados, limites atuais e uma estimativa simples da
+duração do ciclo. O dry-run não consulta DNS, não avança o cursor e não grava checks.
 
 Esta fase não integra MikroTik, não lê ou interpreta logs NAT/CGNAT, não identifica
 clientes, não executa scripts, não bloqueia cliente, não altera firewall/RPZ, não
@@ -250,7 +264,8 @@ nameserver IP de `/etc/resolv.conf`. Não usa shell, scripts, subprocessos, fall
 para DNS público, nem modifica serviços do sistema.
 
 Timeout configurável entre 1 e 5 segundos por consulta; orçamento de 20 segundos
-para DNS e máximo de 10 consultas por alvo. Listas excedentes recebem skipped.
+para DNS e máximo de 40 consultas por alvo. O lote de IPs é reduzido previamente
+conforme a quantidade de listas ativas; o teto também é conferido durante a execução.
 O limite de 20 segundos refere-se ao DNS; persistência e renderização têm custo adicional.
 Há cooldown de um minuto por alvo, throttle de 6 requisições/minuto por administrador
 e lock global de 120 segundos via cache Laravel (inclui margem para alertas). Em múltiplas instâncias, utilizar
@@ -297,7 +312,9 @@ explicita esse padrão e não permite incluir desativados. O limite padrão é 1
 aceitando de 1 a 1000. Alvos nunca verificados vêm primeiro, seguidos dos mais antigos;
 isso distribui os lotes sem repetir sempre os mesmos IDs. Alvos verificados no último
 minuto ficam fora da seleção. ID inexistente/desativado ou nenhuma seleção termina
-com zero alvos. `--dry-run` mostra alvos elegíveis, tipo, valor, IPs planejados, listas ativas e consultas planejadas (limitadas a 10), sem DNS, locks ou gravação. O tempo limite pode reduzir a quantidade efetiva.
+com zero alvos. `--dry-run` mostra alvos elegíveis, tipo, valor, IPs planejados,
+listas ativas, checks planejados, limites atuais e estimativa de ciclo, sem DNS,
+locks, avanço do cursor ou gravação. O tempo limite pode reduzir a quantidade efetiva.
 
 O comando usa o mesmo checker da interface: consultas sequenciais, somente listas ativas,
 mesmos limites por alvo e mesma transação de checks/eventos. A expansão de blocos respeita o limite descrito abaixo.
@@ -486,11 +503,11 @@ A expansão inclui endereços de rede e broadcast; não limita a IPs úteis.
 - CIDR com bits de host, como `203.0.113.2/30`, expande a rede .0/30;
   o valor cadastrado permanece intacto.
 
-O teto anterior de **10 consultas / 20 segundos de DNS por alvo**, timeout de
+O teto atual é de **40 consultas / 20 segundos de DNS por alvo**. Timeout de
 1–5 segundos por RBL, cooldown de um minuto e locks foram preservados.
-Assim, /30 com duas RBLs planeja 8 consultas; /29 com duas RBLs permite no máximo
-10 consultas e registra as seis restantes como skipped. A ordem é por lista e IP;
-blocos maiores reduzem o lote efetivo quando necessário. Não interpretar uma
+Assim, um bloco incremental com quatro RBLs planeja 8 IPs e 32 consultas; com seis,
+reduz para 6 IPs e 36 consultas; com dez, reduz para 4 IPs e 40 consultas. A ordem
+é por lista e IP; blocos maiores reduzem o lote efetivo quando necessário. Não interpretar uma
 verificação parcial como bloco limpo. `--limit=N` limita alvos, não IPs internos.
 `rbl:check --target=ID --dry-run` informa o planejamento sem criar checks ou runs.
 
