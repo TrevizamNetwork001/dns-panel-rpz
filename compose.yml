@@ -1,0 +1,146 @@
+name: dns-panel-rpz
+
+x-app: &app
+  image: dns-panel-rpz-app:local
+  build:
+    context: .
+    target: app
+  env_file:
+    - ${RPZ_ENV_FILE:-./.env.docker}
+  networks: [rpz-internal]
+  volumes:
+    - rpz-data:/data
+    - rpz-storage:/var/www/html/storage
+    - rpz-cache:/var/www/html/bootstrap/cache
+  restart: unless-stopped
+  init: true
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+services:
+  init:
+    <<: *app
+    user: root
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    command: ["/usr/local/bin/rpz-init"]
+    volumes:
+      - rpz-data:/data
+      - rpz-storage:/var/www/html/storage
+      - rpz-cache:/var/www/html/bootstrap/cache
+      - rpz-backups:/backups
+    restart: "no"
+    healthcheck: {disable: true}
+    read_only: true
+    tmpfs: [/tmp]
+    deploy:
+      resources:
+        limits: {cpus: "0.25", memory: 128M}
+
+  app:
+    <<: *app
+    depends_on:
+      init: {condition: service_completed_successfully}
+    read_only: true
+    tmpfs: [/tmp]
+    deploy:
+      resources:
+        limits: {cpus: "1.00", memory: 768M}
+        reservations: {memory: 256M}
+
+  nginx:
+    image: dns-panel-rpz-web:local
+    build:
+      context: .
+      target: web
+    depends_on:
+      app: {condition: service_healthy}
+    networks: [rpz-internal]
+    volumes:
+      - rpz-storage:/var/www/html/storage:ro
+    ports:
+      - "127.0.0.1:8082:8080"
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp, /var/cache/nginx, /var/run]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+    deploy:
+      resources:
+        limits: {cpus: "0.50", memory: 256M}
+
+  queue:
+    <<: *app
+    profiles: [cutover]
+    command: ["php", "artisan", "queue:work", "database", "--sleep=1", "--tries=1", "--timeout=180", "--max-time=3600"]
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+    read_only: true
+    tmpfs: [/tmp]
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits: {cpus: "0.75", memory: 768M}
+
+  scheduler:
+    <<: *app
+    profiles: [cutover]
+    command: ["php", "artisan", "schedule:work", "--no-interaction"]
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+    read_only: true
+    tmpfs: [/tmp]
+    deploy:
+      resources:
+        limits: {cpus: "0.50", memory: 384M}
+
+  external-sync:
+    <<: *app
+    profiles: [cutover]
+    command: ["/usr/local/bin/rpz-automation", "external-sync"]
+    environment: {AUTOMATION_INTERVAL: "21600"}
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+    read_only: true
+    tmpfs: [/tmp]
+    deploy:
+      resources:
+        limits: {cpus: "0.50", memory: 384M}
+
+  backup:
+    <<: *app
+    profiles: [cutover]
+    command: ["/usr/local/bin/rpz-automation", "backup"]
+    environment:
+      AUTOMATION_INTERVAL: "86400"
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: "14"
+    volumes:
+      - rpz-data:/data
+      - rpz-backups:/backups
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+    read_only: true
+    tmpfs: [/tmp]
+    deploy:
+      resources:
+        limits: {cpus: "0.25", memory: 128M}
+
+networks:
+  rpz-internal:
+    name: dns-panel-rpz-internal
+
+volumes:
+  rpz-data: {name: dns-panel-rpz-data}
+  rpz-storage: {name: dns-panel-rpz-storage}
+  rpz-cache: {name: dns-panel-rpz-cache}
+  rpz-backups: {name: dns-panel-rpz-backups}
