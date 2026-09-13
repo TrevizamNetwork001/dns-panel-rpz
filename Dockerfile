@@ -1,14 +1,17 @@
-FROM composer:2 AS vendor
+FROM composer:2.8 AS vendor
 WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --optimize-autoloader --no-scripts
 COPY . .
 RUN composer dump-autoload --no-dev --no-interaction --optimize --classmap-authoritative
 
-FROM php:8.4-fpm-alpine AS app
+FROM php:8.4.12-fpm-alpine AS app
 RUN apk add --no-cache ca-certificates curl fcgi icu-libs libzip libxml2 py3-pip py3-virtualenv python3 sqlite \
-    && apk add --no-cache --virtual .build-deps curl-dev icu-dev libzip-dev libxml2-dev linux-headers $PHPIZE_DEPS \
+    && apk add --no-cache --virtual .build-deps curl-dev icu-dev libzip-dev libxml2-dev linux-headers oniguruma-dev sqlite-dev $PHPIZE_DEPS \
     && docker-php-ext-install -j"$(nproc)" bcmath curl intl mbstring opcache pcntl pdo_sqlite sockets zip \
+    && php -m | grep -Eiq '^dom$' \
+    && php -m | grep -Eiq '^simplexml$' \
+    && php -m | grep -Eiq '^xml$' \
     && apk del .build-deps
 COPY docker/requirements-anatel.txt /tmp/requirements-anatel.txt
 RUN python3 -m venv /opt/anatel-venv \
@@ -27,7 +30,7 @@ USER www-data
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD SCRIPT_NAME=/fpm-ping SCRIPT_FILENAME=/fpm-ping REQUEST_METHOD=GET cgi-fcgi -bind -connect 127.0.0.1:9000 | grep -q pong || exit 1
 CMD ["php-fpm", "-F"]
 
-FROM nginxinc/nginx-unprivileged:1.28-alpine AS web
+FROM nginxinc/nginx-unprivileged:1.28.0-alpine AS web
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=vendor --chown=nginx:nginx /app/public /var/www/html/public
 RUN ln -sfn ../storage/app/public /var/www/html/public/storage

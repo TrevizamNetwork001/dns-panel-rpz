@@ -35,6 +35,8 @@ services:
     healthcheck: {disable: true}
     read_only: true
     tmpfs: [/tmp]
+    cpus: "0.25"
+    mem_limit: 128m
     deploy:
       resources:
         limits: {cpus: "0.25", memory: 128M}
@@ -45,6 +47,8 @@ services:
       init: {condition: service_completed_successfully}
     read_only: true
     tmpfs: [/tmp]
+    cpus: "1.00"
+    mem_limit: 768m
     deploy:
       resources:
         limits: {cpus: "1.00", memory: 768M}
@@ -70,6 +74,8 @@ services:
     logging:
       driver: json-file
       options: {max-size: 10m, max-file: "3"}
+    cpus: "0.50"
+    mem_limit: 256m
     deploy:
       resources:
         limits: {cpus: "0.50", memory: 256M}
@@ -84,6 +90,8 @@ services:
     read_only: true
     tmpfs: [/tmp]
     stop_grace_period: 30s
+    cpus: "0.75"
+    mem_limit: 768m
     deploy:
       resources:
         limits: {cpus: "0.75", memory: 768M}
@@ -97,6 +105,8 @@ services:
     healthcheck: {disable: true}
     read_only: true
     tmpfs: [/tmp]
+    cpus: "0.50"
+    mem_limit: 384m
     deploy:
       resources:
         limits: {cpus: "0.50", memory: 384M}
@@ -111,6 +121,8 @@ services:
     healthcheck: {disable: true}
     read_only: true
     tmpfs: [/tmp]
+    cpus: "0.50"
+    mem_limit: 384m
     deploy:
       resources:
         limits: {cpus: "0.50", memory: 384M}
@@ -131,6 +143,8 @@ services:
     healthcheck: {disable: true}
     read_only: true
     tmpfs: [/tmp]
+    cpus: "0.25"
+    mem_limit: 128m
     deploy:
       resources:
         limits: {cpus: "0.25", memory: 128M}
