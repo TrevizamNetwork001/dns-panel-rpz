@@ -27,11 +27,16 @@ class AnatelImportController extends Controller
                 throw ValidationException::withMessages(['pdfs' => 'O conteúdo enviado não é um PDF nem uma planilha Excel (.xlsx) válida.']);
             }
             $sha = hash_file('sha256', $real);
-            if (AnatelImport::where('sha256', $sha)->whereIn('status', ['pending', 'processing', 'completed'])->exists()) {
+            if (AnatelImport::where('sha256', $sha)->whereIn('status', ['pending', 'processing', 'awaiting_approval', 'completed'])->exists()) {
                 throw ValidationException::withMessages(['pdfs' => 'Este arquivo já foi processado.']);
             }
             $path = $upload->storeAs(date('Y/m'), $sha.'.'.$extension, 'anatel');
-            $import = AnatelImport::create(['lista_id' => $lista->id, 'user_id' => $request->user()->id, 'original_filename' => basename($upload->getClientOriginalName()), 'storage_path' => $path, 'sha256' => $sha, 'size_bytes' => $upload->getSize(), 'status' => 'processing', 'started_at' => now()]);
+            try {
+                $import = AnatelImport::create(['lista_id' => $lista->id, 'user_id' => $request->user()->id, 'original_filename' => basename($upload->getClientOriginalName()), 'storage_path' => $path, 'sha256' => $sha, 'size_bytes' => $upload->getSize(), 'status' => 'processing', 'started_at' => now()]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                Storage::disk('anatel')->delete($path);
+                throw ValidationException::withMessages(['pdfs' => 'Este arquivo já foi processado.']);
+            }
             AuditLog::record('anatel.import.started', 'Importação ANATEL iniciada: '.$import->original_filename, $lista->empresa_id, 'anatel_import', $import->id);
             try {
                 $payload = $extractor->extract([Storage::disk('anatel')->path($path)]);
