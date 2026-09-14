@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+
+DOMAIN=rpz.trevizamnetwork.com.br
+CERTBOT_BASE=/opt/dns-panel-rpz/certbot
+CERTBOT_IMAGE=certbot/certbot:v5.7.0@sha256:34ee91d2f43008eb78a007d22f23ed4b2eaa9a454cb27ca2c042b49527a695b4
+
+/usr/bin/docker run --rm \
+    --volume "$CERTBOT_BASE/conf:/etc/letsencrypt" \
+    --volume "$CERTBOT_BASE/work:/var/lib/letsencrypt" \
+    --volume "$CERTBOT_BASE/logs:/var/log/letsencrypt" \
+    --volume "$CERTBOT_BASE/www:/var/www/certbot" \
+    "$CERTBOT_IMAGE" \
+    renew \
+    --cert-name "$DOMAIN" \
+    --non-interactive \
+    --no-random-sleep-on-renew
+
+exec /usr/local/sbin/dns-panel-rpz-deploy-certificate

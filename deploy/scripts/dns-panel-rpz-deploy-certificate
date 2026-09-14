@@ -1,0 +1,111 @@
+#!/bin/sh
+set -eu
+
+DOMAIN=rpz.trevizamnetwork.com.br
+SOURCE=/opt/dns-panel-rpz/certbot/conf/live/$DOMAIN
+TARGET=/etc/nginx/tls/$DOMAIN
+STAGE=$(mktemp -d /etc/nginx/tls/.rpz-deploy.XXXXXX)
+
+cleanup()
+{
+    rm -rf "$STAGE"
+}
+
+restore_previous()
+{
+    install -o root -g root -m 0644 "$STAGE/old/cert.pem" "$TARGET/cert.pem"
+    install -o root -g root -m 0644 "$STAGE/old/chain.pem" "$TARGET/chain.pem"
+    install -o root -g root -m 0644 "$STAGE/old/fullchain.pem" "$TARGET/fullchain.pem"
+    install -o root -g root -m 0600 "$STAGE/old/privkey.pem" "$TARGET/privkey.pem"
+}
+
+trap cleanup EXIT HUP INT TERM
+
+for file in cert.pem chain.pem fullchain.pem privkey.pem
+do
+    test -s "$SOURCE/$file" || {
+        echo "ERRO: arquivo do Certbot ausente: $SOURCE/$file"
+        exit 1
+    }
+
+    test -s "$TARGET/$file" || {
+        echo "ERRO: certificado atualmente publicado está incompleto."
+        exit 1
+    }
+done
+
+openssl x509 \
+    -in "$SOURCE/fullchain.pem" \
+    -noout -checkhost "$DOMAIN" >/dev/null
+
+openssl x509 \
+    -checkend 604800 \
+    -in "$SOURCE/fullchain.pem" \
+    -noout >/dev/null
+
+CERT_PUBLIC=$(
+    openssl x509 \
+        -in "$SOURCE/cert.pem" \
+        -pubkey -noout |
+    openssl sha256
+)
+
+KEY_PUBLIC=$(
+    openssl pkey \
+        -in "$SOURCE/privkey.pem" \
+        -pubout 2>/dev/null |
+    openssl sha256
+)
+
+if [ "$CERT_PUBLIC" != "$KEY_PUBLIC" ]; then
+    echo "ERRO: certificado renovado e chave privada não correspondem."
+    exit 1
+fi
+
+install -d -o root -g root -m 0700 "$STAGE/new" "$STAGE/old"
+
+install -o root -g root -m 0644 "$SOURCE/cert.pem" "$STAGE/new/cert.pem"
+install -o root -g root -m 0644 "$SOURCE/chain.pem" "$STAGE/new/chain.pem"
+install -o root -g root -m 0644 "$SOURCE/fullchain.pem" "$STAGE/new/fullchain.pem"
+install -o root -g root -m 0600 "$SOURCE/privkey.pem" "$STAGE/new/privkey.pem"
+
+UNCHANGED=1
+
+for file in cert.pem chain.pem fullchain.pem privkey.pem
+do
+    if ! cmp -s "$STAGE/new/$file" "$TARGET/$file"; then
+        UNCHANGED=0
+    fi
+done
+
+if [ "$UNCHANGED" = 1 ]; then
+    echo "Certificado RPZ já está atualizado; nenhum reload necessário."
+    exit 0
+fi
+
+install -o root -g root -m 0644 "$TARGET/cert.pem" "$STAGE/old/cert.pem"
+install -o root -g root -m 0644 "$TARGET/chain.pem" "$STAGE/old/chain.pem"
+install -o root -g root -m 0644 "$TARGET/fullchain.pem" "$STAGE/old/fullchain.pem"
+install -o root -g root -m 0600 "$TARGET/privkey.pem" "$STAGE/old/privkey.pem"
+
+install -o root -g root -m 0644 "$STAGE/new/cert.pem" "$TARGET/cert.pem"
+install -o root -g root -m 0644 "$STAGE/new/chain.pem" "$TARGET/chain.pem"
+install -o root -g root -m 0644 "$STAGE/new/fullchain.pem" "$TARGET/fullchain.pem"
+install -o root -g root -m 0600 "$STAGE/new/privkey.pem" "$TARGET/privkey.pem"
+
+if ! nginx -t; then
+    echo "ERRO: Nginx rejeitou o certificado. Restaurando versão anterior."
+    restore_previous
+    nginx -t
+    exit 1
+fi
+
+if ! systemctl reload nginx; then
+    echo "ERRO: reload falhou. Restaurando certificado anterior."
+    restore_previous
+    nginx -t
+    systemctl reload nginx || true
+    exit 1
+fi
+
+echo "Certificado RPZ atualizado e Nginx recarregado com sucesso."

@@ -2,12 +2,14 @@
 
 Guia rápido pra quando algo dá errado em produção (`rpz.trevizamnetwork.com.br`). Comandos assumem SSH no servidor `paineldns`, dentro de `/opt/dns-panel-rpz`.
 
+> **Desde a migração para Docker (set/2026):** a aplicação roda inteira em containers (`docker compose`, ver [`compose.yml`](compose.yml)). Não há mais PHP nem php-fpm instalado no host — todo `artisan` roda via `docker compose exec app php artisan ...`. Só ficam no host: nginx de borda (TLS), Certbot, fail2ban e os timers systemd de healthcheck/renovação de certificado. Detalhes completos em [`deploy/README.md`](deploy/README.md).
+
 ## Primeiro passo, sempre
 
 ```bash
 curl -sI https://rpz.trevizamnetwork.com.br/up   # health route do Laravel
-tail -50 storage/logs/laravel.log
-sudo -u www-data php artisan health:check         # roda a checagem na hora, mostra o motivo
+docker compose logs --tail 100 app               # logs da aplicação (LOG_CHANNEL=stderr, não tem mais storage/logs/laravel.log)
+docker compose exec app php artisan health:check # roda a checagem na hora, mostra o motivo
 ```
 
 Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes já deixa rastro lá antes de você precisar entrar por SSH.
@@ -16,16 +18,17 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
 
 ## Site fora do ar (HTTP não responde / 502 / 500)
 
-1. `systemctl status nginx php8.4-fpm` — algum dos dois caiu?
-2. `sudo -u www-data php artisan health:check` — roda a checagem manualmente, mostra disco/certificado/site.
-3. `tail -100 storage/logs/laravel.log` — erro de aplicação (query, permissão, config).
-4. Se for 502: `journalctl -u php8.4-fpm --since "-10 min"` — PHP-FPM travado ou sem workers livres.
-5. Restart seguro (não derruba sessões ativas de outros processos):
+1. `docker compose ps` — algum container caiu, reiniciando em loop, ou "unhealthy"?
+2. `systemctl status nginx` — o nginx de borda (host) caiu? (o container `nginx` é interno, só escuta em `127.0.0.1:8082`)
+3. `docker compose exec app php artisan health:check` — roda a checagem manualmente, mostra disco/certificado/site.
+4. `docker compose logs --tail 200 app` — erro de aplicação (query, permissão, config).
+5. Se for 502/504: `docker compose logs --tail 100 nginx` — container nginx sem conseguir falar com o `app` (php-fpm travado ou container `app` reiniciando).
+6. Restart seguro:
    ```bash
-   systemctl restart php8.4-fpm
-   systemctl reload nginx   # reload, nao restart -- evita drop de conexoes em andamento
+   docker compose restart app       # derruba e sobe de novo só o container da aplicação
+   systemctl reload nginx           # reload do nginx de borda, nao restart -- evita drop de conexoes em andamento
    ```
-6. Se nada disso resolver, confirme que não foi um deploy quebrado: `git log --oneline -5` e considere reverter (ver seção "Reverter um deploy").
+7. Se nada disso resolver, confirme que não foi um deploy quebrado: `git log --oneline -5` e considere reverter (ver seção "Reverter um deploy").
 
 ## Servidores de clientes não sincronizam RPZ (zonefile não atualiza)
 
@@ -45,30 +48,33 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
 
 ## Lista externa não atualiza
 
-1. `systemctl status dns-panel-rpz-external-sync.timer` — timer ativo?
-2. `sudo -u www-data php artisan external:sync` — roda todas as fontes externas na mão e mostra o resultado individual de cada uma.
-3. Motivo comum de abort (por design, não é bug): um feed retornou menos de 100 domínios — a proteção evita esvaziar a lista quando a fonte está fora do ar ou muda de formato. Veja `storage/logs/external-sync.log`.
+1. `docker compose ps external-sync` — container ativo? (roda em loop próprio, sincroniza a cada `AUTOMATION_INTERVAL` segundos, padrão 6h — ver `compose.yml`)
+2. `docker compose exec app php artisan external:sync` — roda todas as fontes externas na mão e mostra o resultado individual de cada uma.
+3. Motivo comum de abort (por design, não é bug): um feed retornou menos de 100 domínios — a proteção evita esvaziar a lista quando a fonte está fora do ar ou muda de formato. Veja `docker compose logs external-sync`.
 4. Lista pode estar pausada manualmente: confira `sync_ativo` em `/listas` (badge "Pausar sync" vira "Reativar sync" quando pausada).
 
 ## Banco de dados corrompido ou dado errado
 
-**Nunca edite o SQLite de produção direto sem backup antes.**
+**Nunca edite o SQLite de produção direto sem backup antes.** O banco (`/data/database.sqlite` dentro dos containers) e os backups (`/backups`) vivem em volumes Docker nomeados — não em `database/` no host. Caminho real no host: `/var/lib/docker/volumes/dns-panel-rpz-data/_data/` e `/var/lib/docker/volumes/dns-panel-rpz-backups/_data/` (confirme com `docker volume inspect dns-panel-rpz-data`).
 
 1. Backup manual imediato antes de qualquer coisa:
    ```bash
-   sqlite3 database/database.sqlite ".backup 'database/backups/pre-incidente-$(date +%Y%m%d-%H%M%S).bak'"
+   docker compose exec app sh -c 'sqlite3 /data/database.sqlite ".backup /data/pre-incidente-$(date +%Y%m%d-%H%M%S).bak"'
    ```
-2. Restaurar de um backup automático (diário, 03:30, retém 14 dias em `database/backups/database.sqlite.auto-*.bak`):
+2. Ver backups automáticos (diário, retém 14 dias em `/backups`, ver serviço `backup` no `compose.yml` / [`docker/backup.sh`](docker/backup.sh)):
    ```bash
-   ls -la database/backups/
-   systemctl stop php8.4-fpm   # evita escrita durante a restauracao
-   cp database/backups/database.sqlite.auto-AAAAMMDD-HHMMSS.bak database/database.sqlite
-   chown devops:www-data database/database.sqlite
-   systemctl start php8.4-fpm
+   docker compose exec backup ls -la /backups
    ```
-3. Integridade do arquivo atual, sem restaurar nada:
+3. Restaurar um backup:
    ```bash
-   sqlite3 database/database.sqlite "PRAGMA integrity_check;"
+   docker compose stop app queue scheduler external-sync backup   # evita escrita durante a restauracao
+   docker run --rm -v dns-panel-rpz-data:/data -v dns-panel-rpz-backups:/backups alpine \
+     cp /backups/database.sqlite.auto-AAAAMMDD-HHMMSS.bak /data/database.sqlite
+   docker compose start app queue scheduler external-sync backup
+   ```
+4. Integridade do arquivo atual, sem restaurar nada:
+   ```bash
+   docker compose exec app sqlite3 /data/database.sqlite "PRAGMA integrity_check;"
    ```
 
 ## Disco cheio / quase cheio
@@ -76,18 +82,20 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
 Healthcheck já alerta a partir de 85% (`/seguranca`). Se chegou a esse ponto:
 
 1. `df -h /`
-2. Suspeitos usuais: `database/backups/` (deveria auto-limpar após 14 dias, confirme que o timer de backup está rodando), `storage/logs/*.log` (rotação semanal via `logrotate`, retém 8 semanas — confirme que não parou: `logrotate -d /etc/logrotate.d/dns-panel-rpz`), `storage/framework/views` (cache de blade, seguro limpar: `php artisan view:clear`).
-3. Não delete `database/database.sqlite` nem nada em `database/backups/` sem ter certeza de qual é qual — confira datas antes.
+2. Suspeitos usuais: volume `dns-panel-rpz-backups` (deveria auto-limpar após 14 dias — `BACKUP_KEEP_DAYS` no `compose.yml`, confirme que o container `backup` está rodando: `docker compose ps backup`), logs do Docker em `/var/lib/docker/containers/*/*-json.log` (rotação já embutida via `logging.options` no `compose.yml`, `max-size 10m` / `max-file 3` por container — confirme que nenhum container tem `logging` fora do padrão), `storage/framework/views` dentro do volume `dns-panel-rpz-storage` (cache de blade, seguro limpar: `docker compose exec app php artisan view:clear`).
+3. Não delete nada nos volumes `dns-panel-rpz-data` ou `dns-panel-rpz-backups` sem ter certeza de qual é qual — confira datas antes (`docker compose exec backup ls -la /backups`).
 
 ## Certificado TLS expirando ou expirado
 
-Renovação é automática via Certbot, mas se o healthcheck alertar (`health.cert_expiring`) ou o site começar a dar erro de certificado:
+Renovação é automática (timer `dns-panel-rpz-certbot-renew.timer`, roda 2x/dia via container `certbot/certbot`, ver [`deploy/scripts/dns-panel-rpz-certbot-renew`](deploy/scripts/dns-panel-rpz-certbot-renew)). O certificado emitido fica em `certbot/conf/live/rpz.trevizamnetwork.com.br/`; depois de renovado é validado e copiado pro nginx de borda em `/etc/nginx/tls/rpz.trevizamnetwork.com.br/` por [`deploy/scripts/dns-panel-rpz-deploy-certificate`](deploy/scripts/dns-panel-rpz-deploy-certificate), que também roda `nginx -t` + reload com rollback automático se der problema.
+
+Se o healthcheck alertar (`health.cert_expiring` ou `health.cert_unreadable`) ou o site começar a dar erro de certificado:
 
 ```bash
-certbot certificates                       # ve validade atual
-certbot renew --dry-run                    # testa sem aplicar
-certbot renew                              # aplica de verdade
-systemctl reload nginx
+systemctl status dns-panel-rpz-certbot-renew.timer     # timer ativo?
+journalctl -u dns-panel-rpz-certbot-renew.service -n 50 --no-pager   # log da última tentativa
+systemctl start dns-panel-rpz-certbot-renew.service     # forca renovacao/redeploy na hora
+openssl x509 -in /etc/nginx/tls/rpz.trevizamnetwork.com.br/cert.pem -noout -enddate   # confere validade do que esta publicado
 ```
 
 ## Login SSH travado / suspeita de brute-force
@@ -102,7 +110,7 @@ systemctl reload nginx
 
 ## Reverter um deploy
 
-Não há deploy automático — toda mudança é manual (`git pull` ou arquivos copiados na mão + `chgrp www-data`). Pra reverter:
+Não há deploy automático — toda mudança é manual (`git pull` + rebuild das imagens). Pra reverter:
 
 ```bash
 git log --oneline -10          # acha o commit bom anterior
@@ -110,19 +118,27 @@ git diff <commit-bom> --stat   # confere o que mudou desde entao
 git checkout <commit-bom> -- <arquivo-especifico>   # reverte so o arquivo problematico
 # ou, se for tudo:
 git reset --hard <commit-bom>  # CUIDADO: descarta mudancas locais nao commitadas
+
+docker compose build app nginx   # reconstroi as imagens com o codigo revertido
+RPZ_ENV_FILE=/etc/dns-panel-rpz/app.env docker compose --profile cutover up -d   # recria os containers com a imagem nova
+docker compose restart nginx     # IMPORTANTE: o container app recriado troca de IP interno; sem isso o nginx
+                                  # continua apontando pro IP antigo e o site cai com 502 ate reiniciar o nginx
 ```
 
-Depois de qualquer reversão de código: `php artisan migrate:status` pra conferir se alguma migration ficou "à frente" do código revertido (isso pode quebrar o schema — nesse caso, restaurar backup do banco em vez de só reverter código).
+Depois de qualquer reversão de código: `docker compose exec app php artisan migrate:status` pra conferir se alguma migration ficou "à frente" do código revertido (isso pode quebrar o schema — nesse caso, restaurar backup do banco em vez de só reverter código).
 
 ## Onde tudo mora
 
 | O quê | Onde |
 |---|---|
-| Logs da aplicação | `storage/logs/laravel.log` |
-| Logs das listas externas | `storage/logs/external-sync.log` |
-| Logs do healthcheck | `storage/logs/health-check.log` |
-| Backups do banco | `database/backups/*.bak` |
-| Config real de infra (nginx/systemd/fail2ban) | `/etc/nginx`, `/etc/systemd/system`, `/etc/fail2ban` — cópias versionadas em [`deploy/`](deploy/) |
+| Logs da aplicação/queue/scheduler/external-sync | `docker compose logs <serviço>` (LOG_CHANNEL=stderr, não tem mais arquivo `storage/logs/*.log`) |
+| Logs do healthcheck | `journalctl -u dns-panel-rpz-healthcheck.service` |
+| Logs do Certbot/renovação | `journalctl -u dns-panel-rpz-certbot-renew.service`, ou `certbot/logs/` dentro do repo |
+| Banco (SQLite) | volume `dns-panel-rpz-data` (`/data/database.sqlite` dentro dos containers) |
+| Backups do banco | volume `dns-panel-rpz-backups` (`docker compose exec backup ls -la /backups`) |
+| Certificado TLS ativo (servido pelo nginx de borda) | `/etc/nginx/tls/rpz.trevizamnetwork.com.br/` |
+| Certificado TLS emitido pelo Certbot (origem) | `certbot/conf/live/rpz.trevizamnetwork.com.br/` (dentro do repo, não versionado) |
+| Config real de infra (nginx/systemd/fail2ban/scripts) | `/etc/nginx`, `/etc/systemd/system`, `/etc/fail2ban`, `/usr/local/sbin/dns-panel-rpz-*` — cópias versionadas em [`deploy/`](deploy/) |
 | Histórico de ações do sistema | `/auditoria` no painel |
-| Ameaças de segurança (SSH, saúde do servidor) | `/seguranca` no painel |
+| Ameaças de segurança (SSH banido pelo fail2ban, saúde do servidor) | `/seguranca` no painel |
 | CI (roda testes a cada push) | GitHub Actions, repo `TrevizamNetwork001/dns-panel-rpz` |

@@ -1,7 +1,0 @@
-[Unit]
-Description=Backup do banco SQLite do DNS Panel RPZ
-
-[Service]
-Type=oneshot
-User=devops
-ExecStart=/opt/dns-panel-rpz/scripts/backup-db.sh

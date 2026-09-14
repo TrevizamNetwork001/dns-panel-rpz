@@ -42,6 +42,7 @@ class SegurancaController extends Controller
 
         $alertasSaude = AuditLog::where('action', 'like', 'health.%')
             ->where('action', '!=', 'health.ok')
+            ->where('created_at', '>=', now()->subDays(7))
             ->orderByDesc('id')
             ->limit(15)
             ->get();

@@ -109,7 +109,7 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 
 ## Healthcheck (disco, certificado, disponibilidade)
 
-- `php artisan health:check` roda a cada 30min via `systemd timer` (`dns-panel-rpz-healthcheck.timer`, como **root** — precisa disso pra ler o certificado do Let's Encrypt, que fica com permissão restrita mesmo para `www-data`).
+- `php artisan health:check` roda a cada 30min via `systemd timer` (`dns-panel-rpz-healthcheck.timer`), como **root** no host — chama [`deploy/scripts/dns-panel-rpz-healthcheck-docker`](deploy/scripts/dns-panel-rpz-healthcheck-docker), que sobe um container descartável (`docker compose run`) montando o certificado do Let's Encrypt (`/etc/nginx/tls/...`) como somente-leitura.
 - Verifica: uso de disco (alerta a partir de 85%), validade do certificado TLS (alerta a partir de 14 dias), e se `https://rpz.trevizamnetwork.com.br/up` responde 200.
 - Quando está tudo OK, grava um `health.ok` silencioso (só pra saber "checou pela última vez há X min"). Quando encontra algo, grava um evento por problema (`health.disk_low`, `health.cert_expiring`, `health.site_down`, `health.cert_unreadable`) — aparece em `/seguranca` (card dedicado + alertas) e em `/auditoria`.
 - Quando encontra um problema, também envia um alerta consolidado pelo Telegram configurado no painel. Falhas no Telegram não mascaram nem interrompem o healthcheck; os eventos continuam registrados na auditoria e em `/seguranca`.
@@ -125,16 +125,16 @@ Quando alguém se cadastra pelo formulário público (`/cadastro`), o painel man
 
 ## Infraestrutura (servidor `paineldns`)
 
-- Laravel 13 + SQLite (`database/database.sqlite`), PHP 8.4-FPM, Nginx.
-- HTTPS via Let's Encrypt (`certbot --nginx`), renovação automática.
-- Config real do Nginx e dos timers ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
-- Backup diário do SQLite via `systemd timer` (03:30, retém 14 dias) — script em `scripts/backup-db.sh`.
-- Logs (`storage/logs/*.log`) rotacionam semanalmente via `logrotate` (retém 8 semanas, comprime) — config em `/etc/logrotate.d/dns-panel-rpz`.
-- Sync das listas externas via `systemd timer` a cada 6h — script em `scripts/sync-external-listas.sh`.
-- Healthcheck (disco/certificado/site) via `systemd timer` a cada 30min — script em `scripts/health-check.sh`.
-- `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`) servido como `default_server` do Nginx, exibe a página "Esta página está bloqueada" para qualquer Host desconhecido (inclui o modo `redirect` do RPZ). O painel antigo (`dns-panel-central`) e este painel continuam com seus próprios vhosts nominais — só o catch-all mudou de dono.
-- Timezone da aplicação: `America/Sao_Paulo`.
-- `memory_limit` do PHP-FPM em 256M (`/etc/php/8.4/fpm/php.ini`) — a geração do zonefile RPZ consulta domínios via `DB::table()` puro (sem hidratar models Eloquent) de propósito, pra aguentar listas de dezenas de milhares de domínios (feeds de threat intel) sem estourar memória. Testado com 90k+ domínios reais e 20k num teste automatizado simulando 128M de limite.
+Desde set/2026 a aplicação roda em **Docker** (`docker compose`, ver [`compose.yml`](compose.yml) e [`Dockerfile`](Dockerfile)). Só ficam direto no host: nginx de borda (TLS), Certbot, fail2ban e os timers systemd de healthcheck/renovação de certificado — tudo documentado com mais detalhe em [`deploy/README.md`](deploy/README.md) e no [`RUNBOOK.md`](RUNBOOK.md).
+
+- Laravel 13 + SQLite (volume Docker `dns-panel-rpz-data`, `/data/database.sqlite` dentro do container), PHP 8.4-FPM (Alpine, container `app`), Nginx (container `nginx`, interno em `127.0.0.1:8082`, atrás de um Nginx de borda no host cuidando de TLS).
+- Serviços: `app` (web/PHP-FPM), `nginx` (proxy interno), `queue` (`queue:work`, fila de extração de PDFs ANATEL e progresso da UI), `scheduler` (`schedule:work`), `external-sync` (loop próprio, sincroniza listas externas a cada `AUTOMATION_INTERVAL`, padrão 6h), `backup` (loop próprio, backup diário do SQLite, retém 14 dias). Ver `compose.yml`.
+- HTTPS via Let's Encrypt, emitido por um container `certbot/certbot` descartável (timer systemd `dns-panel-rpz-certbot-renew`, 2x/dia) e copiado/validado pro nginx de borda por [`deploy/scripts/dns-panel-rpz-deploy-certificate`](deploy/scripts/dns-panel-rpz-deploy-certificate) (com `nginx -t` + rollback automático se algo der errado).
+- Config real do Nginx de borda e dos timers ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
+- Logs da aplicação/queue/scheduler/external-sync vão para `stdout`/`stderr` (`LOG_CHANNEL=stderr`), capturados pelo driver `json-file` do Docker com rotação embutida (`max-size 10m`, `max-file 3` por container) — não existe mais `storage/logs/*.log` nem `logrotate` pra isso. Ver com `docker compose logs -f <serviço>`.
+- `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`) servido como `default_server` do Nginx de borda, exibe a página "Esta página está bloqueada" para qualquer Host desconhecido (inclui o modo `redirect` do RPZ). O painel antigo (`dns-panel-central`) e este painel continuam com seus próprios vhosts nominais — só o catch-all mudou de dono.
+- Timezone da aplicação: `America/Sao_Paulo` (default do código em `config/app.php`, também setado explicitamente em `APP_TIMEZONE` no env de produção).
+- `mem_limit` do container `app` em 768M (ver `compose.yml`) — a geração do zonefile RPZ consulta domínios via `DB::table()` puro (sem hidratar models Eloquent) de propósito, pra aguentar listas de dezenas de milhares de domínios (feeds de threat intel) sem estourar memória. Testado com 90k+ domínios reais e 20k num teste automatizado simulando 128M de limite.
 
 ## Rodando localmente
 
@@ -185,7 +185,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 - Se quiser HTTPS de verdade, precisa de um subdomínio próprio (ex: `staging.rpz.trevizamnetwork.com.br`) apontando pro IP da VM — sem isso, o Certbot não emite certificado. Sem HTTPS também funciona pra teste, só perde a paridade com produção nesse ponto.
 - `bind9-utils` é necessário pro teste que valida o zonefile com `named-checkzone` — sem ele, `php artisan test` falha um teste específico (mesma pegadinha que aconteceu no CI, ver `.github/workflows/tests.yml`).
 - **Não** copie o `database.sqlite` de produção pra lá sem anonimizar antes (tem e-mail e dados reais de cliente) — comece com um banco vazio + o admin de teste do tinker acima.
-- Timers/fail2ban/logrotate de produção (`deploy/systemd/`, `deploy/fail2ban/`, `deploy/logrotate/`) são opcionais numa VM de teste — copie só o que fizer sentido testar.
+- Timers/fail2ban de produção (`deploy/systemd/`, `deploy/fail2ban/`, `deploy/scripts/`) são opcionais numa VM de teste — copie só o que fizer sentido testar. Essa seção descreve um setup local sem Docker só pra teste rápido; produção roda em Docker (ver "Infraestrutura" acima).
 
 ## Testes automatizados
 
