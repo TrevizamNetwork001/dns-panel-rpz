@@ -145,7 +145,8 @@ Além do backup local diário do SQLite (`database/backups/*.bak` dentro do volu
 
 - Configurável 100% pela UI (`/configuracoes` → aba **Backup**), mesmo padrão do Telegram: Account ID, nome do bucket, Access Key ID e Secret Access Key de um token R2 escopado só àquele bucket (**Object Read & Write**, não "Admin Read & Write" da conta toda). Toggle pra ligar/desligar sem perder a config, botão "Testar conexão" e botão **"Fazer backup agora"** (dispara na hora, sem esperar o timer).
 - `App\Services\R2BackupUploader` fala com o R2 via driver `s3` do Laravel (R2 é compatível com a API S3) — credenciais lidas da tabela `settings` com fallback pro `.env` (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`). Erros nunca vazam a secret key no texto (o SDK da AWS às vezes inclui isso na exceção crua) — sempre mensagem curta genérica, com o detalhe indo só pro log.
-- `php artisan backup:run` (novo comando) roda o script local de sempre (`rpz-backup`) e, se o R2 estiver configurado e ativo, envia o arquivo mais recente pro bucket em seguida. O timer systemd de backup diário chama esse comando — o envio externo já acontece sozinho, sem trabalho manual.
+- **Retenção própria no R2** (`R2_KEEP_DAYS`, padrão 30 dias — configurável na mesma tela): depois de cada envio bem-sucedido, `pruneOldBackups()` apaga do bucket os `database.sqlite.auto-*.bak` mais antigos que o prazo, sem tocar em nada mais que esteja na pasta `backups/`. Prazo maior que os 14 dias do backup local de propósito — storage no R2 é barato, vale manter mais histórico fora do servidor.
+- `php artisan backup:run` (novo comando) roda o script local de sempre (`rpz-backup`), envia o arquivo mais recente pro bucket se o R2 estiver configurado e ativo, e limpa os antigos em seguida. O timer systemd de backup diário chama esse comando — o envio externo e a limpeza já acontecem sozinhos, sem trabalho manual.
 - Cada backup (local ou com envio ao R2) e cada teste de conexão gera um evento em `/auditoria` (`backup.r2_uploaded`, `backup.r2_failed`, `backup.manual_triggered`, etc).
 - **Nota de infraestrutura**: o comando roda tanto no container dedicado `backup` (loop automático) quanto no container `app` (quando disparado pela tela) — os dois precisam do volume `rpz-backups:/backups` montado (ver `compose.yml`).
 
@@ -219,7 +220,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-339 testes / 2.367 assertions cobrindo os pontos mais críticos:
+342 testes / 2.372 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP obrigatória mesmo com restrição desligada, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
 - `tests/Feature/RegistrationTurnstileTest.php` — CAPTCHA no cadastro público (sem configuração, sem token, token válido, token rejeitado pela Cloudflare, Cloudflare fora do ar).
