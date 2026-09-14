@@ -95,14 +95,14 @@
         @endif
 
         @if ($lista->isAnatel())
-        <div class="panel details-card-wide">
+        <div class="panel">
             <div class="panel-header"><h2>ANATEL / PDF</h2><div><a href="{{ route('anatel.exclusions',$lista) }}" class="button button-secondary">Exclusões</a> <a href="{{ route('anatel.history',$lista) }}" class="button button-secondary">Histórico</a></div></div>
             <p>{{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios ativos. A importação é incremental e nunca remove domínios ausentes de um PDF novo.</p>
             @if(auth()->user()->isAdmin()) <a class="button button-primary" href="{{ route('anatel.dashboard') }}">Importar PDFs</a> @endif
         </div>
         @endif
 
-        <div class="panel">
+        <div class="panel details-card-wide">
             <div class="panel-header"><h2>Endpoints RPZ vinculados</h2></div>
             @if ($lista->servidores->isEmpty())
                 <div class="empty-state"><span>Nenhum endpoint vinculado.</span></div>

@@ -1877,6 +1877,11 @@ input.endpoint-code-field:focus {
 
 .admin-fontes-summary .details-list > div {
     padding: 9px 0;
+    grid-template-columns: minmax(120px, auto) 1fr;
+}
+
+.admin-fontes-summary .details-list dd {
+    text-align: left;
 }
 
 .admin-fontes-preview-note {
