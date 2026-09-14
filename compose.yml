@@ -45,6 +45,11 @@ services:
     <<: *app
     depends_on:
       init: {condition: service_completed_successfully}
+    volumes:
+      - rpz-data:/data
+      - rpz-storage:/var/www/html/storage
+      - rpz-cache:/var/www/html/bootstrap/cache
+      - rpz-backups:/backups
     read_only: true
     tmpfs: [/tmp]
     cpus: "1.00"
