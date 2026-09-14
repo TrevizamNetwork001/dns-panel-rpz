@@ -88,7 +88,7 @@ services:
   queue:
     <<: *app
     profiles: [cutover]
-    command: ["php", "artisan", "queue:work", "database", "--sleep=1", "--tries=1", "--timeout=180", "--max-time=3600"]
+    command: ["php", "artisan", "queue:work", "database", "--sleep=1", "--tries=1", "--timeout=360", "--max-time=3600"]
     depends_on:
       init: {condition: service_completed_successfully}
     healthcheck: {disable: true}
