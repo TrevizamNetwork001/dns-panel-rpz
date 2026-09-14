@@ -56,7 +56,7 @@ class RpzZonefileTest extends TestCase
 
     public function test_zonefile_always_includes_canary_domain_as_nxdomain(): void
     {
-        $servidor = Servidor::factory()->create();
+        $servidor = Servidor::factory()->openAccess()->create();
 
         $response = $this->get("/rpz/{$servidor->token}.zone");
 
@@ -67,7 +67,7 @@ class RpzZonefileTest extends TestCase
 
     public function test_zonefile_includes_active_domains_from_linked_active_listas(): void
     {
-        $servidor = Servidor::factory()->create();
+        $servidor = Servidor::factory()->openAccess()->create();
         $lista = Lista::factory()->create(['status' => 'active']);
         Dominio::factory()->for($lista)->create(['dominio' => 'malicioso.example']);
         $servidor->listas()->attach($lista);
@@ -80,7 +80,7 @@ class RpzZonefileTest extends TestCase
 
     public function test_zonefile_excludes_inactive_domains(): void
     {
-        $servidor = Servidor::factory()->create();
+        $servidor = Servidor::factory()->openAccess()->create();
         $lista = Lista::factory()->create(['status' => 'active']);
         Dominio::factory()->for($lista)->inativo()->create(['dominio' => 'desativado.example']);
         $servidor->listas()->attach($lista);
@@ -92,7 +92,7 @@ class RpzZonefileTest extends TestCase
 
     public function test_zonefile_excludes_domains_from_inactive_listas(): void
     {
-        $servidor = Servidor::factory()->create();
+        $servidor = Servidor::factory()->openAccess()->create();
         $lista = Lista::factory()->inactive()->create();
         Dominio::factory()->for($lista)->create(['dominio' => 'lista-inativa.example']);
         $servidor->listas()->attach($lista);
@@ -104,7 +104,7 @@ class RpzZonefileTest extends TestCase
 
     public function test_zonefile_skips_owner_that_overflows_when_rpz_zone_name_is_appended(): void
     {
-        $servidor = Servidor::factory()->create();
+        $servidor = Servidor::factory()->openAccess()->create();
         $lista = Lista::factory()->create();
         $servidor->listas()->attach($lista);
         $tooLongForRelativeOwner = implode('.', [
@@ -124,7 +124,7 @@ class RpzZonefileTest extends TestCase
 
     public function test_nxdomain_mode_uses_cname_root(): void
     {
-        $servidor = Servidor::factory()->create(['bloqueio_modo' => 'nxdomain']);
+        $servidor = Servidor::factory()->openAccess()->create(['bloqueio_modo' => 'nxdomain']);
         $lista = Lista::factory()->create();
         Dominio::factory()->for($lista)->create(['dominio' => 'bloqueado.example']);
         $servidor->listas()->attach($lista);
@@ -136,7 +136,7 @@ class RpzZonefileTest extends TestCase
 
     public function test_redirect_mode_uses_cname_to_panel_host(): void
     {
-        $servidor = Servidor::factory()->redirect()->create();
+        $servidor = Servidor::factory()->openAccess()->redirect()->create();
         $lista = Lista::factory()->create();
         Dominio::factory()->for($lista)->create(['dominio' => 'bloqueado.example']);
         $servidor->listas()->attach($lista);
@@ -173,9 +173,16 @@ class RpzZonefileTest extends TestCase
         $this->get("/rpz/{$servidor->token}.zone")->assertStatus(200);
     }
 
+    public function test_server_without_any_registered_ip_returns_404_even_with_restriction_disabled(): void
+    {
+        $servidor = Servidor::factory()->create(['ip_restriction_enabled' => false]);
+
+        $this->get("/rpz/{$servidor->token}.zone")->assertStatus(404);
+    }
+
     public function test_fetching_zonefile_creates_sync_log_and_updates_last_synced_at(): void
     {
-        $servidor = Servidor::factory()->create();
+        $servidor = Servidor::factory()->openAccess()->create();
 
         $this->assertNull($servidor->last_synced_at);
 
@@ -188,7 +195,7 @@ class RpzZonefileTest extends TestCase
 
     public function test_zonefile_is_valid_dns_zone_syntax(): void
     {
-        $servidor = Servidor::factory()->create();
+        $servidor = Servidor::factory()->openAccess()->create();
         $lista = Lista::factory()->create();
         Dominio::factory()->for($lista)->create(['dominio' => 'exemplo-malicioso.test']);
         $servidor->listas()->attach($lista);
@@ -212,7 +219,7 @@ class RpzZonefileTest extends TestCase
         // threat intel grandes (dezenas de milhares de dominios). Simula esse
         // limite aqui pra garantir que a consulta enxuta (DB::table) nao volte
         // a esse padrao sem que o teste acuse.
-        $servidor = Servidor::factory()->create();
+        $servidor = Servidor::factory()->openAccess()->create();
         $lista = Lista::factory()->create();
         $servidor->listas()->attach($lista);
 

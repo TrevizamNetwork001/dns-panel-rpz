@@ -185,7 +185,7 @@ class AnatelIntegrationTest extends TestCase
 
     public function test_rpz_uses_only_active_anatel_domains(): void
     {
-        $server = Servidor::factory()->create();
+        $server = Servidor::factory()->openAccess()->create();
         $server->listas()->attach($this->lista);
         Dominio::factory()->for($this->lista)->create(['dominio' => 'ativo.example']);
         Dominio::factory()->for($this->lista)->inativo()->create(['dominio' => 'inativo.example']);

@@ -91,11 +91,18 @@ class Servidor extends Model
 
     public function ipAllowed(string $ip): bool
     {
+        $rules = $this->allowedIps()->where('status', 'active')->pluck('ip_cidr');
+
+        // Sem nenhum IP cadastrado, o servidor não recebe o zonefile de jeito
+        // nenhum — o toggle "restrição de IP" só controla se a lista de IPs
+        // cadastrados é aplicada ou não, não serve mais de bypass total.
+        if ($rules->isEmpty()) {
+            return false;
+        }
+
         if (! $this->ip_restriction_enabled) {
             return true;
         }
-
-        $rules = $this->allowedIps()->where('status', 'active')->pluck('ip_cidr');
 
         foreach ($rules as $cidr) {
             if (self::ipMatchesCidr($ip, $cidr)) {
