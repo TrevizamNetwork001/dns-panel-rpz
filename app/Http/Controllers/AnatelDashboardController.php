@@ -53,7 +53,7 @@ class AnatelDashboardController extends Controller
     {
         $import->load('lista');
 
-        return response()->json(['id' => $import->id, 'status' => $import->status, 'progress' => $import->progress, 'filename' => $import->original_filename, 'finished_at' => optional($import->finished_at)->format('d/m/Y H:i:s'), 'new' => $import->new_count, 'existing' => $import->existing_count, 'reactivated' => $import->reactivated_count, 'excluded' => $import->excluded_count, 'invalid' => $import->invalid_count, 'total_active' => $import->lista->dominios()->where('ativo', true)->count(), 'endpoints' => $import->lista->servidores()->count(), 'preview_url' => $import->status === 'awaiting_approval' ? route('anatel.preview', $import) : null, 'new_url' => $import->status === 'completed' ? route('anatel.imports.new', [$import->lista, $import]) : null]);
+        return response()->json(['id' => $import->id, 'status' => $import->status, 'status_label' => $import->status_label, 'progress' => $import->progress, 'filename' => $import->original_filename, 'finished_at' => optional($import->finished_at)->format('d/m/Y H:i:s'), 'new' => $import->new_count, 'existing' => $import->existing_count, 'reactivated' => $import->reactivated_count, 'excluded' => $import->excluded_count, 'invalid' => $import->invalid_count, 'total_active' => $import->lista->dominios()->where('ativo', true)->count(), 'endpoints' => $import->lista->servidores()->count(), 'preview_url' => $import->status === 'awaiting_approval' ? route('anatel.preview', $import) : null, 'new_url' => $import->status === 'completed' ? route('anatel.imports.new', [$import->lista, $import]) : null]);
     }
 
     public function preview(AnatelImport $import, Request $request): View
