@@ -94,7 +94,9 @@ Controle de acesso é feito via middleware `auth` (tudo exceto login/cadastro/RP
 
 ## Cadastro público e aprovação
 
-`/cadastro` — a empresa se registra sozinha (nome, responsável, e-mail, senha). Fica com status `pending` e o usuário já é logado automaticamente, mas **não consegue criar servidor** até o admin:
+`/cadastro` — a empresa se registra sozinha (nome, responsável, e-mail, senha). Protegido por honeypot (campo escondido, `website`) + rate-limit (10 req/min por IP) + **Cloudflare Turnstile** (CAPTCHA, opcional — só ativa se `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` estiverem configurados; sem eles, o formulário funciona normalmente sem CAPTCHA). A validação do token acontece direto com a API da Cloudflare (`App\Rules\ValidTurnstileToken`); falha de comunicação com a Cloudflare rejeita o cadastro com mensagem clara em vez de mascarar o problema.
+
+Fica com status `pending` e o usuário já é logado automaticamente, mas **não consegue criar servidor** até o admin:
 
 1. Editar a empresa e trocar o status para `active`;
 2. Criar uma licença para ela.
@@ -109,7 +111,8 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - `.env`, `.git` e arquivos de config bloqueados via Nginx (fora da webroot / regra de negação de dotfiles).
 - Cookie de sessão com nome neutro (`dns_panel_session`), `secure` (HTTPS), `httponly`, `samesite=lax`.
 - `expose_php` desligado (não revela versão do PHP no header).
-- Endpoint público do RPZ com rate-limit e checagem de empresa ativa (desativar uma empresa corta o serviço dos servidores dela).
+- Endpoint público do RPZ (e o feed MikroTik) com rate-limit, checagem de empresa ativa (desativar uma empresa corta o serviço dos servidores dela) e **ACL de IP obrigatória**: um servidor sem nenhum IP cadastrado não recebe o zonefile de jeito nenhum, mesmo com token válido — o toggle "restrição de IP" só controla se a lista de IPs cadastrados é aplicada ou não, não serve mais de bypass total (`Servidor::ipAllowed()`).
+- CAPTCHA (Cloudflare Turnstile) no cadastro público — ver seção acima.
 - Todos os models usam `$fillable` explícito (sem mass assignment amplo).
 
 ## Segurança do host (SSH / fail2ban)
@@ -125,6 +128,7 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - Verifica: uso de disco (alerta a partir de 85%), validade do certificado TLS (alerta a partir de 14 dias), e se `https://rpz.trevizamnetwork.com.br/up` responde 200.
 - Quando está tudo OK, grava um `health.ok` silencioso (só pra saber "checou pela última vez há X min"). Quando encontra algo, grava um evento por problema (`health.disk_low`, `health.cert_expiring`, `health.site_down`, `health.cert_unreadable`) — aparece em `/seguranca` (card dedicado + alertas) e em `/auditoria`.
 - Quando encontra um problema, também envia um alerta consolidado pelo Telegram configurado no painel. Falhas no Telegram não mascaram nem interrompem o healthcheck; os eventos continuam registrados na auditoria e em `/seguranca`.
+- Quando o healthcheck se recupera sozinho (a execução anterior tinha detectado problema e a atual está tudo OK), manda um aviso de recuperação (`✅ DNS Panel RPZ recuperado`) — só na transição problema→OK, não em toda execução normal, pra não virar ruído a cada 30min.
 
 ## Notificação por Telegram
 
@@ -134,6 +138,16 @@ Quando alguém se cadastra pelo formulário público (`/cadastro`), o painel man
 - Guardado na tabela `settings` (chave/valor genérica, `App\Models\Setting`) — dá pra reaproveitar pra outras configurações futuras sem migration nova.
 - Fallback pro `.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CADASTROS_CHAT_ID`, `TELEGRAM_CADASTROS_THREAD_ID`) enquanto ninguém configurou nada pela UI — assim que salvar algo pela tela, o banco tem prioridade.
 - Como achar o Chat ID e o ID do tópico: adicione o bot ao grupo, mande qualquer mensagem nele, acesse `https://api.telegram.org/bot<TOKEN>/getUpdates` no navegador — `chat.id` (negativo, pra grupos/supergrupos) e `message_thread_id` (se o grupo usa tópicos) aparecem na resposta.
+
+## Backup externo (Cloudflare R2)
+
+Além do backup local diário do SQLite (`database/backups/*.bak` dentro do volume `dns-panel-rpz-backups`, retém 14 dias), cada backup pode ser enviado também pra um bucket [Cloudflare R2](https://developers.cloudflare.com/r2/) — protege contra perda do servidor inteiro, não só corrupção do arquivo local.
+
+- Configurável 100% pela UI (`/configuracoes` → aba **Backup**), mesmo padrão do Telegram: Account ID, nome do bucket, Access Key ID e Secret Access Key de um token R2 escopado só àquele bucket (**Object Read & Write**, não "Admin Read & Write" da conta toda). Toggle pra ligar/desligar sem perder a config, botão "Testar conexão" e botão **"Fazer backup agora"** (dispara na hora, sem esperar o timer).
+- `App\Services\R2BackupUploader` fala com o R2 via driver `s3` do Laravel (R2 é compatível com a API S3) — credenciais lidas da tabela `settings` com fallback pro `.env` (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`). Erros nunca vazam a secret key no texto (o SDK da AWS às vezes inclui isso na exceção crua) — sempre mensagem curta genérica, com o detalhe indo só pro log.
+- `php artisan backup:run` (novo comando) roda o script local de sempre (`rpz-backup`) e, se o R2 estiver configurado e ativo, envia o arquivo mais recente pro bucket em seguida. O timer systemd de backup diário chama esse comando — o envio externo já acontece sozinho, sem trabalho manual.
+- Cada backup (local ou com envio ao R2) e cada teste de conexão gera um evento em `/auditoria` (`backup.r2_uploaded`, `backup.r2_failed`, `backup.manual_triggered`, etc).
+- **Nota de infraestrutura**: o comando roda tanto no container dedicado `backup` (loop automático) quanto no container `app` (quando disparado pela tela) — os dois precisam do volume `rpz-backups:/backups` montado (ver `compose.yml`).
 
 ## Infraestrutura (servidor `paineldns`)
 
@@ -205,9 +219,11 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-323 testes / 2.326 assertions cobrindo os pontos mais críticos:
+339 testes / 2.367 assertions cobrindo os pontos mais críticos:
 
-- `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
+- `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP obrigatória mesmo com restrição desligada, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
+- `tests/Feature/RegistrationTurnstileTest.php` — CAPTCHA no cadastro público (sem configuração, sem token, token válido, token rejeitado pela Cloudflare, Cloudflare fora do ar).
+- `tests/Feature/ConfiguracoesR2Test.php`, `tests/Unit/R2BackupUploaderTest.php` — backup externo R2 (persistência de config admin-only, secret preservada ao salvar sem repreencher, `isConfigured()` só true com tudo presente e ativo, falha rápida sem tocar rede quando não configurado).
 - `tests/Feature/RegistrationTelegramTest.php`, `tests/Feature/ConfiguracoesTelegramTest.php` — notificação de cadastro via Telegram (payload correto, cadastro não quebra se o Telegram falhar ou não estiver configurado, tela de configuração admin-only, token preservado ao salvar sem preencher de novo, toggle de pausa).
 - `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.
 - `tests/Feature/RoleAuthorizationTest.php` — isolamento admin vs cliente, inclusive entre empresas diferentes.

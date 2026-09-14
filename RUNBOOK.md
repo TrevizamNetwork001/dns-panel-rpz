@@ -77,6 +77,21 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
    docker compose exec app sqlite3 /data/database.sqlite "PRAGMA integrity_check;"
    ```
 
+## Servidor perdido / backup local também sumiu (restaurar do R2)
+
+Se o servidor inteiro se perdeu (não é só o banco — disco morto, VPS apagada) e o backup externo pro Cloudflare R2 estava ativo (`/configuracoes` → aba Backup), o backup mais recente está lá fora, independente do que aconteceu aqui.
+
+1. No servidor novo, depois de reinstalado o painel (ver `README.md`), baixe o backup mais recente do bucket. Mais simples com o `rclone` ou o AWS CLI configurado pro endpoint R2 (`https://<account_id>.r2.cloudflarestorage.com`, região `auto`), ou direto pela UI do R2 no dashboard da Cloudflare (Armazenamento de objetos → bucket → baixar o `.bak` mais recente em `backups/`).
+2. Copie o arquivo baixado pro volume `dns-panel-rpz-data` como `database.sqlite`:
+   ```bash
+   docker compose stop app queue scheduler external-sync backup
+   docker run --rm -v dns-panel-rpz-data:/data -v "$(pwd)":/restore alpine \
+     cp /restore/database.sqlite.auto-AAAAMMDD-HHMMSS.bak /data/database.sqlite
+   docker compose start app queue scheduler external-sync backup
+   ```
+3. Confira integridade e se os dados batem com o esperado antes de liberar o painel pros clientes: `docker compose exec app sqlite3 /data/database.sqlite "PRAGMA integrity_check;"`.
+4. Reconfigure as credenciais do R2 em `/configuracoes` → Backup assim que possível — elas não vêm no backup do banco (o Access Key/Secret ficam salvos na tabela `settings` **desse mesmo banco**, então se o banco restaurado já tinha isso configurado, já volta funcionando sozinho).
+
 ## Disco cheio / quase cheio
 
 Healthcheck já alerta a partir de 85% (`/seguranca`). Se chegou a esse ponto:
