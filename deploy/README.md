@@ -7,8 +7,7 @@ Cópias de referência da configuração de infraestrutura do servidor `paineldn
 Se você editar a configuração real no servidor, lembre de copiar a mudança pra cá também:
 
 ```bash
-cp /etc/nginx/sites-available/dns-panel-rpz-domain deploy/nginx/dns-panel-rpz-domain.conf
-cp /etc/nginx/sites-available/dns-blocked-page deploy/nginx/dns-blocked-page.conf
+cp /etc/nginx/sites-available/rpz-gateway.conf deploy/nginx/rpz-gateway.conf
 cp /etc/systemd/system/dns-panel-rpz-certbot-renew.* deploy/systemd/
 cp /etc/systemd/system/dns-panel-rpz-healthcheck.* deploy/systemd/
 cp /etc/fail2ban/jail.local deploy/fail2ban/jail.local
@@ -19,8 +18,8 @@ cp /usr/local/sbin/dns-panel-rpz-healthcheck-docker deploy/scripts/dns-panel-rpz
 
 ## Conteúdo
 
-- `nginx/dns-panel-rpz-domain.conf` — vhost do domínio `rpz.trevizamnetwork.com.br` (HTTP→HTTPS + certificado gerenciado pelo Certbot, proxy pro container nginx em `127.0.0.1:8082`).
-- `nginx/dns-blocked-page.conf` — vhost `default_server` (catch-all) que serve a página estática "Esta página está bloqueada" (`/opt/dns-blocked-page`) para qualquer Host desconhecido — usado pelo modo `redirect` do RPZ. Reutiliza o certificado do Certbot de `rpz.trevizamnetwork.com.br`.
+- `nginx/rpz-gateway.conf` — vhost real em produção (`/etc/nginx/sites-available/rpz-gateway.conf`) do domínio `rpz.trevizamnetwork.com.br` (HTTP→HTTPS + certificado do Certbot, proxy pro container nginx em `127.0.0.1:8082`). Renomeado durante a migração — chamava-se `dns-panel-rpz-domain` antes.
+- `nginx/dns-blocked-page.conf` — vhost `default_server` (catch-all) que serve a página estática "Esta página está bloqueada" (`/opt/dns-blocked-page`, restaurado do backup da migração) para qualquer Host desconhecido — usado pelo modo `redirect` do RPZ. **Não está ativo em produção**: o `default_server` da porta 443 nesse host está com `ircenter-gateway.conf` (outro site), não com este. Precisa de uma decisão de infra antes de habilitar — ver comentário no topo do arquivo.
 - `scripts/dns-panel-rpz-healthcheck-docker` — wrapper chamado pelo timer de healthcheck; monta `/etc/nginx/tls/...` como `/etc/letsencrypt/live/...` dentro de um container descartável (`docker compose run`) e roda `php artisan health:check`.
 - `scripts/dns-panel-rpz-security-log-ban` — wrapper chamado pelo hook do fail2ban; roda `php artisan security:log-ban` dentro do container `app` já em execução (`docker compose exec`), já que não há PHP no host.
 - `systemd/dns-panel-rpz-healthcheck.service` + `.timer` — healthcheck (disco, certificado TLS, disponibilidade do site) a cada 30min, rodando como root, via `scripts/dns-panel-rpz-healthcheck-docker`.
