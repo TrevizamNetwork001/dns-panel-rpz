@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\User;
+use App\Rules\ValidTurnstileToken;
 use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,10 @@ class RegistrationController extends Controller
     {
         $data = $request->validate([
             'website' => ['nullable', 'max:0'],
+            'cf-turnstile-response' => [
+                config('services.turnstile.secret_key') ? 'required' : 'nullable',
+                new ValidTurnstileToken($request->ip()),
+            ],
             'empresa_nome' => ['required', 'string', 'max:255'],
             'documento' => ['nullable', 'string', 'max:32'],
             'email_contato' => ['nullable', 'email', 'max:255'],
