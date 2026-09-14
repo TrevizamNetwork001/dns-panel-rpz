@@ -51,6 +51,11 @@ class TelegramNotifier
         return $this->send("🚨 <b>Alerta de saúde do DNS Panel RPZ</b>\n\n".implode("\n", $itens));
     }
 
+    public function notifyHealthRecovered(): bool
+    {
+        return $this->send('✅ <b>DNS Panel RPZ recuperado</b>'."\n\n".'O healthcheck voltou a passar: disco, certificado e site OK.');
+    }
+
     public function notifyRbl(string $texto): bool
     {
         return $this->send($texto);
