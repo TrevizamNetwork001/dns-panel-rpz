@@ -57,4 +57,26 @@ class R2BackupUploaderTest extends TestCase
 
         $this->assertSame('Arquivo local não encontrado.', $erro);
     }
+
+    public function test_keep_days_defaults_to_30(): void
+    {
+        $uploader = new R2BackupUploader;
+
+        $this->assertSame(30, $uploader->config()['keep_days']);
+    }
+
+    public function test_keep_days_can_be_overridden_by_setting(): void
+    {
+        \App\Models\Setting::set('r2_keep_days', '90');
+
+        $this->assertSame(90, (new R2BackupUploader)->config()['keep_days']);
+    }
+
+    public function test_prune_fails_fast_without_hitting_network_when_not_configured(): void
+    {
+        $resultado = (new R2BackupUploader)->pruneOldBackups();
+
+        $this->assertSame(0, $resultado['removidos']);
+        $this->assertSame('R2 não está configurado.', $resultado['erro']);
+    }
 }

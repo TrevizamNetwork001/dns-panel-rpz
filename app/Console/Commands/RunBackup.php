@@ -70,6 +70,18 @@ class RunBackup extends Command
             return self::FAILURE;
         }
 
+        $prune = $uploader->pruneOldBackups();
+        if ($prune['removidos'] > 0) {
+            AuditLog::create([
+                'user_id' => null,
+                'empresa_id' => null,
+                'action' => 'backup.r2_pruned',
+                'description' => "Backups antigos removidos do R2: {$prune['removidos']}",
+                'ip_address' => null,
+                'created_at' => now(),
+            ]);
+        }
+
         $this->info('Backup local e envio ao R2 concluídos.');
 
         return self::SUCCESS;

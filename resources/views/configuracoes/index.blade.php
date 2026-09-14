@@ -156,6 +156,13 @@
                             <small class="settings-note">{{ $r2['secret_access_key'] ? 'Já configurado · deixe em branco para manter' : '' }}</small>
                         </div>
                     </div>
+                    <div class="settings-fields">
+                        <div class="field-group">
+                            <label for="keep_days">Retenção no R2 (dias)</label>
+                            <input type="number" class="form-control settings-mono" id="keep_days" name="keep_days" value="{{ $r2['keep_days'] }}" min="1" max="365">
+                            <small class="settings-note">Backups mais antigos que isso são removidos automaticamente do bucket a cada rodada. Padrão: 30 dias.</small>
+                        </div>
+                    </div>
                 </form>
                 <div class="settings-actions">
                     <button type="submit" form="settings-r2-save" class="button button-primary">Salvar alterações</button>

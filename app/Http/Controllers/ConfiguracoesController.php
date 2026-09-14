@@ -83,11 +83,13 @@ class ConfiguracoesController extends Controller
             'access_key_id' => ['nullable', 'string', 'max:255'],
             'secret_access_key' => ['nullable', 'string', 'max:255'],
             'bucket' => ['nullable', 'string', 'max:255'],
+            'keep_days' => ['nullable', 'integer', 'min:1', 'max:365'],
         ]);
 
         Setting::set('r2_ativo', $request->boolean('ativo') ? '1' : '0');
         Setting::set('r2_account_id', $data['account_id'] ?? null);
         Setting::set('r2_bucket', $data['bucket'] ?? null);
+        Setting::set('r2_keep_days', $data['keep_days'] ?? null);
 
         if (filled($data['access_key_id'] ?? null)) {
             Setting::set('r2_access_key_id', $data['access_key_id']);

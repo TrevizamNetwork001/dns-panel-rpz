@@ -18,6 +18,7 @@ class R2BackupUploader
             'access_key_id' => Setting::get('r2_access_key_id') ?: config('services.r2.access_key_id'),
             'secret_access_key' => Setting::get('r2_secret_access_key') ?: config('services.r2.secret_access_key'),
             'bucket' => Setting::get('r2_bucket') ?: config('services.r2.bucket'),
+            'keep_days' => (int) (Setting::get('r2_keep_days') ?: config('services.r2.keep_days', 30)),
         ];
     }
 
@@ -71,6 +72,52 @@ class R2BackupUploader
             Log::warning('Exceção inesperada ao enviar backup pro R2', ['erro' => 'Falha inesperada.']);
 
             return 'Erro inesperado ao enviar pro R2.';
+        }
+    }
+
+    /**
+     * Apaga backups no R2 mais antigos que o prazo de retenção configurado
+     * (padrão 30 dias). Só mexe em arquivos database.sqlite.auto-*.bak —
+     * nunca no teste de conexão nem em qualquer outra coisa que alguém
+     * tenha colocado na pasta backups/ manualmente.
+     *
+     * @return array{removidos: int, erro: ?string}
+     */
+    public function pruneOldBackups(): array
+    {
+        if (! $this->isConfigured()) {
+            return ['removidos' => 0, 'erro' => 'R2 não está configurado.'];
+        }
+
+        $config = $this->config();
+        $limite = now()->subDays($config['keep_days'])->getTimestamp();
+
+        try {
+            $disk = $this->disk();
+            $removidos = 0;
+
+            foreach ($disk->listContents('backups') as $item) {
+                if ($item->isDir()) {
+                    continue;
+                }
+
+                $nome = basename($item->path());
+
+                if (! str_starts_with($nome, 'database.sqlite.auto-') || ! str_ends_with($nome, '.bak')) {
+                    continue;
+                }
+
+                if ($item->lastModified() !== null && $item->lastModified() < $limite) {
+                    $disk->delete($item->path());
+                    $removidos++;
+                }
+            }
+
+            return ['removidos' => $removidos, 'erro' => null];
+        } catch (\Throwable $e) {
+            Log::warning('Falha ao limpar backups antigos no R2', ['erro' => 'Falha de comunicação com R2.']);
+
+            return ['removidos' => 0, 'erro' => 'Falha ao limpar backups antigos no R2.'];
         }
     }
 

@@ -51,6 +51,7 @@ return [
         'access_key_id' => env('R2_ACCESS_KEY_ID'),
         'secret_access_key' => env('R2_SECRET_ACCESS_KEY'),
         'bucket' => env('R2_BUCKET'),
+        'keep_days' => (int) env('R2_KEEP_DAYS', 30),
     ],
 
 ];

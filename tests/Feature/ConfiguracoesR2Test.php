@@ -41,7 +41,10 @@ class ConfiguracoesR2Test extends TestCase
             'bucket' => 'dns-panel-rpz-backups',
             'access_key_id' => 'chave-acesso',
             'secret_access_key' => 'chave-secreta',
+            'keep_days' => '45',
         ])->assertRedirect();
+
+        $this->assertSame('45', Setting::get('r2_keep_days'));
 
         $this->assertSame('1', Setting::get('r2_ativo'));
         $this->assertSame('conta-123', Setting::get('r2_account_id'));
