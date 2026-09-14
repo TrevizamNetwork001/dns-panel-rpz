@@ -1,14 +1,14 @@
 @extends('layouts.app')
-@section('title','Importar PDFs ANATEL')
+@section('title','Importar PDFs e planilhas ANATEL')
 @section('content')
-<div class="page-heading"><div><div class="page-eyebrow">ANATEL</div><h1>Importar PDFs</h1><p>Atualize uma lista; endpoints já vinculados recebem os domínios na próxima sincronização.</p></div></div>
+<div class="page-heading"><div><div class="page-eyebrow">ANATEL</div><h1>Importar PDFs e planilhas</h1><p>Atualize uma lista; endpoints já vinculados recebem os domínios na próxima sincronização.</p></div></div>
 <div class="panel">
  @if($listas->isEmpty())
   <div class="empty-state"><span>Crie primeiro uma fonte do tipo ANATEL / PDF.</span><a href="{{ route('listas.create',['origem'=>'anatel']) }}" class="button button-primary">Criar fonte ANATEL</a></div>
  @else
  <form action="{{ route('anatel.dashboard.store') }}" method="POST" enctype="multipart/form-data">@csrf
   <div class="form-grid"><div class="field-group"><label for="lista_id">Lista de destino</label><select class="form-control" id="lista_id" name="lista_id" required>@foreach($listas as $lista)<option value="{{ $lista->id }}" @selected((int)request('lista')===$lista->id)>{{ $lista->nome }} — {{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios — {{ $lista->servidores_count }} endpoint(s)</option>@endforeach</select></div>
-  <div class="field-group"><label for="pdfs">PDFs</label><input class="form-control" id="pdfs" type="file" name="pdfs[]" accept="application/pdf,.pdf" multiple required><small>Até {{ config('anatel.max_files') }} PDFs, {{ (int)(config('anatel.max_pdf_kb')/1024) }} MB cada.</small></div></div>
+  <div class="field-group"><label for="pdfs">PDFs ou planilhas Excel</label><input class="form-control" id="pdfs" type="file" name="pdfs[]" accept="application/pdf,.pdf,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple required><small>Até {{ config('anatel.max_files') }} arquivos (PDF ou .xlsx), {{ (int)(config('anatel.max_pdf_kb')/1024) }} MB cada.</small></div></div>
   <button class="button button-primary" type="submit">Iniciar importação</button>
  </form>
  @endif

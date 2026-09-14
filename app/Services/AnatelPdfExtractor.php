@@ -6,6 +6,35 @@ use RuntimeException;
 
 class AnatelPdfExtractor
 {
+    /**
+     * Detecta o tipo real do arquivo pela assinatura binária (nunca pela extensão
+     * informada pelo cliente). Retorna a extensão de armazenamento ou null se não
+     * reconhecer nenhum formato suportado.
+     */
+    public function detectExtension(string $realPath): ?string
+    {
+        $head = @file_get_contents($realPath, false, null, 0, 8);
+        if ($head === false) {
+            return null;
+        }
+        if (str_starts_with($head, '%PDF-')) {
+            return 'pdf';
+        }
+        // .xlsx é um arquivo ZIP (assinatura "PK"); confirma que é mesmo uma
+        // planilha do Office e não outro formato baseado em ZIP (ex: .docx).
+        if (str_starts_with($head, "PK\x03\x04") || str_starts_with($head, "PK\x05\x06")) {
+            $zip = new \ZipArchive;
+            if ($zip->open($realPath) === true) {
+                $isXlsx = $zip->locateName('xl/workbook.xml') !== false;
+                $zip->close();
+
+                return $isXlsx ? 'xlsx' : null;
+            }
+        }
+
+        return null;
+    }
+
     public function extract(array $absolutePaths): array
     {
         $python = (string) config('anatel.python_bin');
