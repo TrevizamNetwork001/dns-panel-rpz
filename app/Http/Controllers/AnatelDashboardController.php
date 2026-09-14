@@ -112,14 +112,31 @@ class AnatelDashboardController extends Controller
         }, 'anatel-previa-'.$import->id.'.txt', ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 
-    public function batchPreview(Lista $lista): View
+    public function batchPreview(Lista $lista, Request $request): View
     {
         abort_unless($lista->isAnatel(), 404);
         $pending = $lista->anatelImports()->where('status', 'awaiting_approval')->orderBy('id')->get();
         $ids = $pending->pluck('id');
-        $domains = DB::table('anatel_import_domains')->whereIn('anatel_import_id', $ids)->select('domain')->selectRaw("CASE WHEN SUM(CASE WHEN result = 'excluded' THEN 1 ELSE 0 END) > 0 THEN 'excluded' WHEN SUM(CASE WHEN result = 'new' THEN 1 ELSE 0 END) > 0 THEN 'new' WHEN SUM(CASE WHEN result = 'reactivated' THEN 1 ELSE 0 END) > 0 THEN 'reactivated' ELSE 'existing' END as result")->selectRaw('COUNT(*) as occurrences')->groupBy('domain')->orderBy('domain')->paginate(100);
 
-        return view('anatel.batch', compact('lista', 'pending', 'domains'));
+        $agregado = DB::table('anatel_import_domains')
+            ->whereIn('anatel_import_id', $ids)
+            ->select('domain')
+            ->selectRaw("CASE WHEN SUM(CASE WHEN result = 'excluded' THEN 1 ELSE 0 END) > 0 THEN 'excluded' WHEN SUM(CASE WHEN result = 'new' THEN 1 ELSE 0 END) > 0 THEN 'new' WHEN SUM(CASE WHEN result = 'reactivated' THEN 1 ELSE 0 END) > 0 THEN 'reactivated' ELSE 'existing' END as result")
+            ->selectRaw('COUNT(*) as occurrences')
+            ->groupBy('domain');
+
+        $counts = DB::query()->fromSub($agregado, 'agregado')
+            ->select('result')->selectRaw('COUNT(*) as total')
+            ->groupBy('result')->pluck('total', 'result');
+
+        $filter = $request->input('result');
+        $domains = DB::query()->fromSub($agregado, 'agregado')
+            ->when(in_array($filter, ['new', 'existing', 'reactivated', 'excluded'], true), fn ($q) => $q->where('result', $filter))
+            ->orderBy('domain')
+            ->paginate(100)
+            ->withQueryString();
+
+        return view('anatel.batch', compact('lista', 'pending', 'domains', 'filter', 'counts'));
     }
 
     public function publishBatch(Lista $lista, AnatelImporter $importer): RedirectResponse
