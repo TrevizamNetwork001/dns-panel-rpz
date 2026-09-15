@@ -1,0 +1,17 @@
+.git
+.github
+.env
+.env.*
+!.env.docker.example
+database/*.sqlite*
+database/backups
+storage/app/private/*
+storage/logs/*
+vendor
+node_modules
+.venv*
+tests
+docs
+deploy
+Dockerfile*
+compose*.yml

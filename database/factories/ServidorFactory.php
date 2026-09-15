@@ -33,4 +33,19 @@ class ServidorFactory extends Factory
     {
         return $this->state(fn () => ['bloqueio_modo' => 'redirect']);
     }
+
+    /**
+     * Servidor::ipAllowed() bloqueia por padrão quando não há nenhum IP
+     * cadastrado (ver App\Models\Servidor::ipAllowed) — testes que não são
+     * sobre ACL de IP usam este estado pra liberar o IP de teste (127.0.0.1).
+     */
+    public function openAccess(): static
+    {
+        return $this->afterCreating(function (Servidor $servidor) {
+            $servidor->allowedIps()->create([
+                'ip_cidr' => '127.0.0.1/32',
+                'status' => 'active',
+            ]);
+        });
+    }
 }

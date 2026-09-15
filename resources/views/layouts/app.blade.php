@@ -151,6 +151,10 @@
                     <div class="alert-success">{{ session('status') }}</div>
                 @endif
 
+                @if (session('error'))
+                    <div class="alert-error">{{ session('error') }}</div>
+                @endif
+
                 @if ($errors->any())
                     <div class="alert-error">
                         <ul style="margin:0;padding-left:18px">

@@ -35,6 +35,9 @@ __pycache__/
 /database/*.sqlite-wal
 /database/backups/
 
+# Certbot: chaves privadas TLS e credenciais da conta Let's Encrypt (runtime, nunca versionar)
+/certbot/
+
 # Local source material / visual references (not application assets)
 /1234.png
 /Bloqueios_Dominios.zip

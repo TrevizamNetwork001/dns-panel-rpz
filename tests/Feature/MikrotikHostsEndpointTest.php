@@ -36,15 +36,23 @@ class MikrotikHostsEndpointTest extends TestCase
         $this->assertDatabaseHas('server_sync_logs', ['servidor_id' => $servidor->id, 'dominios_count' => 1]);
     }
 
-    public function test_company_feed_requires_acl_and_legacy_token_respects_optional_ip_restriction(): void
+    public function test_company_feed_requires_acl_and_token_feed_requires_at_least_one_registered_ip(): void
     {
         $empresa = Empresa::factory()->create(['rpz_slug' => 'mikrotik-acl']);
         $servidor = Servidor::factory()->for($empresa)->create(['tipo_dns' => 'mikrotik']);
 
         $this->get('/mikrotik/mikrotik-acl.hosts')->assertForbidden();
+        // Sem nenhum IP cadastrado, o token tambem nao funciona -- nao ha mais
+        // bypass total so por ter ip_restriction_enabled desligado.
+        $this->get("/mikrotik/{$servidor->token}.hosts")->assertNotFound();
+
+        ServerAllowedIp::create(['servidor_id' => $servidor->id, 'ip_cidr' => '127.0.0.1/32', 'status' => 'active']);
         $this->get("/mikrotik/{$servidor->token}.hosts")->assertOk();
 
         $servidor->update(['ip_restriction_enabled' => true]);
+        $this->get("/mikrotik/{$servidor->token}.hosts")->assertOk();
+
+        $servidor->allowedIps()->update(['ip_cidr' => '203.0.113.0/24']);
         $this->get("/mikrotik/{$servidor->token}.hosts")->assertNotFound();
     }
 

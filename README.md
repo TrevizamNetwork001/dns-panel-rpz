@@ -18,7 +18,7 @@ Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que ge
    O bloco `rpz:` precisa ficar **depois** do fim do bloco `server:` no `unbound.conf` (antes dele, se você usar `hyperlocal`). Rode `unbound-checkconf` antes de reiniciar o serviço, para garantir que a config está válida e o Unbound não caia no reload.
 3. O Unbound busca essa URL periodicamente. O painel responde com um zonefile RPZ válido: cabeçalho `SOA` com serial (timestamp Unix — cresce a cada geração, cabe em 32 bits), um domínio canário fixo (`blocktest.<host-do-painel>`, sempre `CNAME .`, usado para o cliente testar se a sincronização está funcionando) e uma linha `dominio CNAME <alvo>` + `*.dominio CNAME <alvo>` por domínio ativo nas listas vinculadas àquele servidor. O `<alvo>` depende do **modo de bloqueio** configurado em cada servidor:
    - `nxdomain` (padrão) — `CNAME .`, o domínio parece inexistente.
-   - `redirect` — `CNAME rpz.trevizamnetwork.com.br.`, resolve para o próprio painel, que serve uma página de aviso ("Esta página está bloqueada") em vez de NXDOMAIN. Depende do vhost Nginx dedicado `dns-blocked-page` estar configurado como `default_server` (ver Infraestrutura).
+   - `redirect` — `CNAME rpz.trevizamnetwork.com.br.`, resolve para o próprio painel, que serve uma página de aviso ("Esta página está bloqueada") em vez de NXDOMAIN. Depende do vhost Nginx dedicado `dns-blocked-page` estar configurado como `default_server` (ver Infraestrutura). **Pendente desde a migração para o servidor novo (set/2026)**: o `default_server` da porta 443 está sendo usado por outro site (`ircenter`), não pelo `dns-blocked-page` — nenhum servidor está configurado com esse modo no momento, mas o primeiro que configurar vai ver a página errada até isso ser resolvido.
 4. A rota é pública (não exige login — o Unbound não tem sessão), mas exige token válido, servidor ativo, **empresa ativa e licença ativa e vigente** (`Empresa::possuiLicencaAtiva()`), e tem rate-limit (60 req/min por IP). Sem licença ativa, a zona para de ser entregue mesmo que a empresa continue com status `active` — não é preciso um admin desativar a empresa manualmente quando a licença vence.
 5. Validado com `named-checkzone` (pacote `bind9-utils`) — sintaticamente correto mesmo com dezenas de milhares de domínios.
 
@@ -47,11 +47,24 @@ Além de listas manuais, o admin pode criar uma **Lista externa**: aponta uma UR
 - Admin pode pausar/reativar a sincronização por lista (não some a lista, só para de atualizar) — botão em `/listas` ou na página da lista.
 - **Proteção contra feed quebrado**: se um feed retornar menos de 100 domínios (sinal de formato mudado ou feed fora do ar), aquela lista específica é pulada sem ser alterada — evita esvaziar o bloqueio por engano. As outras listas continuam sincronizando normalmente.
 - Como qualquer lista de catálogo (`empresa_id = null`), fica disponível pra qualquer empresa vincular a um servidor normalmente.
-- Já vêm quatro listas pré-configuradas: [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo), [ThreatFox](https://threatfox.abuse.ch/) (C2/botnet), [Phishing Army](https://phishing.army/) (phishing) — as três gratuitas e sem chave de API — e **Anatel** (bloqueio judicial/regulatório), mantida por um pipeline próprio (Python extrai domínios dos PDFs que a Anatel publica, monta um `.txt` em formato `local-zone`, sobe via FTP) — o painel só consome a URL, atualiza sozinho a cada 6h. Pode editar a URL delas ou criar outras do zero. Testado com URLhaus+ThreatFox+Phishing Army somadas (~245k domínios, ~492k linhas no zonefile) em ~1,3s sem estourar memória.
+- Já vêm quatro listas pré-configuradas: [URLhaus](https://urlhaus.abuse.ch/) (malware/phishing ativo), [ThreatFox](https://threatfox.abuse.ch/) (C2/botnet), [Phishing Army](https://phishing.army/) (phishing) — as três gratuitas e sem chave de API — e **Anatel** (bloqueio judicial/regulatório), alimentada de duas formas complementares: um feed legado externo (pipeline próprio que extrai domínios dos PDFs, monta um `.txt` em formato `local-zone`, sobe via FTP — o painel só consome a URL a cada 6h) e upload manual de PDF/planilha direto no painel (ver seção "Importação ANATEL" abaixo). Pode editar a URL delas ou criar outras do zero. Testado com URLhaus+ThreatFox+Phishing Army somadas (~245k domínios, ~492k linhas no zonefile) em ~1,3s sem estourar memória.
 - **Histórico de alterações** (`/listas/{id}/historico`, acessível a admin e cliente): mostra domínios adicionados/removidos num período (hoje / 7 dias / 30 dias), com data e hora de cada mudança. Em listas grandes (muitas mudanças no período), a tabela domínio-por-domínio fica escondida automaticamente — só o resumo numérico aparece, pra não travar a página com milhares de linhas. "Removido" aqui é desativado (`ativo=false`), não apagado do banco.
   - A mesma página tem um gráfico de barras (adicionados/removidos por dia, agregado via SQL — não sofre o limite de linhas da tabela detalhada), SVG inline sem biblioteca JS de gráfico, com tooltip nativo (`<title>`) ao passar o mouse na barra. Cores validadas com o `validate_palette.js` da skill `dataviz` (verde `#1f9d73` / âmbar `#b87b28` — tons mais escuros que os tokens de UI padrão `--green`/`--amber`, porque os originais são claros demais pra marca de gráfico em modo escuro).
 - A lista **ANATEL principal** também incorpora, a cada `external:sync`, o feed legado configurado em `ANATEL_LEGACY_FEED_URL` (padrão: `https://trevizamnetwork.com.br/dns/lista_bloqueios.txt`). O arquivo pode continuar no formato antigo do Unbound (`local-zone`/`local-data`): o painel lê somente os domínios de `local-zone` e os converte internamente para o RPZ. Essa incorporação é aditiva: não remove domínios provenientes de PDFs e respeita as exclusões cadastradas na ANATEL.
 - **Log do servidor** (página do servidor, `/servidores/{id}`): uma única tabela cronológica (últimos 30 dias, últimos 80 eventos), no mesmo espírito da página de Auditoria global mas escopada a este servidor — mistura dois tipos de evento numa linha do tempo só: quando o Unbound do cliente veio buscar a zona (quantos domínios foram entregues naquela busca, IP de origem) e quando uma lista vinculada ganhou/perdeu domínios. Junto, dá pra ver causa e efeito: a lista muda num dia, e a sincronização seguinte já reflete isso na contagem entregue. Cada evento de lista linka pro histórico completo dela. Isolado por servidor: só mostra sync e listas de fato vinculadas a ele.
+
+## Importação ANATEL (PDF / Excel)
+
+Além do feed legado citado acima, a lista ANATEL também é alimentada manualmente: um admin sobe os ofícios oficiais (PDF ou planilha `.xlsx`) em `/anatel`, o painel extrai os domínios e monta uma **prévia** — nada é aplicado à lista até alguém aprovar.
+
+- **Formatos aceitos**: PDF e `.xlsx`. O tipo real do arquivo é validado pela assinatura binária (`%PDF-` ou ZIP com `xl/workbook.xml` dentro), nunca pela extensão que o navegador informou — um `.docx` renomeado pra `.xlsx`, por exemplo, é rejeitado. Até `ANATEL_MAX_FILES` arquivos por vez, `ANATEL_MAX_PDF_KB` cada.
+- **Extração** (`scripts/anatel_pdf_extract.py`, roda num venv Python isolado dentro do container): pra PDF, varre tabelas e texto de cada página (`pdfplumber`); pra Excel, varre célula por célula com `openpyxl` (não assume layout fixo de coluna). Os dois usam o mesmo regex de detecção de domínio e viram um único fluxo de normalização (`App\Services\DomainNormalizer`) — minúsculas, remove `www.` (redundante: o zonefile já gera `*.dominio`, então `www.x` cai no bloqueio de `x` de qualquer jeito), valida formato de FQDN, suporta IDN.
+- **Prévia antes de aplicar**: depois de extraído, cada domínio é classificado comparando com o que já está ativo na lista de destino — **Novo** (não existe ainda), **Existente** (já ativo, nada muda), **Reativado** (existia mas estava inativo) ou **Excluído** (bate com uma regra de exclusão manual da lista, ver `/listas/{id}/anatel/exclusions`). Como cada ofício da ANATEL costuma vir com a lista inteira atualizada (não só as novidades), a maioria de um arquivo novo normalmente já é "Existente" — só o que é de fato inédito aparece como "Novo".
+- **Proteção contra extração incoerente**: se o arquivo tiver 100+ candidatos mas menos de `ANATEL_BLOCKED_RATIO` (padrão 10%) resultarem em domínios válidos, a importação é bloqueada automaticamente (status `blocked`) sem tocar na lista — sinal de PDF/planilha corrompido ou formato mudado.
+- **Timeout de extração**: `ANATEL_EXTRACT_TIMEOUT` (padrão 300s/5min) — ofícios grandes (170+ páginas) podem levar 1-2min pra extrair. O timeout do worker da fila (`queue:work --timeout`, ver `compose.yml`) precisa ficar sempre acima desse valor, senão a fila mata o job antes do limite interno da extração disparar (foi exatamente isso que causou uma falha real: PDF de 170 páginas com processamento de ~1m40s estourando um timeout de 120s).
+- **Arquivo duplicado**: reenviar o mesmo arquivo (mesmo hash SHA-256) enquanto uma importação anterior dele ainda está pendente, processando ou já aplicada é rejeitado com mensagem clara — não deixa duplicar o trabalho nem a prévia.
+- Ação final em `/anatel/imports/{id}/preview`: **Aprovar e atualizar lista** (aplica os domínios de verdade) ou **Não enviar ao RPZ** (rejeita, lista intocada). Dá pra excluir a prévia e o arquivo a qualquer momento antes de aprovar.
+- Auditoria completa em `/auditoria` (quem subiu, quem aprovou/rejeitou, de qual IP) e histórico em `/listas/{id}/anatel/history`.
 
 ## Entidades
 
@@ -82,7 +95,9 @@ Controle de acesso é feito via middleware `auth` (tudo exceto login/cadastro/RP
 
 ## Cadastro público e aprovação
 
-`/cadastro` — a empresa se registra sozinha (nome, responsável, e-mail, senha). Fica com status `pending` e o usuário já é logado automaticamente, mas **não consegue criar servidor** até o admin:
+`/cadastro` — a empresa se registra sozinha (nome, responsável, e-mail, senha). Protegido por honeypot (campo escondido, `website`) + rate-limit (10 req/min por IP) + **Cloudflare Turnstile** (CAPTCHA, opcional — só ativa se `TURNSTILE_SITE_KEY`/`TURNSTILE_SECRET_KEY` estiverem configurados; sem eles, o formulário funciona normalmente sem CAPTCHA). A validação do token acontece direto com a API da Cloudflare (`App\Rules\ValidTurnstileToken`); falha de comunicação com a Cloudflare rejeita o cadastro com mensagem clara em vez de mascarar o problema.
+
+Fica com status `pending` e o usuário já é logado automaticamente, mas **não consegue criar servidor** até o admin:
 
 1. Editar a empresa e trocar o status para `active`;
 2. Criar uma licença para ela.
@@ -97,7 +112,10 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - `.env`, `.git` e arquivos de config bloqueados via Nginx (fora da webroot / regra de negação de dotfiles).
 - Cookie de sessão com nome neutro (`dns_panel_session`), `secure` (HTTPS), `httponly`, `samesite=lax`.
 - `expose_php` desligado (não revela versão do PHP no header).
-- Endpoint público do RPZ com rate-limit e checagem de empresa ativa (desativar uma empresa corta o serviço dos servidores dela).
+- Endpoint público do RPZ (e o feed MikroTik) com rate-limit, checagem de empresa ativa (desativar uma empresa corta o serviço dos servidores dela) e **ACL de IP obrigatória**: um servidor sem nenhum IP cadastrado não recebe o zonefile de jeito nenhum, mesmo com token válido — o toggle "restrição de IP" só controla se a lista de IPs cadastrados é aplicada ou não, não serve mais de bypass total (`Servidor::ipAllowed()`).
+- CAPTCHA (Cloudflare Turnstile) no cadastro público — ver seção acima.
+- Credenciais sensíveis salvas em `settings` (token do Telegram, Access Key/Secret do R2) ficam criptografadas (`Setting::getEncrypted()`/`setEncrypted()`, `Crypt::encryptString()` com a `APP_KEY`) — não é texto puro no banco.
+- Sync de listas externas com proteção contra SSRF: resolve o DNS do `fonte_url` e recusa buscar se algum IP resolvido cair em faixa privada/reservada (`FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE`) — impede apontar pra rede interna do servidor via `.local`/`localhost`/IP privado.
 - Todos os models usam `$fillable` explícito (sem mass assignment amplo).
 
 ## Segurança do host (SSH / fail2ban)
@@ -109,10 +127,11 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 
 ## Healthcheck (disco, certificado, disponibilidade)
 
-- `php artisan health:check` roda a cada 30min via `systemd timer` (`dns-panel-rpz-healthcheck.timer`, como **root** — precisa disso pra ler o certificado do Let's Encrypt, que fica com permissão restrita mesmo para `www-data`).
+- `php artisan health:check` roda a cada 30min via `systemd timer` (`dns-panel-rpz-healthcheck.timer`), como **root** no host — chama [`deploy/scripts/dns-panel-rpz-healthcheck-docker`](deploy/scripts/dns-panel-rpz-healthcheck-docker), que sobe um container descartável (`docker compose run`) montando o certificado do Let's Encrypt (`/etc/nginx/tls/...`) como somente-leitura.
 - Verifica: uso de disco (alerta a partir de 85%), validade do certificado TLS (alerta a partir de 14 dias), e se `https://rpz.trevizamnetwork.com.br/up` responde 200.
 - Quando está tudo OK, grava um `health.ok` silencioso (só pra saber "checou pela última vez há X min"). Quando encontra algo, grava um evento por problema (`health.disk_low`, `health.cert_expiring`, `health.site_down`, `health.cert_unreadable`) — aparece em `/seguranca` (card dedicado + alertas) e em `/auditoria`.
 - Quando encontra um problema, também envia um alerta consolidado pelo Telegram configurado no painel. Falhas no Telegram não mascaram nem interrompem o healthcheck; os eventos continuam registrados na auditoria e em `/seguranca`.
+- Quando o healthcheck se recupera sozinho (a execução anterior tinha detectado problema e a atual está tudo OK), manda um aviso de recuperação (`✅ DNS Panel RPZ recuperado`) — só na transição problema→OK, não em toda execução normal, pra não virar ruído a cada 30min.
 
 ## Notificação por Telegram
 
@@ -123,18 +142,29 @@ Quando alguém se cadastra pelo formulário público (`/cadastro`), o painel man
 - Fallback pro `.env` (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CADASTROS_CHAT_ID`, `TELEGRAM_CADASTROS_THREAD_ID`) enquanto ninguém configurou nada pela UI — assim que salvar algo pela tela, o banco tem prioridade.
 - Como achar o Chat ID e o ID do tópico: adicione o bot ao grupo, mande qualquer mensagem nele, acesse `https://api.telegram.org/bot<TOKEN>/getUpdates` no navegador — `chat.id` (negativo, pra grupos/supergrupos) e `message_thread_id` (se o grupo usa tópicos) aparecem na resposta.
 
+## Backup externo (Cloudflare R2)
+
+Além do backup local diário do SQLite (`database/backups/*.bak` dentro do volume `dns-panel-rpz-backups`, retém 14 dias), cada backup pode ser enviado também pra um bucket [Cloudflare R2](https://developers.cloudflare.com/r2/) — protege contra perda do servidor inteiro, não só corrupção do arquivo local.
+
+- Configurável 100% pela UI (`/configuracoes` → aba **Backup**), mesmo padrão do Telegram: Account ID, nome do bucket, Access Key ID e Secret Access Key de um token R2 escopado só àquele bucket (**Object Read & Write**, não "Admin Read & Write" da conta toda). Toggle pra ligar/desligar sem perder a config, botão "Testar conexão" e botão **"Fazer backup agora"** (dispara na hora, sem esperar o timer).
+- `App\Services\R2BackupUploader` fala com o R2 via driver `s3` do Laravel (R2 é compatível com a API S3) — credenciais lidas da tabela `settings` com fallback pro `.env` (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`). Erros nunca vazam a secret key no texto (o SDK da AWS às vezes inclui isso na exceção crua) — sempre mensagem curta genérica, com o detalhe indo só pro log.
+- **Retenção própria no R2** (`R2_KEEP_DAYS`, padrão 30 dias — configurável na mesma tela): depois de cada envio bem-sucedido, `pruneOldBackups()` apaga do bucket os `database.sqlite.auto-*.bak` mais antigos que o prazo, sem tocar em nada mais que esteja na pasta `backups/`. Prazo maior que os 14 dias do backup local de propósito — storage no R2 é barato, vale manter mais histórico fora do servidor.
+- `php artisan backup:run` (novo comando) roda o script local de sempre (`rpz-backup`), envia o arquivo mais recente pro bucket se o R2 estiver configurado e ativo, e limpa os antigos em seguida. O timer systemd de backup diário chama esse comando — o envio externo e a limpeza já acontecem sozinhos, sem trabalho manual.
+- Cada backup (local ou com envio ao R2) e cada teste de conexão gera um evento em `/auditoria` (`backup.r2_uploaded`, `backup.r2_failed`, `backup.manual_triggered`, etc).
+- **Nota de infraestrutura**: o comando roda tanto no container dedicado `backup` (loop automático) quanto no container `app` (quando disparado pela tela) — os dois precisam do volume `rpz-backups:/backups` montado (ver `compose.yml`).
+
 ## Infraestrutura (servidor `paineldns`)
 
-- Laravel 13 + SQLite (`database/database.sqlite`), PHP 8.4-FPM, Nginx.
-- HTTPS via Let's Encrypt (`certbot --nginx`), renovação automática.
-- Config real do Nginx e dos timers ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
-- Backup diário do SQLite via `systemd timer` (03:30, retém 14 dias) — script em `scripts/backup-db.sh`.
-- Logs (`storage/logs/*.log`) rotacionam semanalmente via `logrotate` (retém 8 semanas, comprime) — config em `/etc/logrotate.d/dns-panel-rpz`.
-- Sync das listas externas via `systemd timer` a cada 6h — script em `scripts/sync-external-listas.sh`.
-- Healthcheck (disco/certificado/site) via `systemd timer` a cada 30min — script em `scripts/health-check.sh`.
-- `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`) servido como `default_server` do Nginx, exibe a página "Esta página está bloqueada" para qualquer Host desconhecido (inclui o modo `redirect` do RPZ). O painel antigo (`dns-panel-central`) e este painel continuam com seus próprios vhosts nominais — só o catch-all mudou de dono.
-- Timezone da aplicação: `America/Sao_Paulo`.
-- `memory_limit` do PHP-FPM em 256M (`/etc/php/8.4/fpm/php.ini`) — a geração do zonefile RPZ consulta domínios via `DB::table()` puro (sem hidratar models Eloquent) de propósito, pra aguentar listas de dezenas de milhares de domínios (feeds de threat intel) sem estourar memória. Testado com 90k+ domínios reais e 20k num teste automatizado simulando 128M de limite.
+Desde set/2026 a aplicação roda em **Docker** (`docker compose`, ver [`compose.yml`](compose.yml) e [`Dockerfile`](Dockerfile)). Só ficam direto no host: nginx de borda (TLS), Certbot, fail2ban e os timers systemd de healthcheck/renovação de certificado — tudo documentado com mais detalhe em [`deploy/README.md`](deploy/README.md) e no [`RUNBOOK.md`](RUNBOOK.md).
+
+- Laravel 13 + SQLite (volume Docker `dns-panel-rpz-data`, `/data/database.sqlite` dentro do container), PHP 8.4-FPM (Alpine, container `app`), Nginx (container `nginx`, interno em `127.0.0.1:8082`, atrás de um Nginx de borda no host cuidando de TLS).
+- Serviços: `app` (web/PHP-FPM), `nginx` (proxy interno), `queue` (`queue:work`, fila de extração de PDF/Excel ANATEL e progresso da UI), `scheduler` (`schedule:work`), `external-sync` (loop próprio, sincroniza listas externas a cada `AUTOMATION_INTERVAL`, padrão 6h), `backup` (loop próprio, backup diário do SQLite, retém 14 dias). Ver `compose.yml`.
+- HTTPS via Let's Encrypt, emitido por um container `certbot/certbot` descartável (timer systemd `dns-panel-rpz-certbot-renew`, 2x/dia) e copiado/validado pro nginx de borda por [`deploy/scripts/dns-panel-rpz-deploy-certificate`](deploy/scripts/dns-panel-rpz-deploy-certificate) (com `nginx -t` + rollback automático se algo der errado).
+- Config real do Nginx de borda e dos timers ficam em `/etc/nginx` e `/etc/systemd/system` — cópias de referência versionadas em [`deploy/`](deploy/) (ver `deploy/README.md`; **não são lidas automaticamente pelo servidor**, precisam ser copiadas manualmente se você editar a config real).
+- Logs da aplicação/queue/scheduler/external-sync vão para `stdout`/`stderr` (`LOG_CHANNEL=stderr`), capturados pelo driver `json-file` do Docker com rotação embutida (`max-size 10m`, `max-file 3` por container) — não existe mais `storage/logs/*.log` nem `logrotate` pra isso. Ver com `docker compose logs -f <serviço>`.
+- `dns-blocked-page` — app estático separado (`/opt/dns-blocked-page`, arquivos restaurados do backup da migração), pensado pra ser servido como `default_server` do Nginx de borda e exibir "Esta página está bloqueada" pra qualquer Host desconhecido (inclui o modo `redirect` do RPZ). **Não está ativo no servidor atual**: o `default_server` da porta 443 pertence a `ircenter-gateway.conf` (outro site, sem relação com o RPZ) — ver aviso em [`deploy/nginx/dns-blocked-page.conf`](deploy/nginx/dns-blocked-page.conf).
+- Timezone da aplicação: `America/Sao_Paulo` (default do código em `config/app.php`, também setado explicitamente em `APP_TIMEZONE` no env de produção).
+- `mem_limit` do container `app` em 768M (ver `compose.yml`) — a geração do zonefile RPZ consulta domínios via `DB::table()` puro (sem hidratar models Eloquent) de propósito, pra aguentar listas de dezenas de milhares de domínios (feeds de threat intel) sem estourar memória. Testado com 90k+ domínios reais e 20k num teste automatizado simulando 128M de limite.
 
 ## Rodando localmente
 
@@ -185,7 +215,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 - Se quiser HTTPS de verdade, precisa de um subdomínio próprio (ex: `staging.rpz.trevizamnetwork.com.br`) apontando pro IP da VM — sem isso, o Certbot não emite certificado. Sem HTTPS também funciona pra teste, só perde a paridade com produção nesse ponto.
 - `bind9-utils` é necessário pro teste que valida o zonefile com `named-checkzone` — sem ele, `php artisan test` falha um teste específico (mesma pegadinha que aconteceu no CI, ver `.github/workflows/tests.yml`).
 - **Não** copie o `database.sqlite` de produção pra lá sem anonimizar antes (tem e-mail e dados reais de cliente) — comece com um banco vazio + o admin de teste do tinker acima.
-- Timers/fail2ban/logrotate de produção (`deploy/systemd/`, `deploy/fail2ban/`, `deploy/logrotate/`) são opcionais numa VM de teste — copie só o que fizer sentido testar.
+- Timers/fail2ban de produção (`deploy/systemd/`, `deploy/fail2ban/`, `deploy/scripts/`) são opcionais numa VM de teste — copie só o que fizer sentido testar. Essa seção descreve um setup local sem Docker só pra teste rápido; produção roda em Docker (ver "Infraestrutura" acima).
 
 ## Testes automatizados
 
@@ -193,9 +223,11 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-320 testes / 2.318 assertions cobrindo os pontos mais críticos:
+348 testes / 2.387 assertions cobrindo os pontos mais críticos:
 
-- `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
+- `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP obrigatória mesmo com restrição desligada, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
+- `tests/Feature/RegistrationTurnstileTest.php` — CAPTCHA no cadastro público (sem configuração, sem token, token válido, token rejeitado pela Cloudflare, Cloudflare fora do ar).
+- `tests/Feature/ConfiguracoesR2Test.php`, `tests/Unit/R2BackupUploaderTest.php` — backup externo R2 (persistência de config admin-only, secret preservada ao salvar sem repreencher, `isConfigured()` só true com tudo presente e ativo, falha rápida sem tocar rede quando não configurado).
 - `tests/Feature/RegistrationTelegramTest.php`, `tests/Feature/ConfiguracoesTelegramTest.php` — notificação de cadastro via Telegram (payload correto, cadastro não quebra se o Telegram falhar ou não estiver configurado, tela de configuração admin-only, token preservado ao salvar sem preencher de novo, toggle de pausa).
 - `tests/Feature/AuthTest.php` — login/logout, rate-limit de força bruta, log de falhas de autenticação.
 - `tests/Feature/RoleAuthorizationTest.php` — isolamento admin vs cliente, inclusive entre empresas diferentes.
@@ -204,6 +236,7 @@ php artisan test
 - `tests/Feature/ListaHistoryTest.php` — histórico de alterações por lista (acesso admin/cliente, domínios adicionados/removidos hoje, filtro de período, ocultação da tabela detalhada quando tem mudança demais).
 - `tests/Feature/ServidorListaAtividadeTest.php` — atividade agregada das listas vinculadas a um servidor (isolamento entre listas vinculadas e não vinculadas, acesso cliente ao próprio servidor).
 - `tests/Unit/ServidorIpMatchesCidrTest.php`, `tests/Unit/AuditLogBucketTest.php` — lógica pura (CIDR matching, classificação de severidade).
+- `tests/Unit/DomainNormalizerTest.php` — normalização de domínio (URL/maiúsculas/ponto final, rejeita IP e lixo de PDF, remove prefixo `www.` redundante).
 
 Usa banco SQLite em memória (`phpunit.xml`, `DB_DATABASE=:memory:`) — não toca no banco real. `Http::fake()` mockado nos testes que envolvem chamada externa (URLhaus).
 

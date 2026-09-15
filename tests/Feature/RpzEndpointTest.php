@@ -154,7 +154,7 @@ class RpzEndpointTest extends TestCase
 
     public function test_legacy_token_endpoint_keeps_working(): void
     {
-        [, $servidor] = $this->endpoint('legado');
+        [, $servidor] = $this->endpoint('legado', ['127.0.0.1/32']);
         $this->get("/rpz/{$servidor->token}.zone")->assertOk();
     }
 

@@ -1,7 +1,0 @@
-[Unit]
-Description=Sincroniza todas as listas externas do DNS Panel RPZ
-
-[Service]
-Type=oneshot
-User=devops
-ExecStart=/opt/dns-panel-rpz/scripts/sync-external-listas.sh

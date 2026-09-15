@@ -150,7 +150,7 @@ ZONE;
 
     public function test_operational_generation_uses_same_builder_format(): void
     {
-        $server = Servidor::factory()->create();
+        $server = Servidor::factory()->openAccess()->create();
         $server->listas()->attach($this->lista);
         Dominio::factory()->for($this->lista)->create(['dominio' => 'shared.example']);
         $expected = app(RpzZoneBuilder::class)->build(app(RpzZoneBuilder::class)->serverQuery($server->id), '.', (string) now()->timestamp);

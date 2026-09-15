@@ -12,7 +12,7 @@ class TelegramNotifier
     {
         return [
             'ativo' => Setting::get('telegram_ativo', '1') === '1',
-            'bot_token' => Setting::get('telegram_bot_token') ?: config('services.telegram.bot_token'),
+            'bot_token' => Setting::getEncrypted('telegram_bot_token') ?: config('services.telegram.bot_token'),
             'chat_id' => Setting::get('telegram_chat_id') ?: config('services.telegram.cadastros_chat_id'),
             'thread_id' => Setting::get('telegram_thread_id') ?: config('services.telegram.cadastros_thread_id'),
         ];
@@ -49,6 +49,11 @@ class TelegramNotifier
         );
 
         return $this->send("🚨 <b>Alerta de saúde do DNS Panel RPZ</b>\n\n".implode("\n", $itens));
+    }
+
+    public function notifyHealthRecovered(): bool
+    {
+        return $this->send('✅ <b>DNS Panel RPZ recuperado</b>'."\n\n".'O healthcheck voltou a passar: disco, certificado e site OK.');
     }
 
     public function notifyRbl(string $texto): bool

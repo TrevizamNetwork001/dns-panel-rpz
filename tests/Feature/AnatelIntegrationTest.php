@@ -185,7 +185,7 @@ class AnatelIntegrationTest extends TestCase
 
     public function test_rpz_uses_only_active_anatel_domains(): void
     {
-        $server = Servidor::factory()->create();
+        $server = Servidor::factory()->openAccess()->create();
         $server->listas()->attach($this->lista);
         Dominio::factory()->for($this->lista)->create(['dominio' => 'ativo.example']);
         Dominio::factory()->for($this->lista)->inativo()->create(['dominio' => 'inativo.example']);
@@ -246,6 +246,23 @@ class AnatelIntegrationTest extends TestCase
         }$this->actingAs($this->admin)->post(route('anatel.batch.publish', $this->lista))->assertRedirect();
         $this->assertSame(3, $this->lista->dominios()->where('ativo', true)->count());
         $this->assertDatabaseHas('audit_logs', ['action' => 'anatel.batch.published']);
+    }
+
+    public function test_batch_preview_shows_counts_and_filters_by_result(): void
+    {
+        Dominio::factory()->for($this->lista)->create(['dominio' => 'existente.example']);
+
+        $import = AnatelImport::create(['lista_id' => $this->lista->id, 'user_id' => $this->admin->id, 'original_filename' => 'lote.pdf', 'storage_path' => 'lote.pdf', 'sha256' => str_repeat('9', 64), 'size_bytes' => 100, 'status' => 'processing']);
+        $this->app->make(AnatelImporter::class)->prepare($this->lista, $import, [
+            'files' => [['pages' => 1, 'candidates' => 2]],
+            'domains' => ['existente.example', 'novo.example'],
+        ]);
+
+        $todos = $this->actingAs($this->admin)->get(route('anatel.batch', $this->lista));
+        $todos->assertOk()->assertSee('Novos (1)')->assertSee('Existentes (1)')->assertSee('existente.example')->assertSee('novo.example');
+
+        $soNovos = $this->actingAs($this->admin)->get(route('anatel.batch', [$this->lista, 'result' => 'new']));
+        $soNovos->assertOk()->assertSee('novo.example')->assertDontSee('existente.example');
     }
 
     public function test_rejecting_batch_does_not_change_list(): void
