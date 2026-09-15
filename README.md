@@ -114,6 +114,8 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - `expose_php` desligado (não revela versão do PHP no header).
 - Endpoint público do RPZ (e o feed MikroTik) com rate-limit, checagem de empresa ativa (desativar uma empresa corta o serviço dos servidores dela) e **ACL de IP obrigatória**: um servidor sem nenhum IP cadastrado não recebe o zonefile de jeito nenhum, mesmo com token válido — o toggle "restrição de IP" só controla se a lista de IPs cadastrados é aplicada ou não, não serve mais de bypass total (`Servidor::ipAllowed()`).
 - CAPTCHA (Cloudflare Turnstile) no cadastro público — ver seção acima.
+- Credenciais sensíveis salvas em `settings` (token do Telegram, Access Key/Secret do R2) ficam criptografadas (`Setting::getEncrypted()`/`setEncrypted()`, `Crypt::encryptString()` com a `APP_KEY`) — não é texto puro no banco.
+- Sync de listas externas com proteção contra SSRF: resolve o DNS do `fonte_url` e recusa buscar se algum IP resolvido cair em faixa privada/reservada (`FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE`) — impede apontar pra rede interna do servidor via `.local`/`localhost`/IP privado.
 - Todos os models usam `$fillable` explícito (sem mass assignment amplo).
 
 ## Segurança do host (SSH / fail2ban)
@@ -221,7 +223,7 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-342 testes / 2.372 assertions cobrindo os pontos mais críticos:
+348 testes / 2.387 assertions cobrindo os pontos mais críticos:
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP obrigatória mesmo com restrição desligada, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
 - `tests/Feature/RegistrationTurnstileTest.php` — CAPTCHA no cadastro público (sem configuração, sem token, token válido, token rejeitado pela Cloudflare, Cloudflare fora do ar).
