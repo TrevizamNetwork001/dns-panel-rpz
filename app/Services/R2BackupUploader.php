@@ -15,8 +15,8 @@ class R2BackupUploader
         return [
             'ativo' => Setting::get('r2_ativo', '0') === '1',
             'account_id' => Setting::get('r2_account_id') ?: config('services.r2.account_id'),
-            'access_key_id' => Setting::get('r2_access_key_id') ?: config('services.r2.access_key_id'),
-            'secret_access_key' => Setting::get('r2_secret_access_key') ?: config('services.r2.secret_access_key'),
+            'access_key_id' => Setting::getEncrypted('r2_access_key_id') ?: config('services.r2.access_key_id'),
+            'secret_access_key' => Setting::getEncrypted('r2_secret_access_key') ?: config('services.r2.secret_access_key'),
             'bucket' => Setting::get('r2_bucket') ?: config('services.r2.bucket'),
             'keep_days' => (int) (Setting::get('r2_keep_days') ?: config('services.r2.keep_days', 30)),
         ];

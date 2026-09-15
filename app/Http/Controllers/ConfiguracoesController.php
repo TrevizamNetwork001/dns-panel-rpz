@@ -55,7 +55,7 @@ class ConfiguracoesController extends Controller
         Setting::set('telegram_ativo', $request->boolean('ativo') ? '1' : '0');
 
         if (filled($data['bot_token'] ?? null)) {
-            Setting::set('telegram_bot_token', $data['bot_token']);
+            Setting::setEncrypted('telegram_bot_token', $data['bot_token']);
         }
 
         Setting::set('telegram_chat_id', $data['chat_id'] ?? null);
@@ -92,11 +92,11 @@ class ConfiguracoesController extends Controller
         Setting::set('r2_keep_days', $data['keep_days'] ?? null);
 
         if (filled($data['access_key_id'] ?? null)) {
-            Setting::set('r2_access_key_id', $data['access_key_id']);
+            Setting::setEncrypted('r2_access_key_id', $data['access_key_id']);
         }
 
         if (filled($data['secret_access_key'] ?? null)) {
-            Setting::set('r2_secret_access_key', $data['secret_access_key']);
+            Setting::setEncrypted('r2_secret_access_key', $data['secret_access_key']);
         }
 
         AuditLog::record('configuracoes.r2_atualizado', 'Configuração de backup externo (R2) atualizada');

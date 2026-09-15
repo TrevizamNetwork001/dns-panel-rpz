@@ -49,8 +49,8 @@ class ConfiguracoesR2Test extends TestCase
         $this->assertSame('1', Setting::get('r2_ativo'));
         $this->assertSame('conta-123', Setting::get('r2_account_id'));
         $this->assertSame('dns-panel-rpz-backups', Setting::get('r2_bucket'));
-        $this->assertSame('chave-acesso', Setting::get('r2_access_key_id'));
-        $this->assertSame('chave-secreta', Setting::get('r2_secret_access_key'));
+        $this->assertSame('chave-acesso', Setting::getEncrypted('r2_access_key_id'));
+        $this->assertSame('chave-secreta', Setting::getEncrypted('r2_secret_access_key'));
     }
 
     public function test_saving_without_new_keys_preserves_existing_ones(): void
