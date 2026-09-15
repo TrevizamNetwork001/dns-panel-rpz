@@ -53,6 +53,24 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
 3. Motivo comum de abort (por design, não é bug): um feed retornou menos de 100 domínios — a proteção evita esvaziar a lista quando a fonte está fora do ar ou muda de formato. Veja `docker compose logs external-sync`.
 4. Lista pode estar pausada manualmente: confira `sync_ativo` em `/listas` (badge "Pausar sync" vira "Reativar sync" quando pausada).
 
+## Importação ANATEL falha com status "Falhou" (PDF grande)
+
+Ofícios com muitas páginas (170+) podem levar 1-2min pra extrair — se passar do timeout configurado, a importação vira `failed` sem domínio nenhum (`pages: 0`, `candidates_count: 0`).
+
+1. Confira quanto tempo o job realmente rodou: `docker compose logs queue --since 1h | grep ProcessAnatelImport` — se o tempo bateu certinho com `ANATEL_EXTRACT_TIMEOUT` (`/etc/dns-panel-rpz/app.env`, padrão 300s), foi timeout, não PDF corrompido.
+2. Teste rodando a extração direto, sem limite, pra confirmar que o arquivo é válido e ver quanto tempo leva de verdade:
+   ```bash
+   docker compose exec app time /opt/anatel-venv/bin/python /var/www/html/scripts/anatel_pdf_extract.py <caminho-do-pdf-em-storage/app/private/anatel/...>
+   ```
+3. Se precisar de mais tempo, aumente `ANATEL_EXTRACT_TIMEOUT` no `.env` **e** o `--timeout` do `queue:work` no `compose.yml` (sempre com folga acima do primeiro, senão a fila mata o job antes do timeout interno disparar) — depois `docker compose up -d --force-recreate app queue`.
+4. Reenfileirar a mesma importação sem precisar reenviar o arquivo:
+   ```bash
+   docker compose exec app php artisan tinker --execute="
+   App\Models\AnatelImport::where('id', <ID>)->update(['status'=>'pending','progress'=>0,'error'=>null]);
+   App\Jobs\ProcessAnatelImport::dispatch(<ID>);
+   "
+   ```
+
 ## Banco de dados corrompido ou dado errado
 
 **Nunca edite o SQLite de produção direto sem backup antes.** O banco (`/data/database.sqlite` dentro dos containers) e os backups (`/backups`) vivem em volumes Docker nomeados — não em `database/` no host. Caminho real no host: `/var/lib/docker/volumes/dns-panel-rpz-data/_data/` e `/var/lib/docker/volumes/dns-panel-rpz-backups/_data/` (confirme com `docker volume inspect dns-panel-rpz-data`).
