@@ -166,10 +166,13 @@ class AnatelIntegrationTest extends TestCase
         $this->actingAs($client)->post(route('anatel.imports.store', $this->lista), ['pdfs' => [$this->pdf()]])->assertForbidden();
     }
 
-    public function test_anatel_domains_cannot_be_edited_manually(): void
+    public function test_admin_can_add_anatel_domains_manually(): void
     {
-        $this->actingAs($this->admin)->post(route('listas.dominios.store', $this->lista), ['dominio' => 'manual.example'])->assertSessionHasErrors('dominio');
-        $this->assertDatabaseMissing('dominios', ['dominio' => 'manual.example']);
+        // A importação de PDF só adiciona/reativa domínios, nunca apaga —
+        // então cadastro manual direto na lista ANATEL é seguro (ex.: PDFs
+        // em formato imagem, que não dá pra extrair automaticamente).
+        $this->actingAs($this->admin)->post(route('listas.dominios.store', $this->lista), ['dominio' => 'manual.example'])->assertRedirect();
+        $this->assertDatabaseHas('dominios', ['dominio' => 'manual.example', 'lista_id' => $this->lista->id, 'ativo' => true]);
     }
 
     public function test_legacy_exclude_import_classifies_exact_regex_and_duplicates(): void

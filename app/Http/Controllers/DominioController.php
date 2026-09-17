@@ -22,7 +22,7 @@ class DominioController extends Controller
 
     public function store(Request $request, Lista $lista): RedirectResponse
     {
-        if ($lista->isManaged()) {
+        if ($lista->isExterna()) {
             return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($lista)]);
         }
 
@@ -55,7 +55,7 @@ class DominioController extends Controller
 
     public function bulkStore(Request $request, Lista $lista): RedirectResponse
     {
-        if ($lista->isManaged()) {
+        if ($lista->isExterna()) {
             return back()->withErrors(['dominios' => $this->mensagemListaGerenciada($lista)]);
         }
 
@@ -97,7 +97,7 @@ class DominioController extends Controller
 
     public function toggle(Dominio $dominio): RedirectResponse
     {
-        if ($dominio->lista->isManaged()) {
+        if ($dominio->lista->isExterna()) {
             return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($dominio->lista)]);
         }
 
@@ -108,7 +108,7 @@ class DominioController extends Controller
 
     public function destroy(Dominio $dominio): RedirectResponse
     {
-        if ($dominio->lista->isManaged()) {
+        if ($dominio->lista->isExterna()) {
             return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($dominio->lista)]);
         }
 
@@ -119,8 +119,11 @@ class DominioController extends Controller
     }
 
     /**
-     * Mensagem de bloqueio pra listas gerenciadas (externa/ANATEL), apontando
-     * pra lista manual irmã quando ela existir.
+     * Mensagem de bloqueio pra listas externas (feed sincronizado que
+     * sobrescreve a lista a cada execução), apontando pra lista manual
+     * irmã quando ela existir. Não se aplica a listas ANATEL: a
+     * importação de PDF só adiciona/reativa domínios, nunca apaga, então
+     * cadastro manual direto na lista ANATEL é seguro e permitido.
      */
     private function mensagemListaGerenciada(Lista $lista): string
     {
