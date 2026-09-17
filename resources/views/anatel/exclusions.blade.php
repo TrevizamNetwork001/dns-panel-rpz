@@ -11,12 +11,12 @@
 <a class="{{ $tabClass('regex') }}" href="{{ route('anatel.exclusions',[$lista,'tipo'=>'regex']) }}">Regex ({{ number_format($counts['regex'],0,',','.') }})</a>
 </div>
 <div class="panel"><div class="table-responsive"><table class="data-table"><thead><tr><th>Tipo</th><th>Valor</th><th>Status</th><th>Ações</th></tr></thead><tbody>@forelse($exclusions as $item)<tr><td>{{ $item->type==='exact'?'Exato':'Regex' }}</td><td class="table-mono">{{ $item->value }}</td><td>{{ $item->active?'Ativa':'Inativa' }}</td><td>
-<details style="display:inline-block"><summary class="button button-secondary" style="display:inline-block">Editar</summary>
+<details style="display:inline-block;vertical-align:middle"><summary class="button button-secondary">Editar</summary>
 <form method="POST" action="{{ route('anatel.exclusions.update',[$lista,$item]) }}" style="margin-top:8px">@csrf @method('PUT')
 <label>Tipo</label><select class="form-control" name="type"><option value="exact" @selected($item->type==='exact')>Domínio exato</option><option value="regex" @selected($item->type==='regex')>Regex explícita</option></select>
 <label>Valor</label><input class="form-control" name="value" value="{{ $item->value }}" required>
 <label>Observação</label><input class="form-control" name="notes" value="{{ $item->notes }}">
 <button class="button button-primary" type="submit">Salvar edição</button>
 </form></details>
-<form style="display:inline" method="POST" action="{{ route('anatel.exclusions.toggle',[$lista,$item]) }}">@csrf @method('PATCH')<button class="button button-secondary">{{ $item->active?'Desativar':'Reativar' }}</button></form> <form style="display:inline" method="POST" action="{{ route('anatel.exclusions.destroy',[$lista,$item]) }}">@csrf @method('DELETE')<button class="button button-secondary">Excluir</button></form></td></tr>@empty<tr><td colspan="4">Nenhuma exclusão.</td></tr>@endforelse</tbody></table></div>{{ $exclusions->links('pagination.compact') }}</div>
+<form style="display:inline-block;vertical-align:middle" method="POST" action="{{ route('anatel.exclusions.toggle',[$lista,$item]) }}">@csrf @method('PATCH')<button class="button button-secondary">{{ $item->active?'Desativar':'Reativar' }}</button></form> <form style="display:inline-block;vertical-align:middle" method="POST" action="{{ route('anatel.exclusions.destroy',[$lista,$item]) }}">@csrf @method('DELETE')<button class="button button-secondary">Excluir</button></form></td></tr>@empty<tr><td colspan="4">Nenhuma exclusão.</td></tr>@endforelse</tbody></table></div>{{ $exclusions->links('pagination.compact') }}</div>
 @endsection
