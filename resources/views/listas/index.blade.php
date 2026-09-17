@@ -104,5 +104,5 @@
         @endif
     </div>
 
-    {{ $listas->links() }}
+    {{ $listas->links('pagination.compact') }}
 @endsection

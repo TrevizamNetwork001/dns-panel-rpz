@@ -68,7 +68,7 @@
         @endif
     </div>
 
-    {{ $usuarios->links() }}
+    {{ $usuarios->links('pagination.compact') }}
 
     @include('usuarios.partials.password-reset-dialogs')
 @endsection

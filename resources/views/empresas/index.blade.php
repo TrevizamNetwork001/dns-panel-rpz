@@ -68,5 +68,5 @@
         @endif
     </div>
 
-    {{ $empresas->links() }}
+    {{ $empresas->links('pagination.compact') }}
 @endsection

@@ -95,5 +95,5 @@
         @endif
     </div>
 
-    {{ $servidores->links() }}
+    {{ $servidores->links('pagination.compact') }}
 @endsection

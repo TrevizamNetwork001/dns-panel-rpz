@@ -117,7 +117,7 @@
         @endif
     </div>
 
-    {{ $sugestoes->links() }}
+    {{ $sugestoes->links('pagination.compact') }}
 
     @if (auth()->user()->isAdmin() && $sugestoes->contains('status', 'pending'))
         @include('sugestoes.partials.review-dialogs')

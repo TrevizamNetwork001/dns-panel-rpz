@@ -27,9 +27,9 @@
 
 <div class="panel"><h2>{{ $target->type === 'cidr' ? 'Últimos IPs verificados' : 'Histórico de checks' }}</h2><p>Até 25 registros por página, do mais recente para o mais antigo.</p><div class="table-responsive"><table class="data-table"><thead><tr><th>Data</th><th>IP / valor verificado</th><th>RBL</th><th>Status</th><th>Resposta / erro</th></tr></thead><tbody>
 @forelse($checks as $check)<tr><td>{{ $check->checked_at->format('d/m/Y H:i:s') }}</td><td>{{ $check->checked_value }}<p>{{ $check->query ?? '—' }}</p></td><td>{{ $check->list->name }}</td><td>{{ $statusLabels[$check->status] ?? $check->status }}</td><td>{{ $check->response ?? '—' }}<p>{{ $check->response_text }}</p><p>{{ $check->error_message }}</p></td></tr>@empty<tr><td colspan="5">Nenhuma verificação registrada.</td></tr>@endforelse
-</tbody></table></div>{{ $checks->withQueryString()->links() }}</div>
+</tbody></table></div>{{ $checks->withQueryString()->links('pagination.compact') }}</div>
 <div class="panel"><h2>Histórico de eventos por IP</h2><div class="table-responsive"><table class="data-table"><thead><tr><th>RBL</th><th>IP individual</th><th>Status</th><th>Primeira ocorrência</th><th>Última ocorrência</th><th>Resolvido em</th><th>Resposta / notas</th></tr></thead><tbody>
 @forelse($events as $event)<tr><td>{{ $event->list->name }}</td><td>{{ $event->last_checked_value ?? '—' }}</td><td>{{ $event->status === 'open' ? 'Aberto (open)' : 'Resolvido (resolved)' }}</td><td>{{ $event->first_seen_at->format('d/m/Y H:i:s') }}</td><td>{{ $event->last_seen_at->format('d/m/Y H:i:s') }}</td><td>{{ $event->resolved_at?->format('d/m/Y H:i:s') ?? '—' }}</td><td>{{ $event->last_response }}<p>{{ $event->notes }}</p></td></tr>@empty<tr><td colspan="7">Nenhum evento registrado.</td></tr>@endforelse
-</tbody></table></div>{{ $events->withQueryString()->links() }}</div>
+</tbody></table></div>{{ $events->withQueryString()->links('pagination.compact') }}</div>
 </div>
 @endsection

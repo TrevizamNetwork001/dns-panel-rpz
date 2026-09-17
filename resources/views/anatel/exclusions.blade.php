@@ -18,5 +18,5 @@
 <label>Observação</label><input class="form-control" name="notes" value="{{ $item->notes }}">
 <button class="button button-primary" type="submit">Salvar edição</button>
 </form></details>
-<form style="display:inline" method="POST" action="{{ route('anatel.exclusions.toggle',[$lista,$item]) }}">@csrf @method('PATCH')<button class="button button-secondary">{{ $item->active?'Desativar':'Reativar' }}</button></form> <form style="display:inline" method="POST" action="{{ route('anatel.exclusions.destroy',[$lista,$item]) }}">@csrf @method('DELETE')<button class="button button-secondary">Excluir</button></form></td></tr>@empty<tr><td colspan="4">Nenhuma exclusão.</td></tr>@endforelse</tbody></table></div>{{ $exclusions->links() }}</div>
+<form style="display:inline" method="POST" action="{{ route('anatel.exclusions.toggle',[$lista,$item]) }}">@csrf @method('PATCH')<button class="button button-secondary">{{ $item->active?'Desativar':'Reativar' }}</button></form> <form style="display:inline" method="POST" action="{{ route('anatel.exclusions.destroy',[$lista,$item]) }}">@csrf @method('DELETE')<button class="button button-secondary">Excluir</button></form></td></tr>@empty<tr><td colspan="4">Nenhuma exclusão.</td></tr>@endforelse</tbody></table></div>{{ $exclusions->links('pagination.compact') }}</div>
 @endsection

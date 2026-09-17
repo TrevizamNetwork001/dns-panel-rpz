@@ -92,5 +92,5 @@
         @endif
     </div>
 
-    {{ $licencas->links() }}
+    {{ $licencas->links('pagination.compact') }}
 @endsection

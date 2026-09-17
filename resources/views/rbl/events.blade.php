@@ -10,5 +10,5 @@
 <div class="field-group"><label for="list">RBL</label><select class="form-control" name="list" id="list"><option value="">Todas</option>@foreach($lists as $list)<option value="{{ $list->id }}" @selected(request('list') == $list->id)>{{ $list->name }}</option>@endforeach</select></div>
 <div class="field-group"><label for="investigation_status">Investigação</label><select class="form-control" name="investigation_status" id="investigation_status"><option value="">Todas</option>@foreach(['none' => 'Sem classificação', 'pending' => 'Pendente', 'investigating' => 'Em investigação', 'investigated' => 'Investigado', 'false_positive' => 'Falso positivo'] as $value => $label)<option value="{{ $value }}" @selected(request('investigation_status') === $value)>{{ $label }}</option>@endforeach</select></div>
 </div><button class="button button-primary">Filtrar</button></form></div>
-<div class="panel">@include('rbl.event-table'){{ $events->links() }}</div>
+<div class="panel">@include('rbl.event-table'){{ $events->links('pagination.compact') }}</div>
 @endsection
