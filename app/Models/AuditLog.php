@@ -96,19 +96,195 @@ class AuditLog extends Model
         };
     }
 
+    /**
+     * Categorias pra agrupar/filtrar as dezenas de `action` distintas por
+     * área do sistema, em vez de deixar o usuário adivinhar palavras-chave.
+     *
+     * @return array<string, string>
+     */
+    public static function categories(): array
+    {
+        return [
+            'anatel' => 'ANATEL',
+            'auth' => 'Autenticação e segurança',
+            'backup' => 'Backup',
+            'configuracoes' => 'Configurações',
+            'empresa' => 'Empresas',
+            'licenca' => 'Licenças',
+            'lista' => 'Listas e fontes',
+            'endpoint' => 'Endpoints (RPZ / Mikrotik)',
+            'rbl' => 'RBL Checker',
+            'servidor' => 'Servidores',
+            'sugestao' => 'Sugestões',
+            'health' => 'Sistema (healthcheck)',
+            'user' => 'Usuários',
+        ];
+    }
+
+    public static function category(string $action): string
+    {
+        $prefix = strtolower(strstr($action, '.', true) ?: $action);
+
+        return match ($prefix) {
+            'security' => 'auth',
+            'mikrotik', 'rpz' => 'endpoint',
+            default => array_key_exists($prefix, self::categories()) ? $prefix : 'outros',
+        };
+    }
+
+    public static function categoryLabel(string $action): string
+    {
+        return self::categories()[self::category($action)] ?? 'Outros';
+    }
+
+    /**
+     * @return list<string> prefixos de `action` (antes do primeiro ponto) que
+     *                       pertencem à categoria informada, pra montar o
+     *                       filtro por categoria como WHERE no banco.
+     */
+    public static function prefixesForCategory(string $categoryKey): array
+    {
+        $prefixes = ['anatel', 'auth', 'security', 'backup', 'configuracoes', 'empresa', 'licenca', 'lista', 'mikrotik', 'rpz', 'rbl', 'servidor', 'sugestao', 'health', 'user'];
+
+        return array_values(array_filter($prefixes, fn ($prefix) => self::category($prefix) === $categoryKey));
+    }
+
+    /**
+     * Nome amigável do "alvo" da ação (target_type é uma chave curta como
+     * "lista"/"anatel_exclusion", não o FQCN da classe).
+     */
+    public static function targetLabel(?string $targetType, ?int $targetId): ?string
+    {
+        if ($targetType === null) {
+            return null;
+        }
+
+        $label = match ($targetType) {
+            'lista' => 'Lista',
+            'empresa' => 'Empresa',
+            'licenca' => 'Licença',
+            'servidor' => 'Servidor',
+            'sugestao' => 'Sugestão',
+            'user' => 'Usuário',
+            'anatel_exclusion' => 'Exclusão ANATEL',
+            'anatel_import' => 'Importação ANATEL',
+            'rbl_event' => 'Evento RBL',
+            'security_ban' => 'Bloqueio de segurança',
+            default => ucfirst(str_replace('_', ' ', $targetType)),
+        };
+
+        return $targetId !== null ? "{$label} #{$targetId}" : $label;
+    }
+
     public static function actionLabel(string $action): string
     {
         return match ($action) {
+            // ANATEL
+            'anatel.batch.published' => 'Lote ANATEL publicado no RPZ',
+            'anatel.batch.rejected' => 'Lote ANATEL rejeitado',
+            'anatel.batch.preview_ready' => 'Lote ANATEL com prévia pronta pra aprovação',
+            'anatel.exclusion.created' => 'Exclusão ANATEL criada',
+            'anatel.exclusion.updated' => 'Exclusão ANATEL reativada',
+            'anatel.exclusion.disabled' => 'Exclusão ANATEL desativada',
+            'anatel.exclusion.edited' => 'Exclusão ANATEL editada',
+            'anatel.exclusion.deleted' => 'Exclusão ANATEL removida',
+            'anatel.import.started' => 'Importação de PDF/planilha ANATEL iniciada',
+            'anatel.import.completed' => 'Importação de PDF/planilha ANATEL concluída',
+            'anatel.import.preview_ready' => 'Prévia da importação ANATEL pronta pra aprovação',
+            'anatel.import.blocked' => 'Importação ANATEL bloqueada (extração vazia/incoerente)',
+            'anatel.import.failed' => 'Importação ANATEL falhou',
+            'anatel.import.rejected' => 'Importação ANATEL rejeitada',
+            'anatel.import.deleted' => 'Importação ANATEL removida',
+            'anatel.legacy_exclude_imported' => 'Lista antiga de exclusões ANATEL importada',
+            'anatel.legacy_feed.synced' => 'Feed legado ANATEL sincronizado',
+            'anatel.legacy_feed.failed' => 'Falha ao sincronizar feed legado ANATEL',
+
+            // Autenticação e segurança
+            'auth.login' => 'Login realizado',
+            'auth.login_failed' => 'Falha de login',
+            'auth.logout' => 'Sessão encerrada',
+            'auth.password_changed' => 'Senha alterada pelo próprio usuário',
+            'security.ip_banned' => 'IP bloqueado pelo fail2ban',
+            'security.ip_unbanned' => 'IP desbloqueado pelo fail2ban',
+
+            // Backup
+            'backup.manual_triggered' => 'Backup manual disparado',
+            'backup.failed' => 'Backup falhou',
+            'backup.r2_uploaded' => 'Backup enviado pro Cloudflare R2',
+            'backup.r2_failed' => 'Falha ao enviar backup pro Cloudflare R2',
+            'backup.r2_pruned' => 'Backups antigos removidos do R2',
+
+            // Configurações
+            'configuracoes.r2_atualizado' => 'Configuração de backup (R2) atualizada',
+            'configuracoes.telegram_atualizado' => 'Configuração de notificação Telegram atualizada',
+
+            // Empresas
+            'empresa.cadastro_publico' => 'Empresa cadastrada via formulário público',
             'empresa.created' => 'Empresa criada',
             'empresa.updated' => 'Empresa atualizada',
             'empresa.destroyed' => 'Empresa removida',
-            'auth.login' => 'Login realizado',
-            'auth.login_failed' => 'Falha de login',
-            'auth.logout' => 'Logout realizado',
-            'lista.sync' => 'Fonte sincronizada',
-            'sugestao.created' => 'Sugestão recebida',
-            'sugestao.approved' => 'Sugestão aprovada',
-            'sugestao.rejected' => 'Sugestão rejeitada',
+
+            // Licenças
+            'licenca.created' => 'Licença criada',
+            'licenca.updated' => 'Licença atualizada',
+            'licenca.destroyed' => 'Licença removida',
+
+            // Listas e fontes
+            'lista.created' => 'Lista criada',
+            'lista.updated' => 'Lista atualizada',
+            'lista.destroyed' => 'Lista removida',
+            'lista.externa.sync' => 'Lista externa sincronizada',
+            'lista.externa.sync_falhou' => 'Falha ao sincronizar lista externa',
+            'lista.externa.sync_habilitado' => 'Sincronização automática da lista reativada',
+            'lista.externa.sync_pausado' => 'Sincronização automática da lista pausada',
+
+            // Endpoints (RPZ / Mikrotik)
+            'mikrotik.endpoint.denied' => 'Acesso negado ao endpoint Mikrotik',
+            'mikrotik.endpoint.downloaded' => 'Lista Mikrotik baixada por um servidor',
+            'rpz.endpoint.acl_updated' => 'Lista de IPs autorizados do endpoint RPZ atualizada',
+            'rpz.endpoint.denied' => 'Acesso negado ao endpoint RPZ',
+            'rpz.endpoint.downloaded' => 'Zona RPZ baixada por um servidor',
+            'rpz.endpoint.slug_changed' => 'Identificador (slug) do endpoint RPZ alterado',
+
+            // RBL Checker
+            'rbl.delist.updated' => 'Solicitação de delist RBL atualizada',
+            'rbl.delist.instructions_viewed' => 'Instruções de delist RBL visualizadas',
+            'rbl.delist.requested' => 'Delist RBL solicitado ao provedor',
+            'rbl.delist.accepted' => 'Delist RBL aceito',
+            'rbl.delist.rejected' => 'Delist RBL rejeitado',
+            'rbl.delist.not_applicable' => 'Delist RBL marcado como não aplicável',
+            'rbl.event.marked_investigating' => 'Evento RBL marcado como em investigação',
+            'rbl.event.marked_investigated' => 'Evento RBL marcado como investigado',
+            'rbl.event.marked_false_positive' => 'Evento RBL marcado como falso positivo',
+            'rbl.event.investigation_updated' => 'Investigação de evento RBL atualizada',
+
+            // Servidores
+            'servidor.created' => 'Servidor criado',
+            'servidor.updated' => 'Servidor atualizado',
+            'servidor.destroyed' => 'Servidor removido',
+            'servidor.ips.added' => 'IP(s) adicionado(s) à lista de acesso do servidor',
+            'servidor.ips.removed' => 'IP(s) removido(s) da lista de acesso do servidor',
+            'servidor.ip_restriction_enabled' => 'Restrição de IP do servidor ativada',
+            'servidor.ip_restriction_disabled' => 'Restrição de IP do servidor desativada',
+
+            // Sugestões
+            'sugestao.created' => 'Sugestão de domínio recebida',
+            'sugestao.approved' => 'Sugestão de domínio aprovada',
+            'sugestao.rejected' => 'Sugestão de domínio rejeitada',
+
+            // Sistema (healthcheck)
+            'health.ok' => 'Healthcheck OK (disco, certificado e site)',
+            'health.disk_low' => 'Alerta: disco do servidor com pouco espaço',
+            'health.cert_unreadable' => 'Alerta: certificado TLS ilegível',
+            'health.cert_expiring' => 'Alerta: certificado TLS perto de expirar',
+            'health.site_down' => 'Alerta: site fora do ar',
+
+            // Usuários
+            'user.created' => 'Usuário criado',
+            'user.updated' => 'Usuário atualizado',
+            'user.destroyed' => 'Usuário removido',
+            'user.password_reset' => 'Senha de usuário redefinida por um admin',
+
             default => ucfirst(str_replace(['.', '_'], ' ', $action)),
         };
     }

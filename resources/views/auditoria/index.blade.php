@@ -20,8 +20,8 @@
                     <svg class="ui-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg>
                 </div>
             </div>
-            <div class="metric-value">{{ $visibleCount }}</div>
-            <div class="metric-label">Eventos exibidos</div>
+            <div class="metric-value">{{ $totalFiltered }}</div>
+            <div class="metric-label">Eventos encontrados</div>
         </div>
 
         <div class="metric-card">
@@ -57,13 +57,40 @@
 
     <div class="panel">
         <div class="panel-header"><h2>Filtros</h2></div>
-        <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">Pesquisa por ação, alvo, ator ou IP. Os filtros ficam restritos aos 200 últimos eventos.</p>
+        <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">Categoria, usuário e período filtram direto no histórico completo. Severidade e busca livre são aplicadas sobre os 1.000 eventos mais recentes que já batem com os outros filtros.</p>
         <form action="{{ route('auditoria.index') }}" method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
-            <div class="field-group" style="margin:0;min-width:0;width:260px;max-width:100%">
+            <div class="field-group" style="margin:0;min-width:0;width:220px;max-width:100%">
                 <label for="audit-search">Buscar</label>
-                <input type="text" id="audit-search" name="q" class="form-control" placeholder="auth, servidor, empresa, IP" value="{{ $query }}">
+                <input type="text" id="audit-search" name="q" class="form-control" placeholder="descrição, IP, ação..." value="{{ $query }}">
+            </div>
+            <div class="field-group" style="margin:0;min-width:180px">
+                <label for="audit-categoria">Categoria</label>
+                <select id="audit-categoria" name="categoria" class="form-control">
+                    <option value="all" @selected($categoryFilter === 'all')>Todas</option>
+                    @foreach (\App\Models\AuditLog::categories() as $value => $label)
+                        <option value="{{ $value }}" @selected($categoryFilter === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
             </div>
             <div class="field-group" style="margin:0;min-width:160px">
+                <label for="audit-usuario">Usuário</label>
+                <select id="audit-usuario" name="usuario" class="form-control">
+                    <option value="all" @selected($userFilter === 'all')>Todos</option>
+                    <option value="sistema" @selected($userFilter === 'sistema')>Sistema (automático)</option>
+                    @foreach ($users as $user)
+                        <option value="{{ $user->id }}" @selected($userFilter === (string) $user->id)>{{ $user->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="field-group" style="margin:0;min-width:140px">
+                <label for="audit-data-inicio">De</label>
+                <input type="date" id="audit-data-inicio" name="data_inicio" class="form-control" value="{{ $dataInicio }}">
+            </div>
+            <div class="field-group" style="margin:0;min-width:140px">
+                <label for="audit-data-fim">Até</label>
+                <input type="date" id="audit-data-fim" name="data_fim" class="form-control" value="{{ $dataFim }}">
+            </div>
+            <div class="field-group" style="margin:0;min-width:140px">
                 <label for="audit-bucket">Severidade</label>
                 <select id="audit-bucket" name="bucket" class="form-control">
                     @foreach (['all' => 'Todas', 'danger' => 'Alto', 'warning' => 'Médio', 'info' => 'Info', 'muted' => 'Baixo'] as $value => $label)
@@ -72,7 +99,7 @@
                 </select>
             </div>
             <button type="submit" class="button button-primary">Aplicar</button>
-            @if ($query !== '' || $bucketFilter !== 'all')
+            @if ($query !== '' || $bucketFilter !== 'all' || $categoryFilter !== 'all' || $userFilter !== 'all' || $dataInicio !== '' || $dataFim !== '')
                 <a href="{{ route('auditoria.index') }}" class="button button-secondary">Limpar</a>
             @endif
         </form>
@@ -97,23 +124,28 @@
                     @php
                         $bucket = \App\Models\AuditLog::bucket($log->action);
                         $severity = \App\Models\AuditLog::bucketLabel($bucket);
-                        $actionLabel = match ($log->action) {
-                            'auth.logout' => 'Sessão encerrada',
-                            'user.password_reset' => 'Senha de usuário redefinida',
-                            'rpz.endpoint.downloaded' => 'Zona RPZ baixada',
-                            default => \App\Models\AuditLog::actionLabel($log->action),
-                        };
-                        $actor = $log->user->name ?? 'sistema';
-                        $target = $log->target_type ? $log->target_type.' #'.$log->target_id : ($log->empresa->nome ?? '-');
+                        $actionLabel = \App\Models\AuditLog::actionLabel($log->action);
+                        $categoryLabel = \App\Models\AuditLog::categoryLabel($log->action);
+                        $actor = $log->user->name ?? 'Sistema (automático)';
+                        $target = \App\Models\AuditLog::targetLabel($log->target_type, $log->target_id);
+                        $empresaNome = $log->empresa->nome ?? null;
                         $date = $log->created_at->format('d/m/Y H:i:s');
-                        $searchText = mb_strtolower(implode(' ', [$log->action, $actionLabel, $actor, $target, $log->ip_address, $date, $severity, $log->description, $log->empresa->nome ?? '']));
+                        $searchText = mb_strtolower(implode(' ', [$log->action, $actionLabel, $actor, $target, $log->ip_address, $date, $severity, $log->description, $empresaNome ?? '']));
                         $routine = in_array($log->action, ['health.ok', 'rpz.endpoint.downloaded'], true);
                     @endphp
                     <li class="audit-event audit-severity-{{ $bucket }}{{ $routine ? ' audit-event-routine' : '' }}" data-audit-search="{{ $searchText }}">
                         <time class="audit-date" datetime="{{ $log->created_at->toIso8601String() }}">{{ $date }}</time>
                         <div class="audit-content">
                             <strong class="audit-action" title="{{ $log->action }}">{{ $actionLabel }}</strong>
-                            <div class="audit-meta">{{ $actor }} <span aria-hidden="true">·</span> {{ $target }}</div>
+                            <div class="audit-meta">
+                                <strong>{{ $actor }}</strong>
+                                @if ($target)<span aria-hidden="true">·</span> {{ $target }}@endif
+                                @if ($empresaNome)<span aria-hidden="true">·</span> {{ $empresaNome }}@endif
+                                <span aria-hidden="true">·</span> {{ $categoryLabel }}
+                            </div>
+                            @if ($log->description)
+                                <div class="audit-description">{{ $log->description }}</div>
+                            @endif
                             <span class="audit-sr-only">Severidade: {{ $severity }}</span>
                         </div>
                         <span class="audit-ip"><span class="audit-sr-only">IP: </span>{{ $log->ip_address ?? '-' }}</span>
@@ -121,6 +153,7 @@
                 @endforeach
             </ul>
             <p id="audit-search-empty" class="empty-state" role="status" aria-live="polite" hidden>Nenhum evento corresponde à busca.</p>
+            {{ $visibleLogs->links('pagination.compact') }}
         @endif
     </div>
     </div>

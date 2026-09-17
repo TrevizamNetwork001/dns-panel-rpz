@@ -15,6 +15,7 @@
     .admin-audit .audit-ip { text-align: right; }
     .admin-audit .audit-action { display: block; font-size: 13px; font-weight: 600; line-height: 1.5; color: var(--text); }
     .admin-audit .audit-meta { margin-top: 3px; line-height: 1.5; color: var(--text-soft); }
+    .admin-audit .audit-description { margin-top: 4px; line-height: 1.5; color: var(--text-muted); font-size: 11px; }
     .admin-audit .audit-event-routine .audit-action { color: var(--text-soft); font-weight: 400; }
     .admin-audit .audit-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
     .admin-audit [hidden] { display: none !important; }
