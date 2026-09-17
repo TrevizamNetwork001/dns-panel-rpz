@@ -112,6 +112,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/listas/{lista}/anatel/imports/{import}/new.txt', [AnatelImportController::class, 'downloadNew'])->name('anatel.imports.new');
         Route::get('/listas/{lista}/anatel/exclusions', [AnatelController::class, 'exclusions'])->name('anatel.exclusions');
         Route::post('/listas/{lista}/anatel/exclusions', [AnatelController::class, 'storeExclusion'])->name('anatel.exclusions.store');
+        Route::put('/listas/{lista}/anatel/exclusions/{exclusion}', [AnatelController::class, 'updateExclusion'])->name('anatel.exclusions.update');
         Route::patch('/listas/{lista}/anatel/exclusions/{exclusion}', [AnatelController::class, 'toggleExclusion'])->name('anatel.exclusions.toggle');
         Route::delete('/listas/{lista}/anatel/exclusions/{exclusion}', [AnatelController::class, 'destroyExclusion'])->name('anatel.exclusions.destroy');
         Route::post('/listas/{lista}/anatel/exclusions/legacy', [AnatelController::class, 'importLegacy'])->name('anatel.exclusions.legacy');

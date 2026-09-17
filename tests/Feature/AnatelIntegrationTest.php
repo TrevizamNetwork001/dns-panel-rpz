@@ -138,6 +138,21 @@ class AnatelIntegrationTest extends TestCase
         $this->actingAs($this->admin)->post(route('anatel.exclusions.store', $this->lista), ['type' => 'regex', 'value' => '['])->assertSessionHasErrors('value');
     }
 
+    public function test_editing_exclusion_value_reactivates_old_match_and_deactivates_new_match(): void
+    {
+        $antigo = Dominio::factory()->for($this->lista)->create(['dominio' => 'antigo.example']);
+        $novo = Dominio::factory()->for($this->lista)->create(['dominio' => 'novo.example']);
+        $this->actingAs($this->admin)->post(route('anatel.exclusions.store', $this->lista), ['type' => 'exact', 'value' => 'antigo.example']);
+        $this->assertFalse($antigo->fresh()->ativo);
+
+        $exclusion = $this->lista->anatelExclusions()->first();
+        $this->actingAs($this->admin)->put(route('anatel.exclusions.update', [$this->lista, $exclusion]), ['type' => 'exact', 'value' => 'novo.example'])->assertRedirect();
+
+        $this->assertTrue($antigo->fresh()->ativo);
+        $this->assertFalse($novo->fresh()->ativo);
+        $this->assertSame('novo.example', $exclusion->fresh()->value);
+    }
+
     public function test_disabling_exclusion_reactivates_historical_domain_with_audit(): void
     {
         $domain = Dominio::factory()->for($this->lista)->create(['dominio' => 'reativa.example']);

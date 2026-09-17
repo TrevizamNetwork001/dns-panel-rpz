@@ -23,12 +23,21 @@ class AnatelController extends Controller
         return view('anatel.history', compact('lista', 'imports'));
     }
 
-    public function exclusions(Lista $lista): View
+    public function exclusions(Request $request, Lista $lista): View
     {
         $this->ensure($lista);
-        $exclusions = $lista->anatelExclusions()->latest()->paginate(50);
+        $tipo = $request->query('tipo');
+        $counts = [
+            'exact' => $lista->anatelExclusions()->where('type', 'exact')->count(),
+            'regex' => $lista->anatelExclusions()->where('type', 'regex')->count(),
+        ];
+        $exclusions = $lista->anatelExclusions()
+            ->when(in_array($tipo, ['exact', 'regex'], true), fn ($query) => $query->where('type', $tipo))
+            ->latest()
+            ->paginate(50)
+            ->appends($request->query());
 
-        return view('anatel.exclusions', compact('lista', 'exclusions'));
+        return view('anatel.exclusions', compact('lista', 'exclusions', 'counts', 'tipo'));
     }
 
     public function storeExclusion(Request $request, Lista $lista, DomainNormalizer $normalizer, AnatelExclusionMatcher $matcher): RedirectResponse
@@ -51,6 +60,39 @@ class AnatelController extends Controller
         AuditLog::record('anatel.exclusion.created', "Exclusão ANATEL criada ({$data['type']}), {$changed} domínio(s) desativado(s)", $lista->empresa_id, 'anatel_exclusion', $exclusion->id);
 
         return back()->with('status', "Exclusão salva; {$changed} domínio(s) desbloqueado(s).");
+    }
+
+    public function updateExclusion(Request $request, Lista $lista, AnatelExclusion $exclusion, DomainNormalizer $normalizer, AnatelExclusionMatcher $matcher): RedirectResponse
+    {
+        $this->ensureOwned($lista, $exclusion);
+        $data = $request->validate(['type' => ['required', 'in:exact,regex'], 'value' => ['required', 'string', 'max:1000'], 'notes' => ['nullable', 'string', 'max:1000']]);
+        $value = trim($data['value']);
+        if ($data['type'] === 'exact') {
+            $value = $normalizer->normalize($value, false);
+            if ($value === null) {
+                throw ValidationException::withMessages(['value' => 'Domínio exato inválido.']);
+            }
+        } elseif (! $matcher->isValidRegex($value)) {
+            throw ValidationException::withMessages(['value' => 'Regex inválida.']);
+        }
+        $valueHash = hash('sha256', $value);
+        $duplicate = AnatelExclusion::where('lista_id', $lista->id)
+            ->where('type', $data['type'])
+            ->where('value_hash', $valueHash)
+            ->where('id', '!=', $exclusion->id)
+            ->exists();
+        if ($duplicate) {
+            throw ValidationException::withMessages(['value' => 'Já existe uma exclusão igual a essa nesta lista.']);
+        }
+        $exclusion->update(['type' => $data['type'], 'value' => $value, 'value_hash' => $valueHash, 'notes' => $data['notes'] ?? null]);
+        $changed = 0;
+        if ($exclusion->active) {
+            $changed += $this->reactivateEligible($lista, $matcher);
+            $changed += $this->applyExclusion($lista, $exclusion, $matcher);
+        }
+        AuditLog::record('anatel.exclusion.edited', "Exclusão ANATEL editada; {$changed} domínio(s) afetado(s)", $lista->empresa_id, 'anatel_exclusion', $exclusion->id);
+
+        return back()->with('status', "Exclusão atualizada; {$changed} domínio(s) afetado(s).");
     }
 
     public function toggleExclusion(Lista $lista, AnatelExclusion $exclusion, AnatelExclusionMatcher $matcher): RedirectResponse
