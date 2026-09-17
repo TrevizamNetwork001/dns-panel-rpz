@@ -11,10 +11,20 @@
         </div>
     </div>
 
-    @if ($lista->isExterna())
+    @if ($lista->isManaged())
+        @php $manualSibling = $lista->manualSibling(); @endphp
         <div class="panel" style="margin-bottom:14px">
             <div class="alert-error" style="margin:0;background:rgba(33,199,232,0.08);border-color:var(--cyan, #21c7e8);color:var(--text)">
-                Esta lista é sincronizada automaticamente do feed <strong>{{ $lista->fonte_externa }}</strong>. Edição manual está desabilitada — qualquer alteração seria sobrescrita na próxima sincronização.
+                @if ($lista->isExterna())
+                    Esta lista é sincronizada automaticamente do feed <strong>{{ $lista->fonte_externa }}</strong>.
+                @else
+                    Esta lista é sincronizada automaticamente da importação ANATEL.
+                @endif
+                Edição manual está desabilitada — qualquer alteração seria sobrescrita na próxima sincronização.
+                @if ($manualSibling)
+                    Pra cadastrar domínios manualmente, acesse
+                    <a href="{{ route('listas.dominios.index', $manualSibling) }}"><strong>{{ $manualSibling->nome }}</strong></a>.
+                @endif
             </div>
         </div>
     @else
@@ -61,7 +71,7 @@
                         <tr>
                             <th>Domínio</th>
                             <th>Status</th>
-                            @unless ($lista->isExterna())
+                            @unless ($lista->isManaged())
                             <th class="table-actions-column"></th>
                             @endunless
                         </tr>
@@ -75,7 +85,7 @@
                                         {{ $dominio->ativo ? 'Ativo' : 'Inativo' }}
                                     </span>
                                 </td>
-                                @unless ($lista->isExterna())
+                                @unless ($lista->isManaged())
                                 <td>
                                     <div class="table-actions">
                                         <form action="{{ route('dominios.toggle', $dominio) }}" method="POST">

@@ -23,7 +23,7 @@ class DominioController extends Controller
     public function store(Request $request, Lista $lista): RedirectResponse
     {
         if ($lista->isManaged()) {
-            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+            return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($lista)]);
         }
 
         $data = $request->validate([
@@ -56,7 +56,7 @@ class DominioController extends Controller
     public function bulkStore(Request $request, Lista $lista): RedirectResponse
     {
         if ($lista->isManaged()) {
-            return back()->withErrors(['dominios' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+            return back()->withErrors(['dominios' => $this->mensagemListaGerenciada($lista)]);
         }
 
         $data = $request->validate([
@@ -98,7 +98,7 @@ class DominioController extends Controller
     public function toggle(Dominio $dominio): RedirectResponse
     {
         if ($dominio->lista->isManaged()) {
-            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+            return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($dominio->lista)]);
         }
 
         $dominio->update(['ativo' => ! $dominio->ativo]);
@@ -109,12 +109,27 @@ class DominioController extends Controller
     public function destroy(Dominio $dominio): RedirectResponse
     {
         if ($dominio->lista->isManaged()) {
-            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+            return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($dominio->lista)]);
         }
 
         $listaId = $dominio->lista_id;
         $dominio->delete();
 
         return redirect()->route('listas.dominios.index', $listaId)->with('status', 'Domínio removido.');
+    }
+
+    /**
+     * Mensagem de bloqueio pra listas gerenciadas (externa/ANATEL), apontando
+     * pra lista manual irmã quando ela existir.
+     */
+    private function mensagemListaGerenciada(Lista $lista): string
+    {
+        $sibling = $lista->manualSibling();
+
+        if ($sibling === null) {
+            return 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.';
+        }
+
+        return "Esta lista é sincronizada automaticamente e não pode ser editada manualmente. Cadastre domínios em \"{$sibling->nome}\".";
     }
 }
