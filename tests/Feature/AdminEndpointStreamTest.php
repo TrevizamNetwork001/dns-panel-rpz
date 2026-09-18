@@ -21,14 +21,14 @@ class AdminEndpointStreamTest extends TestCase
         $list = Lista::factory()->create(['nome' => 'Fonte 1007']);
         $server->listas()->attach($list);
         Dominio::factory()->for($list)->count(1007)->create(['ativo' => false]);
-        $sync = $server->syncLogs()->create(['dominios_count' => 244493, 'ip_address' => '2804:4ff0::249', 'created_at' => now()]);
+        $sync = $server->syncLogs()->create(['dominios_count' => 244493, 'ip_address' => '2001:db8::249', 'created_at' => now()]);
 
         $response = $this->actingAs($admin)->get(route('servidores.show', $server));
         $response->assertOk()->assertSee('endpoint-event-stream')
             ->assertSee('Adição')->assertSee('Remoção')->assertSee('Sincronização')
             ->assertSee('Fonte 1007')->assertSee('ganhou 1.007 domínios')->assertSee('perdeu 1.007 domínios')
             ->assertSee('Servidor sincronizou — 244.493 domínios entregues')
-            ->assertSee('IP 2804:4ff0::249')->assertDontSee('Fonte +')->assertDontSee('Fonte -');
+            ->assertSee('IP 2001:db8::249')->assertDontSee('Fonte +')->assertDontSee('Fonte -');
         $events = collect($response->viewData('logServidor'));
         $this->assertEqualsCanonicalizing(['sync', 'lista_add', 'lista_remove'], $events->pluck('tipo')->all());
         $this->assertSame('Servidor sincronizou — 244493 domínios entregues', $events->firstWhere('tipo', 'sync')['detalhe']);

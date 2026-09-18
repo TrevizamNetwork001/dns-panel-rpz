@@ -20,7 +20,7 @@ class ClientAreaPresentationTest extends TestCase
     public function test_cliente_dashboard_uses_simple_labels_pt_br_counts_and_operational_statuses(): void
     {
         Carbon::setTestNow('2026-08-27 12:00:00');
-        $empresa = Empresa::factory()->create(['nome' => 'SPEEDNET']);
+        $empresa = Empresa::factory()->create(['nome' => 'PROVEDOR EXEMPLO']);
         $cliente = User::factory()->cliente($empresa)->create();
         $empresa->licencas()->delete();
         Licenca::create([

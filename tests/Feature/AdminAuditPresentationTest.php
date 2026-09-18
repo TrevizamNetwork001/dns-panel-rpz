@@ -31,7 +31,7 @@ class AdminAuditPresentationTest extends TestCase
             AuditLog::create([
                 'user_id' => $admin->id, 'empresa_id' => $empresa->id,
                 'action' => $action, 'description' => 'Evento de teste', 'target_type' => 'empresa', 'target_id' => 11,
-                'ip_address' => '168.194.14.100', 'created_at' => now(),
+                'ip_address' => '198.51.100.100', 'created_at' => now(),
             ]);
         }
 
@@ -54,7 +54,7 @@ class AdminAuditPresentationTest extends TestCase
         $this->assertCount(8, $events);
         foreach ($events as $event) {
             $search = $event->getAttribute('data-audit-search');
-            foreach (['admin', 'empresa #11', 'empresa teste', '168.194.14.100', now()->format('d/m/Y')] as $term) {
+            foreach (['admin', 'empresa #11', 'empresa teste', '198.51.100.100', now()->format('d/m/Y')] as $term) {
                 $this->assertStringContainsString($term, $search);
             }
             $this->assertSame(mb_strtolower($search), $search);

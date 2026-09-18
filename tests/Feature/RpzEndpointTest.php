@@ -108,12 +108,12 @@ class RpzEndpointTest extends TestCase
 
     public function test_authorized_ipv6_individual_and_cidr_are_supported(): void
     {
-        [$empresa] = $this->endpoint('ipv6', ['2001:db8::1', '2804:4ff0::/64']);
+        [$empresa] = $this->endpoint('ipv6', ['2001:db8::1', '2001:db8:a::/64']);
         $this->withServerVariables(['REMOTE_ADDR' => '2001:0db8:0:0:0:0:0:1'])
             ->get("/rpz/{$empresa->rpz_slug}.zone")->assertOk();
-        $this->withServerVariables(['REMOTE_ADDR' => '2804:4ff0::249'])
+        $this->withServerVariables(['REMOTE_ADDR' => '2001:db8:a::249'])
             ->get("/rpz/{$empresa->rpz_slug}.zone")->assertOk();
-        $this->withServerVariables(['REMOTE_ADDR' => '2804:4ff1::249'])
+        $this->withServerVariables(['REMOTE_ADDR' => '2001:db8:b::249'])
             ->get("/rpz/{$empresa->rpz_slug}.zone")->assertForbidden();
     }
 

@@ -19,7 +19,7 @@ class ClientCompanyPresentationTest extends TestCase
     {
         $this->travelTo(now()->setDate(2026, 8, 27)->startOfDay());
         $empresa = Empresa::factory()->create([
-            'nome' => 'speednet',
+            'nome' => 'provedor exemplo',
             'documento' => '86999450000190',
             'email_contato' => 'contato@teste.cn.nrt',
             'status' => 'active',
