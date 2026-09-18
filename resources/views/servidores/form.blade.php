@@ -88,6 +88,7 @@
                         <option value="redirect" @selected(old('bloqueio_modo', $servidor->bloqueio_modo) === 'redirect')>Página de bloqueio (redireciona)</option>
                     </select>
                     <p style="color:var(--text-muted);font-size:10px;margin-top:6px">No MikroTik, o Adlist sempre responde com 0.0.0.0; a página de bloqueio só se aplica ao RPZ/Unbound.</p>
+                    <p style="color:var(--amber, #f5a524);font-size:10px;margin-top:4px"><strong>Atenção:</strong> a opção "Página de bloqueio" ainda não está disponível no servidor do painel — os sites bloqueados ficariam sem resposta em vez de mostrar a página. Em sites HTTPS o navegador também mostra alerta de certificado. Use NXDOMAIN.</p>
                 </div>
 
                 <div class="field-group">
