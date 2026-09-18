@@ -38,8 +38,8 @@
             @if (auth()->user()->isAdmin())
             <a href="{{ route('listas.rpz-preview', $lista) }}" class="button button-secondary">Preview RPZ</a>
             @endif
-            <a href="{{ route('listas.historico', $lista) }}" class="button button-secondary">Histórico</a>
             @if (auth()->user()->isAdmin())
+            <a href="{{ route('listas.historico', $lista) }}" class="button button-secondary">Histórico</a>
             <a href="{{ route('listas.edit', $lista) }}" class="button button-secondary">Editar</a>
             @endif
         </div>
@@ -94,7 +94,7 @@
         </div>
         @endif
 
-        @if ($lista->isAnatel())
+        @if ($lista->isAnatel() && auth()->user()->isAdmin())
         <div class="panel">
             <div class="panel-header"><h2>ANATEL / PDF</h2>@if (auth()->user()->isAdmin())<div><a href="{{ route('anatel.exclusions',$lista) }}" class="button button-secondary">Exclusões</a> <a href="{{ route('anatel.history',$lista) }}" class="button button-secondary">Histórico</a></div>@endif</div>
             <p>{{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios ativos. A importação é incremental e nunca remove domínios ausentes de um PDF novo.</p>

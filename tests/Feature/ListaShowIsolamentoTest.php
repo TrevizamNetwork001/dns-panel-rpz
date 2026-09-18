@@ -36,14 +36,16 @@ class ListaShowIsolamentoTest extends TestCase
             ->assertDontSeeText('Empresa Concorrente SA');
     }
 
-    public function test_client_does_not_get_admin_only_anatel_buttons(): void
+    public function test_client_does_not_get_the_history_button_nor_the_anatel_pdf_panel(): void
     {
         [, $lista, $cliente] = $this->catalogoComDoisClientes();
 
         $this->actingAs($cliente)->get(route('listas.show', $lista))->assertOk()
             ->assertDontSee(route('anatel.exclusions', $lista), false)
             ->assertDontSee(route('anatel.history', $lista), false)
-            ->assertSee(route('listas.historico', $lista), false);
+            ->assertDontSee('href="'.route('listas.historico', $lista).'"', false)
+            ->assertDontSeeText('ANATEL / PDF')
+            ->assertDontSeeText('A importação é incremental');
     }
 
     public function test_admin_still_sees_every_server_with_its_company(): void
@@ -55,7 +57,9 @@ class ListaShowIsolamentoTest extends TestCase
             ->assertSeeText('Endpoints RPZ vinculados')
             ->assertSeeText('meu-dns')->assertSeeText('dns-do-concorrente')
             ->assertSeeText('Empresa Concorrente SA')
-            ->assertSee(route('anatel.exclusions', $lista), false);
+            ->assertSee(route('anatel.exclusions', $lista), false)
+            ->assertSee('href="'.route('listas.historico', $lista).'"', false)
+            ->assertSeeText('ANATEL / PDF');
     }
 
     public function test_client_with_no_server_on_the_list_gets_an_empty_state(): void
