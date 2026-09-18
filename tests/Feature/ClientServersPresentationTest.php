@@ -32,7 +32,9 @@ class ClientServersPresentationTest extends TestCase
         $response->assertOk()
             ->assertSee('Editar servidor')
             ->assertSee('Configuração do servidor')
-            ->assertSee('Acesso ao feed')
+            ->assertDontSee('Acesso ao feed')
+            ->assertDontSee($servidor->token)
+            ->assertDontSee('id="token-toggle-btn"', false)
             ->assertSee('Listas habilitadas')
             ->assertSee('Pesquisar listas...')
             ->assertSee('name="tipo_dns"', false)
@@ -151,6 +153,20 @@ class ClientServersPresentationTest extends TestCase
             'max_servidores' => $maximum,
             'status' => 'active',
         ]);
+    }
+
+    public function test_admin_still_sees_feed_access_and_client_page_never_carries_the_token(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $servidor = Servidor::factory()->for($empresa)->create();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get(route('servidores.edit', $servidor))->assertOk()
+            ->assertSee('Acesso ao feed')->assertSee($servidor->token)->assertSee('id="token-toggle-btn"', false);
+
+        $cliente = User::factory()->cliente($empresa)->create();
+        $html = $this->actingAs($cliente)->get(route('servidores.edit', $servidor))->assertOk()->getContent();
+        $this->assertStringNotContainsString($servidor->token, $html, 'O token não pode aparecer nem no JS da página do cliente.');
     }
 
     private function serverPayload(array $overrides = []): array

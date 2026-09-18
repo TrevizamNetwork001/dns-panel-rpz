@@ -112,7 +112,7 @@
             @endif
         </div>
 
-        @if ($servidor->exists)
+        @if ($servidor->exists && auth()->user()->isAdmin())
             <div class="panel form-panel" style="margin-bottom:14px">
                 <div class="panel-header"><h2>Acesso ao feed</h2></div>
                 <div class="field-group">
@@ -139,7 +139,7 @@
                     <p style="color:var(--text-muted);font-size:10px;margin-top:6px">O token dá acesso à zona RPZ {{ auth()->user()->isAdmin() ? 'deste endpoint' : 'deste servidor' }}. Não compartilhe fora do que for necessário.</p>
                 </div>
             </div>
-        @else
+        @elseif (! $servidor->exists && auth()->user()->isAdmin())
             <p style="color:var(--text-muted);font-size:11px;margin-top:10px">O token é gerado automaticamente ao salvar.</p>
         @endif
 
@@ -191,7 +191,7 @@
     <script>
         (function () {
             var isAdminEndpointForm = {{ auth()->user()->isAdmin() ? 'true' : 'false' }};
-            var endpointToken = @json($servidor->exists ? $servidor->token : null);
+            var endpointToken = @json($servidor->exists && auth()->user()->isAdmin() ? $servidor->token : null);
             var maskedEndpointToken = isAdminEndpointForm ? '••••••••••••••••••••••••••••' : '••••••••••••••••••••';
             document.querySelectorAll('[data-copy-target]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
