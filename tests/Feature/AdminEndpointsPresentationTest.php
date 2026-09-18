@@ -187,6 +187,28 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertDontSee('Status cadastral');
     }
 
+    public function test_unbound_server_page_shows_module_config_step_but_mikrotik_does_not(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create();
+        $unbound = Servidor::factory()->for($empresa)->create(['tipo_dns' => 'unbound']);
+        $mikrotik = Servidor::factory()->for($empresa)->create(['tipo_dns' => 'mikrotik']);
+
+        $this->actingAs($admin)->get(route('servidores.show', $unbound))->assertOk()
+            ->assertSee('id="module-snippet"', false)
+            ->assertSee('module-config: "respip validator iterator"', false)
+            ->assertSeeText('Passo 1')->assertSeeText('Passo 2')
+            ->assertSeeText('A ordem importa')
+            ->assertSee('id="rpz-fields-help"', false)
+            ->assertSeeText('Nome da zona no Unbound')
+            ->assertSeeText('Nome que identifica as linhas de log deste RPZ');
+
+        $this->get(route('servidores.show', $mikrotik))->assertOk()
+            ->assertDontSee('id="module-snippet"', false)
+            ->assertDontSee('id="rpz-fields-help"', false)
+            ->assertDontSee('module-config');
+    }
+
     private function mainConfig(string $content): string
     {
         preg_match('/<pre[^>]+id="config-snippet"[^>]*>(.*?)<\/pre>/s', $content, $matches);

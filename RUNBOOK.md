@@ -44,7 +44,7 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
    curl -s "https://.../rpz/{token}.zone" > /tmp/check.zone
    named-checkzone rpz.trevizamnetwork.com.br /tmp/check.zone
    ```
-4. Do lado do cliente: confirmar que o bloco `rpz:` no `unbound.conf` dele está **depois** do bloco `server:` (antes, se usar `hyperlocal`), e rodar `unbound-checkconf` antes de qualquer restart.
+4. Do lado do cliente: confirmar que o módulo `respip` está habilitado no bloco `server:` (`module-config: "respip validator iterator"` — `respip` primeiro; sem ele o RPZ não bloqueia nada e o Unbound não avisa) e que o bloco `rpz:` no `unbound.conf` dele está **depois** do bloco `server:` (antes, se usar `hyperlocal`), e rodar `unbound-checkconf` antes de qualquer restart.
 
 ## Servidor sumiu do painel (removido por inatividade)
 

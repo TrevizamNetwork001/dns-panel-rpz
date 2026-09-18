@@ -92,7 +92,16 @@
                 <h2>{{ $isMikrotik ? 'Configuração do MikroTik' : 'Configuração do Unbound' }}</h2>
                 <button type="button" class="button button-secondary" id="copy-config-btn" data-copy-target="config-snippet">Copiar</button>
             </div>
+            @unless ($isMikrotik)
+                <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
+                    <strong>Passo 1 — habilitar os módulos no bloco <code>server:</code>.</strong> O RPZ depende do módulo <code>respip</code>; sem ele o Unbound aceita a configuração, mas não bloqueia nada. <strong>A ordem importa</strong>: <code>respip</code> vem primeiro. Se o seu <code>unbound.conf</code> já tem uma linha <code>module-config</code>, só acrescente <code>respip</code> no início dela, mantendo os demais módulos que você já usa — não duplique a linha.
+                </p>
+                <pre id="module-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">server:
+    module-config: "respip validator iterator"</pre>
+                <div style="margin:0 0 18px"><button type="button" class="button button-secondary" data-endpoint-copy="module-snippet" aria-live="polite">Copiar</button></div>
+            @endunless
             <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
+                @unless ($isMikrotik)<strong>Passo 2 — bloco <code>rpz:</code>.</strong>@endunless
                 @if ($isMikrotik)
                     Execute no terminal do RouterOS v7. Antes, confirme que o equipamento possui o menu <code>/ip dns adlist</code> e memória/cache suficientes para o tamanho da lista.
                 @elseif (auth()->user()->isAdmin())
@@ -107,6 +116,20 @@
             @else
                 <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $isMikrotik ? $mikrotikConfig : $configSnippet }}</pre>
             @endif
+            @unless ($isMikrotik)
+                <dl id="rpz-fields-help" style="margin:14px 0 0;font-size:11px;color:var(--text-muted);line-height:1.6">
+                    <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>name</code></dt>
+                    <dd style="margin:0">Nome da zona no Unbound. Já vem preenchido — não altere.</dd>
+                    <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>zonefile</code></dt>
+                    <dd style="margin:0">Arquivo onde o Unbound guarda a cópia local da zona baixada. Já vem preenchido — não altere o nome; o Unbound precisa conseguir gravar nesse caminho.</dd>
+                    <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>url</code></dt>
+                    <dd style="margin:0">Endereço de onde o Unbound consulta a zona. Ele contém o token do servidor — não compartilhe.</dd>
+                    <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>rpz-log</code></dt>
+                    <dd style="margin:0">Registra nos logs do Unbound as consultas afetadas pelo RPZ. Se não quiser esse log, remova a linha ou troque por <code>no</code>.</dd>
+                    <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>rpz-log-name</code></dt>
+                    <dd style="margin:0">Nome que identifica as linhas de log deste RPZ, para você filtrá-las depois. Pode ser alterado.</dd>
+                </dl>
+            @endunless
             <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $isMikrotik ? $mikrotikUrl : $rpzUrl }}</code></p>
         </div>
 
