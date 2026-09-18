@@ -146,6 +146,36 @@ openssl x509 -in /etc/nginx/tls/rpz.trevizamnetwork.com.br/cert.pem -noout -endd
   ```
 - **Se você mesmo ficar sem acesso SSH**: existe uma chave SSH (ed25519) instalada em `~/.ssh/authorized_keys` do root, testada e funcional, como alternativa à senha (ver README, seção "Segurança do host"). Login por senha continua habilitado por decisão consciente — não foi desativado.
 
+## Fazer um deploy
+
+Não há deploy automático: o código roda a partir do diretório do repositório no servidor, dentro de imagens Docker.
+
+```bash
+git status                                   # árvore limpa; testes verdes antes de subir
+docker compose exec app php artisan backup:run   # OBRIGATÓRIO se houver migration nova (backup local + R2)
+
+docker compose build app nginx               # 'app' = código PHP/views; 'nginx' = arquivos estáticos (public/assets/app.css)
+RPZ_ENV_FILE=/etc/dns-panel-rpz/app.env docker compose --profile cutover up -d
+docker compose restart nginx                 # o app recriado troca de IP interno; sem isso o site cai com 502
+
+docker compose exec app php artisan migrate --force   # só se houver migration nova; o init.sh NÃO roda migrate
+```
+
+Confira depois:
+
+```bash
+curl -sk -o /dev/null -w "%{http_code}\n" https://rpz.trevizamnetwork.com.br/login          # 200
+docker exec dns-panel-rpz-app-1 sh -c "grep -c '<algo-que-so-existe-no-codigo-novo>' resources/views/<arquivo>"
+curl -sk https://rpz.trevizamnetwork.com.br/assets/app.css | grep -c '<regra-nova>'          # se mexeu em CSS
+git push origin feat/dockerize-rpz
+```
+
+Pegadinhas:
+- **Mudou CSS e nada mudou na tela?** Faltou `docker compose build nginx` — os estáticos ficam na imagem do nginx, não na do app. Depois peça Ctrl+F5 (cache do navegador).
+- **Mudou só view/texto?** `build app` basta, mas rodar os dois é inofensivo.
+- **Migration nova**: leia o `docs/CHANGELOG.md`; tudo o que só adiciona coluna/índice é seguro, mas faça o backup antes mesmo assim.
+- Para testar uma view como um usuário sem abrir o navegador: `docker compose exec -T -e HOME=/tmp app php artisan tinker` com `view()->share('errors', new Illuminate\Support\ViewErrorBag); Auth::login($user); app(Controller::class)->metodo()->render();` (só leitura).
+
 ## Reverter um deploy
 
 Não há deploy automático — toda mudança é manual (`git pull` + rebuild das imagens). Pra reverter:

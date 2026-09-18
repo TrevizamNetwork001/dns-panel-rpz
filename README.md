@@ -67,6 +67,10 @@ Além do feed legado citado acima, a lista ANATEL também é alimentada manualme
 - **Arquivo duplicado**: reenviar o mesmo arquivo (mesmo hash SHA-256) enquanto uma importação anterior dele ainda está pendente, processando ou já aplicada é rejeitado com mensagem clara — não deixa duplicar o trabalho nem a prévia.
 - Ação final em `/anatel/imports/{id}/preview`: **Aprovar e atualizar lista** (aplica os domínios de verdade) ou **Não enviar ao RPZ** (rejeita, lista intocada). Dá pra excluir a prévia e o arquivo a qualquer momento antes de aprovar.
 - Auditoria completa em `/auditoria` (quem subiu, quem aprovou/rejeitou, de qual IP) e histórico em `/listas/{id}/anatel/history`.
+- **Cadastro manual direto na lista ANATEL** (admin): serve para ofícios em formato imagem, que o extrator não lê. É seguro porque a importação de PDF (`AnatelImporter`) **só adiciona ou reativa** domínios e nunca apaga o que não está no PDF novo — um domínio cadastrado à mão não some numa importação futura. Isso vale só para a ANATEL: listas `externa` (HaGeZi etc.) são sobrescritas a cada sync (o `ExternalListaSyncer` desativa o que saiu do feed) e por isso não aceitam edição manual (`DominioController` bloqueia com `isExterna()`).
+- **Exclusões** (`/listas/{id}/anatel/exclusions`, admin): domínios **exatos** ou **regex** que não devem ficar bloqueados. Abas Todos / Exato / Regex com contadores e botão **Editar** por linha. Cadastrar ou editar uma exclusão já **desativa na hora** os domínios ativos que batem (`inactive_reason = anatel_exclusion`); desativar ou apagar a exclusão **reativa** os que não batem em nenhuma outra. Não existe passo de "publicar": a zona é montada a cada consulta, então vale na próxima busca do Unbound do cliente.
+  - **Regex sem delimitadores**: o sistema já embrulha o valor em `~(?:valor)~uD`. Use `gov\.br$`, **não** `/gov\.br$/` (com as barras a regex nunca casa, porque elas viram caracteres literais).
+- **Revogação não é detectada**: o extrator não distingue ofício de bloqueio de ofício de desbloqueio; todo domínio do PDF é candidato a bloqueio. Para desbloquear, cadastre uma exclusão (ou desative o domínio).
 
 ## Entidades
 
@@ -92,8 +96,15 @@ Além do feed legado citado acima, a lista ANATEL também é alimentada manualme
 | Sugerir domínio | ✅ | ✅ |
 | Aprovar/rejeitar sugestão | ✅ | ❌ |
 | Ver dashboard | Global (todas as empresas) | Escopado à própria empresa |
+| Informar o IP do DNS do servidor | ✅ | ✅ (fica **pendente**; só o admin libera) |
+| Liberar/adicionar/remover IP autorizado (ACL) | ✅ | ❌ |
+| Cadastrar domínio manualmente na lista ANATEL, exclusões ANATEL | ✅ | ❌ |
+| Ver origem das listas (feed, URL, sincronização, importação) | ✅ | ❌ |
+| Ver token/URL do feed na tela de edição do servidor | ✅ | ❌ |
 
 Controle de acesso é feito via middleware `auth` (tudo exceto login/cadastro/RPZ) + `admin` (rotas restritas), mais checagem de propriedade (`empresa_id`) dentro dos controllers para as rotas que ambos os papéis acessam.
+
+**O cliente não vê como o sistema funciona por dentro.** Nas telas dele aparecem só o nome da lista, uma frase curta do que ela bloqueia e o estado. Ficam restritos ao admin: de onde a lista vem (nomes de provedores, URL do feed), sincronização automática, importação/PDF, `zonefile`, o token do servidor e qualquer dado de **outras empresas** (servidores, nomes, listas privadas). Ao criar uma tela nova para o cliente, siga essa regra e cubra com teste (`ListaShowIsolamentoTest`, `ClienteIsolamentoTest`); filtre por empresa **na consulta**, não só na view.
 
 ## Cadastro público e aprovação
 
@@ -105,6 +116,39 @@ Fica com status `pending` e o usuário já é logado automaticamente, mas **não
 2. Criar uma licença para ela.
 
 Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio em vez de deixar salvar.
+
+## Auditoria
+
+`/auditoria` (admin) registra quem fez o quê, quando e de qual IP. Cada evento mostra data/hora, o autor (ou "Sistema (automático)"), o rótulo em português, o alvo (ex.: "Lista #14"), a empresa, a categoria, a **descrição completa** e o IP.
+
+- **Filtros**: busca livre (descrição, IP, ação, usuário, empresa), **Categoria** (ANATEL, Autenticação e segurança, Backup, Configurações, Empresas, Licenças, Listas e fontes, Endpoints RPZ/Mikrotik, RBL Checker, Servidores, Sugestões, Sistema/healthcheck, Usuários), **Usuário**, **Período** (De/Até) e **Severidade**. Categoria, usuário e período são `WHERE` no banco (histórico completo); busca e severidade (heurística em PHP, `AuditLog::bucket()`) rodam sobre os 1.000 eventos mais recentes já reduzidos por esses filtros. Paginação de 50 por página.
+- **Ao criar uma ação nova** (`area.verbo`, ex.: `servidor.ip_pendente`): registre com `AuditLog::record()` (pega usuário e IP da requisição) ou, em comando/job, com `AuditLog::create()` e `user_id` nulo; e **adicione o rótulo em `AuditLog::actionLabel()`**. Sem rótulo cai no texto cru. O prefixo define a categoria (`AuditLog::category()`). O dashboard do admin usa o mesmo dicionário.
+
+## Dashboard do cliente
+
+Cartões (domínios bloqueados, listas, servidores em uso, licença), o gráfico **"Atualizações de servidores"** e, lado a lado, "Listas disponíveis" e "Meus servidores".
+
+- O gráfico mostra quantas vezes os servidores **da empresa** buscaram a zona em cada um dos últimos 30 dias (dias sem consulta entram com 0). Vem de `server_sync_logs`, desenhado no servidor em SVG (sem JS nem CDN), com tooltip por ponto. A tabela ganha uma linha por consulta e **não é podada**; o índice `(servidor_id, created_at)` mantém a consulta rápida.
+- Os dois painéis de baixo usam `.dashboard-grid-cliente` (alinhados no topo, altura pelo conteúdo: a lista de servidores cresce com o número de servidores). O dashboard do admin usa o mesmo `.dashboard-grid` sem esse modificador.
+- **Static assets ficam na imagem do nginx**: mudança em `public/assets/app.css` só aparece depois de `docker compose build nginx` (ver RUNBOOK, "Fazer um deploy").
+
+## Listas: nomes e descrições
+
+Cada lista tem um nome e uma descrição curta (`listas.descricao`), mostrados sob o nome no dashboard do cliente, na lista de fontes, na tela do servidor (fontes vinculadas e disponíveis) e no seletor do cadastro do servidor (a busca do seletor também considera a descrição). Edite em **Fontes → editar** (ou via tinker, registrando em `AuditLog`).
+
+**Padrão de texto (cliente)**: só o propósito, em uma frase, sem origem nem nome de provedor. Catálogo atual:
+
+| Lista | Para que serve |
+|---|---|
+| Malware e Vírus | Sites que espalham vírus e programas maliciosos |
+| Botnets e Controle Remoto | Impede que computadores infectados falem com o criminoso |
+| Phishing e Golpes | Falsos sites de banco, loja e login que roubam dados |
+| ANATEL — Bloqueios Oficiais | Bloqueios determinados por órgãos oficiais e decisões judiciais |
+| Mineração de Criptomoedas | Sites que usam o computador do visitante para minerar |
+| Ransomware | Domínios usados em ataques de sequestro de dados |
+| Ameaças Gerais | Lista ampla contra malware, phishing e golpes |
+
+A origem de cada lista (feed, URL, estado da sincronização) continua visível ao admin na tela da lista.
 
 ## Segurança implementada
 
@@ -119,6 +163,10 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 - Credenciais sensíveis salvas em `settings` (token do Telegram, Access Key/Secret do R2) ficam criptografadas (`Setting::getEncrypted()`/`setEncrypted()`, `Crypt::encryptString()` com a `APP_KEY`) — não é texto puro no banco.
 - Sync de listas externas com proteção contra SSRF: resolve o DNS do `fonte_url` e recusa buscar se algum IP resolvido cair em faixa privada/reservada (`FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE`) — impede apontar pra rede interna do servidor via `.local`/`localhost`/IP privado.
 - Todos os models usam `$fillable` explícito (sem mass assignment amplo).
+- **Isolamento entre empresas**: as rotas do cliente checam a empresa na consulta/controller e `tests/Feature/ClienteIsolamentoTest.php` trava isso (IDOR em servidor/lista/empresa, `empresa_id` e `lista_ids` forjados, busca e contadores de domínios, sugestões, rotas de admin respondendo 403). Foi validado por mutação (desligar uma guarda faz o teste falhar).
+- **IP informado pelo cliente não dá acesso**: entra como `pending` e só o admin ativa; a ACL considera apenas `active`.
+- **Token do servidor** não vai no HTML nem no JS da página do cliente.
+- **Repositório GitHub privado.** Testes e documentação usam só faixas reservadas (RFC 5737: `198.51.100.0/24`, `203.0.113.0/24`; RFC 3849: `2001:db8::/32`) e nomes genéricos — nada de IP ou cliente real. O histórico anterior a 18/09/2026 ainda contém alguns valores reais antigos.
 
 ## Segurança do host (SSH / fail2ban)
 
@@ -244,7 +292,32 @@ Depois disso, siga o padrão do servidor de produção pra deixar realista:
 php artisan test
 ```
 
-348 testes / 2.387 assertions cobrindo os pontos mais críticos:
+404 testes / cerca de 2.400 assertions cobrindo os pontos mais críticos.
+
+**Só com Docker** (a imagem de produção não traz PHPUnit; instale as dependências de dev num diretório temporário, sem tocar na imagem nem no repositório):
+
+```bash
+mkdir -p /tmp/rpz-vendor
+docker run --rm -v "$(pwd):/app" -v /tmp/rpz-vendor:/vendor-out -w /app composer:2.8 \
+  sh -c "composer install --no-interaction --no-scripts -q && cp -r vendor/* /vendor-out/"
+docker run --rm -v "$(pwd):/var/www/html" -v /tmp/rpz-vendor:/var/www/html/vendor \
+  -e DB_CONNECTION=sqlite -e DB_DATABASE=:memory: -e CACHE_STORE=array -e SESSION_DRIVER=array -e QUEUE_CONNECTION=sync \
+  -w /var/www/html --entrypoint php dns-panel-rpz-app:local vendor/bin/phpunit
+rm -rf /tmp/rpz-vendor
+```
+
+Nesse ambiente **1 teste falha sempre**: `RpzZonefileTest::test_zonefile_is_valid_dns_zone_syntax`, porque a imagem não tem o `named-checkzone` (`bind9-utils`). É esperado; no CI ele passa.
+
+Cobertura adicionada em set/2026:
+
+- `tests/Feature/ClienteIsolamentoTest.php`, `ListaShowIsolamentoTest.php`, `ListaDescricaoVisivelTest.php` — isolamento entre clientes e o que o cliente não pode ver (URL do feed, sincronização, servidores/empresas de terceiros).
+- `tests/Feature/ServidorIpPendenteTest.php` — fluxo de IP pendente/liberação (ACL só com IP ativo, Telegram, cliente não libera, admin libera no cadastro, edição não altera ACL).
+- `tests/Feature/ServidoresInativosCleanerTest.php` — limpeza de servidores inativos (aviso antes de remover, prazo, servidor que voltou, `--dry-run`, desligada por padrão).
+- `tests/Feature/ClienteDashboardGraficoTest.php` — gráfico de atualizações (agrupamento por dia, dias vazios, isolamento).
+- `tests/Feature/AdminAuditPresentationTest.php` — auditoria (rótulos, paginação, filtros de categoria/usuário/período).
+
+Cobertura anterior:
+
 
 - `tests/Feature/RpzZonefileTest.php` — geração do zonefile (token inválido, servidor/empresa inativos, domínio canário, modo `nxdomain` vs `redirect`, ACL de IP obrigatória mesmo com restrição desligada, criação de sync log, validação com `named-checkzone` de verdade, memória sob carga de 20k domínios).
 - `tests/Feature/RegistrationTurnstileTest.php` — CAPTCHA no cadastro público (sem configuração, sem token, token válido, token rejeitado pela Cloudflare, Cloudflare fora do ar).
@@ -263,7 +336,7 @@ Usa banco SQLite em memória (`phpunit.xml`, `DB_DATABASE=:memory:`) — não to
 
 ## CI
 
-- Repositório privado no GitHub: `github.com/TrevizamNetwork001/dns-panel-rpz` (só espelha o código — deploy continua manual via SSH, não é automático a partir daqui).
+- Repositório **privado** no GitHub: `github.com/TrevizamNetwork001/dns-panel-rpz` (só espelha o código — deploy continua manual via SSH, não é automático a partir daqui). Ficou público por um tempo e foi tornado privado em 18/09/2026 (`gh repo edit --visibility private`). O trabalho recente vive no branch `feat/dockerize-rpz` (PR nº 1 para o `master`, ainda a juntar). Uma varredura por padrões de token/chave (Telegram, `APP_KEY`, AWS/R2, chave privada) nos 164 commits existentes em 18/09/2026 não encontrou segredos.
 - `.github/workflows/tests.yml` roda a suite completa (`php artisan test`) a cada push/PR em qualquer branch. Instala PHP 8.4, `bind9-utils` (pro teste que valida o zonefile com `named-checkzone`) e sobrescreve `APP_URL` no `.env` de teste (senão o host do painel vira `localhost`, que colide com o NS fixo do RPZ e quebra a validação de zona).
 - Hook local (`.git/hooks/pre-commit`, cópia em `deploy/git-hooks/`) roda a mesma suite antes de cada commit local — dupla camada, tanto local quanto no GitHub.
 
@@ -276,6 +349,10 @@ Usa banco SQLite em memória (`phpunit.xml`, `DB_DATABASE=:memory:`) — não to
 - `PATCH /listas/{lista}/toggle-sync` — admin only, pausa/reativa sync de lista externa.
 - `GET /perfil`, `PUT /perfil/avatar`, `GET|PUT /perfil/senha` — conta do usuário logado (qualquer papel).
 - `POST /sugestoes/{sugestao}/aprovar|rejeitar` — admin only.
+- `POST /servidores/{servidor}/ips`, `PATCH .../ips/{ip}/liberar`, `DELETE .../ips/{ip}` — IPs autorizados do servidor (ACL): adicionar, **liberar** um IP pendente e remover. Admin only.
+- `PUT /listas/{lista}/anatel/exclusions/{exclusion}` — editar exclusão ANATEL (`GET .../exclusions?tipo=exact|regex` filtra por aba). Admin only.
+- `PUT /configuracoes/limpeza-servidores` — liga/desliga e prazos da limpeza de servidores inativos. Admin only.
+- `GET /auditoria` — filtros por query string: `q`, `categoria`, `usuario` (`sistema` = automático), `data_inicio`, `data_fim`, `bucket` (severidade), `page`. Admin only.
 
 Lista completa: `php artisan route:list`.
 
