@@ -201,7 +201,13 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSeeText('A ordem importa')
             ->assertSee('id="rpz-fields-help"', false)
             ->assertSeeText('Nome da zona no Unbound')
-            ->assertSeeText('Nome que identifica as linhas de log deste RPZ');
+            ->assertSeeText('Nome que identifica as linhas de log deste RPZ')
+            ->assertSee('id="rpz-attention"', false)
+            ->assertSeeText('Não deixe o log habilitado em produção');
+
+        $config = $this->mainConfig($this->get(route('servidores.show', $unbound))->getContent());
+        $this->assertStringContainsString('# rpz-log: yes', $config);
+        $this->assertDoesNotMatchRegularExpression('/^\s*rpz-log:/m', $config, 'O log do RPZ deve vir comentado por padrão.');
 
         $this->get(route('servidores.show', $mikrotik))->assertOk()
             ->assertDontSee('id="module-snippet"', false)

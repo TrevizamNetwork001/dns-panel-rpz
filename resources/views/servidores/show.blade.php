@@ -10,7 +10,7 @@
     $usesCompanyEndpoint = $servidor->empresa->rpz_slug !== null;
     $rpzZoneName = $panelHost;
     $rpzZonefile = '/var/lib/unbound/'.$rpzZoneName.'.zone';
-    $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
+    $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    # rpz-log: yes\n    # rpz-log-name: \"dns-panel-rpz\"";
     $mikrotikConfig = "/ip dns set allow-remote-requests=yes\n/ip dns adlist add url=\"{$mikrotikUrl}\" ssl-verify=yes";
     $diasSemConsulta = $servidor->diasSemSincronizar();
     $limpezaConfig = app(\App\Services\ServidoresInativosCleaner::class)->config();
@@ -125,10 +125,20 @@
                     <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>url</code></dt>
                     <dd style="margin:0">Endereço de onde o Unbound consulta a zona. Ele contém o token do servidor — não compartilhe.</dd>
                     <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>rpz-log</code></dt>
-                    <dd style="margin:0">Registra nos logs do Unbound as consultas afetadas pelo RPZ. Se não quiser esse log, remova a linha ou troque por <code>no</code>.</dd>
+                    <dd style="margin:0">Registra nos logs do Unbound cada consulta afetada pelo RPZ. Vem <strong>comentado</strong> de propósito: não deixe habilitado em produção (enche o disco e pesa no I/O), use só para diagnóstico — descomente, valide com <code>unbound-checkconf</code>, reinicie e volte a comentar depois.</dd>
                     <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>rpz-log-name</code></dt>
-                    <dd style="margin:0">Nome que identifica as linhas de log deste RPZ, para você filtrá-las depois. Pode ser alterado.</dd>
+                    <dd style="margin:0">Nome que identifica as linhas de log deste RPZ, para você filtrá-las depois. Só faz efeito junto com o <code>rpz-log</code>. Pode ser alterado.</dd>
                 </dl>
+                <div id="rpz-attention" style="margin-top:16px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:11px;color:var(--text-muted);line-height:1.6">
+                    <strong style="color:var(--text-soft)">Pontos de atenção</strong>
+                    <ul style="margin:6px 0 0;padding-left:18px">
+                        <li>Não deixe o log habilitado em produção; use só para diagnóstico.</li>
+                        <li>A URL não abre no navegador: só servidores cadastrados aqui, com o IP autorizado, conseguem consultar a zona. Para os demais a resposta é 404 e nenhum dado é entregue.</li>
+                        <li>O bloco <code>rpz:</code> deve ficar <strong>depois</strong> do fim do bloco <code>server:</code>.</li>
+                        <li>Se você usa <code>hyperlocal</code>, coloque o bloco <code>rpz:</code> <strong>antes</strong> dele.</li>
+                        <li>Rode <code>unbound-checkconf</code> antes de reiniciar o serviço.</li>
+                    </ul>
+                </div>
             @endunless
             <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $isMikrotik ? $mikrotikUrl : $rpzUrl }}</code></p>
         </div>

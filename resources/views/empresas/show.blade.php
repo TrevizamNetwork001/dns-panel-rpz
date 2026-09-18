@@ -10,7 +10,7 @@
         $rpzUrl = $empresa->rpz_slug ? url('/rpz/'.$empresa->rpz_slug.'.zone') : null;
         $rpzHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
         $rpzZonefile = '/var/lib/unbound/'.$rpzHost.'.zone';
-        $rpzConfig = "rpz:\n    name: \"{$rpzHost}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
+        $rpzConfig = "rpz:\n    name: \"{$rpzHost}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    # rpz-log: yes\n    # rpz-log-name: \"dns-panel-rpz\"";
         $rpzAllowedIps = $empresa->servidores->where('status', 'active')->flatMap->allowedIps->where('status', 'active')->unique('ip_cidr')->sortBy('ip_cidr');
         $rpzListas = $empresa->servidores->where('status', 'active')->flatMap->listas->where('status', 'active')->unique('id')->sortBy('nome');
     @endphp
