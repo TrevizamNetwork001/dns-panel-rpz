@@ -26,7 +26,7 @@
             @if ($resultados->isEmpty())
                 <div class="empty-state">
                     <span class="status-pill is-active" style="margin-right:8px">Livre</span>
-                    <span>Não encontrado em nenhuma lista visível (match exato ou por wildcard). Não está sendo bloqueado.</span>
+                    <span>Não encontrado em nenhuma lista. Não está sendo bloqueado.</span>
                 </div>
             @else
                 <div class="table-responsive">
@@ -46,7 +46,7 @@
                                     <td>{{ $r['lista']->empresa->nome ?? 'Catálogo (todas)' }}</td>
                                     <td>
                                         <span class="status-pill is-inactive">Bloqueado</span>
-                                        <span style="color:var(--text-muted);font-size:10px;margin-left:6px">{{ $r['tipo'] }}</span>
+                                        <span style="color:var(--text-muted);font-size:10px;margin-left:6px">{{ $r['tipo'] === 'exato' ? 'exato' : 'domínio-pai bloqueado' }}</span>
                                     </td>
                                     <td class="table-mono">{{ $r['dominio_cadastrado'] }}</td>
                                 </tr>
