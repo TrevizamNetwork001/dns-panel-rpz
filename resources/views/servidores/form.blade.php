@@ -102,7 +102,11 @@
                 </div>
             </div>
             @if (auth()->user()->isAdmin())
-                <p class="endpoint-form-note">IPv4 e IPv6 são informativos e não controlam restrição de acesso ao feed RPZ.</p>
+                @if ($servidor->exists)
+                    <p class="endpoint-form-note">Na edição, IPv4 e IPv6 são informativos e não alteram a ACL. Gerencie os IPs liberados em "Restrição de IP", na tela do servidor.</p>
+                @else
+                    <p class="endpoint-form-note">Ao cadastrar, o IPv4/IPv6 informado já entra como IP <strong>liberado</strong> (ACL), sem precisar adicioná-lo depois.</p>
+                @endif
             @else
                 <p id="ip-liberacao-help" style="color:var(--text-muted);font-size:10px;margin-top:6px">Informe o IP <strong>público</strong> de onde o seu servidor DNS acessa a internet (IPv4 ou IPv6, pelo menos um). Depois de salvar, o suporte precisa <strong>liberar</strong> esse IP antes de o seu Unbound receber a lista — você vê o estado na tela do servidor. Não sabe qual é? No servidor DNS, rode <code>curl -4 ifconfig.me</code>.</p>
             @endif

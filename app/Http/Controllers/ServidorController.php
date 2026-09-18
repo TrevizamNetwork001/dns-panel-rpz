@@ -81,9 +81,13 @@ class ServidorController extends Controller
 
         $pendentes = $user->isCliente() ? $this->registrarIpsPendentes($servidor, $telegram) : [];
 
-        return redirect()->route('servidores.show', $servidor)->with('status', $pendentes !== []
-            ? 'Servidor criado. O IP informado aguarda liberação pelo suporte — assim que for liberado, o seu Unbound passa a receber a lista.'
-            : 'Servidor criado com sucesso.');
+        $liberados = $user->isAdmin() ? $this->liberarIpsInformados($servidor) : [];
+
+        return redirect()->route('servidores.show', $servidor)->with('status', match (true) {
+            $pendentes !== [] => 'Servidor criado. O IP informado aguarda liberação pelo suporte — assim que for liberado, o seu Unbound passa a receber a lista.',
+            $liberados !== [] => 'Servidor criado e IP liberado: '.implode(', ', $liberados).'.',
+            default => 'Servidor criado com sucesso.',
+        });
     }
 
     public function show(Servidor $servidor): View
@@ -216,6 +220,29 @@ class ServidorController extends Controller
         AuditLog::record('rpz.endpoint.acl_updated', 'ACL do endpoint RPZ atualizada', $servidor->empresa_id, 'servidor', $servidor->id);
 
         return back()->with('status', 'IP adicionado à lista de permitidos.');
+    }
+
+    /**
+     * Admin que cadastra o servidor já libera o IP informado (ACL ativa),
+     * sem precisar voltar na tela pra adicionar. Só na criação: na edição
+     * IPv4/IPv6 continuam informativos, pra editar um nome não liberar IP
+     * que estava de fora de propósito.
+     *
+     * @return list<string> IPs liberados
+     */
+    private function liberarIpsInformados(Servidor $servidor): array
+    {
+        $liberados = [];
+
+        foreach (array_unique(array_filter([trim((string) $servidor->ip_v4), trim((string) $servidor->ip_v6)])) as $ip) {
+            $registro = $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $ip], ['status' => 'active']);
+            if ($registro->wasRecentlyCreated) {
+                $liberados[] = $ip;
+                AuditLog::record('servidor.ips.added', "IP {$ip} adicionado ao servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
+            }
+        }
+
+        return $liberados;
     }
 
     public function approveAllowedIp(Servidor $servidor, ServerAllowedIp $ip): RedirectResponse

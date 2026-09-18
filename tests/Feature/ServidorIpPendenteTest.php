@@ -183,7 +183,7 @@ class ServidorIpPendenteTest extends TestCase
         $this->get(route('servidores.index'))->assertOk()->assertSeeText('IP aguardando liberação');
     }
 
-    public function test_admin_creating_a_server_does_not_require_or_register_ips(): void
+    public function test_admin_creating_a_server_without_ip_does_not_require_or_register_ips(): void
     {
         $admin = User::factory()->admin()->create();
         $empresa = Empresa::factory()->create();
@@ -192,5 +192,33 @@ class ServidorIpPendenteTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->assertSame(0, ServerAllowedIp::count());
+    }
+
+    public function test_admin_creating_a_server_releases_the_informed_ips_right_away(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create();
+
+        $this->actingAs($admin)->post(route('servidores.store'), $this->payload([
+            'empresa_id' => $empresa->id, 'ip_v4' => '203.0.113.10', 'ip_v6' => '2001:db8::10',
+        ]))->assertRedirect()->assertSessionHas('status');
+
+        $servidor = $empresa->servidores()->first();
+        $this->assertSame(['203.0.113.10' => 'active', '2001:db8::10' => 'active'], $servidor->allowedIps()->pluck('status', 'ip_cidr')->all());
+        $this->assertTrue($servidor->ipAllowed('203.0.113.10'));
+        $this->assertSame(2, \App\Models\AuditLog::where('action', 'servidor.ips.added')->where('target_id', $servidor->id)->count());
+        $this->assertSame(0, \App\Models\AuditLog::where('action', 'servidor.ip_pendente')->count());
+    }
+
+    public function test_admin_editing_a_server_never_changes_the_acl(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $servidor = Servidor::factory()->create(['ip_v4' => null]);
+
+        $this->actingAs($admin)->put(route('servidores.update', $servidor), $this->payload([
+            'empresa_id' => $servidor->empresa_id, 'ip_v4' => '203.0.113.55',
+        ]))->assertRedirect();
+
+        $this->assertSame(0, $servidor->allowedIps()->count(), 'Na edição o IP é só informativo.');
     }
 }

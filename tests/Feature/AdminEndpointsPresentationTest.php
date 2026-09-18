@@ -203,6 +203,11 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSeeText('Nome da zona no Unbound')
             ->assertSeeText('Nome que identifica as linhas de log deste RPZ')
             ->assertSee('id="rpz-attention"', false)
+            ->assertSee('id="rpz-restart-steps"', false)
+            ->assertSeeText('Passo 3')->assertSeeText('Passo 4')
+            ->assertSee('unbound-checkconf', false)
+            ->assertSee('systemctl restart unbound', false)
+            ->assertSee('dig @127.0.0.1 blocktest.', false)
             ->assertSeeText('Não deixe o log habilitado em produção');
 
         $config = $this->mainConfig($this->get(route('servidores.show', $unbound))->getContent());
@@ -212,6 +217,7 @@ class AdminEndpointsPresentationTest extends TestCase
         $this->get(route('servidores.show', $mikrotik))->assertOk()
             ->assertDontSee('id="module-snippet"', false)
             ->assertDontSee('id="rpz-fields-help"', false)
+            ->assertDontSee('id="rpz-restart-steps"', false)
             ->assertDontSee('module-config');
     }
 

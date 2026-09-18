@@ -133,6 +133,23 @@
                 <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $isMikrotik ? $mikrotikConfig : $configSnippet }}</pre>
             @endif
             @unless ($isMikrotik)
+                <div id="rpz-restart-steps" style="margin-top:16px">
+                    <p style="color:var(--text-muted);font-size:11px;margin:0 0 8px">
+                        <strong>Passo 3 — validar e reiniciar.</strong> Depois de salvar o <code>unbound.conf</code>, valide a configuração e só reinicie se aparecer <em>no errors</em>. Se houver erro, corrija antes: um arquivo inválido impede o serviço de subir e derruba o DNS da sua rede.
+                    </p>
+                    <pre id="restart-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">unbound-checkconf
+systemctl restart unbound</pre>
+                    <div style="margin:0 0 6px"><button type="button" class="button button-secondary" data-endpoint-copy="restart-snippet" aria-live="polite">Copiar</button></div>
+                    <p style="color:var(--text-muted);font-size:10px;margin:0 0 16px">Reinicie só nesta primeira configuração ou quando alterar o <code>unbound.conf</code>. Depois disso o Unbound atualiza a lista sozinho, a cada hora, sem reiniciar.</p>
+
+                    <p style="color:var(--text-muted);font-size:11px;margin:0 0 8px">
+                        <strong>Passo 4 — conferir.</strong> Consulte o domínio de teste, que é sempre bloqueado:
+                    </p>
+                    <pre id="verify-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">dig @127.0.0.1 blocktest.{{ $rpzZoneName }}</pre>
+                    <div style="margin:0 0 6px"><button type="button" class="button button-secondary" data-endpoint-copy="verify-snippet" aria-live="polite">Copiar</button></div>
+                    <p style="color:var(--text-muted);font-size:10px;margin:0">A resposta esperada é <code>status: NXDOMAIN</code>. Logo depois do reinício a primeira consulta pode demorar alguns segundos, enquanto a lista é baixada. Se não bloquear, confira se o IP do seu DNS já foi liberado (aviso no topo desta tela).</p>
+                </div>
+
                 <dl id="rpz-fields-help" style="margin:14px 0 0;font-size:11px;color:var(--text-muted);line-height:1.6">
                     <dt style="color:var(--text-soft);font-weight:600;margin-top:6px"><code>name</code></dt>
                     <dd style="margin:0">Nome da zona no Unbound. Já vem preenchido — não altere.</dd>
