@@ -45,6 +45,7 @@ class ListaShowIsolamentoTest extends TestCase
             ->assertDontSee(route('anatel.history', $lista), false)
             ->assertDontSee('href="'.route('listas.historico', $lista).'"', false)
             ->assertDontSeeText('ANATEL / PDF')
+            ->assertDontSeeText('Fonte oficial')
             ->assertDontSeeText('A importação é incremental');
     }
 

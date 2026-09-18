@@ -26,7 +26,6 @@
                 @endif
                 @if ($lista->isAnatel())
                     @if (auth()->user()->isAdmin()) <span>Catálogo / Importação ANATEL</span>
-                    @else <span class="status-pill is-info">Fonte oficial · PDF</span>
                     @endif
                 @endif
                 @if ($lista->descricao)
