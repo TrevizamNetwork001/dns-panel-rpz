@@ -83,7 +83,7 @@
 
     @include('dashboard.partials.grafico-atualizacoes', ['pontos' => $graficoAtualizacoes])
 
-    <div class="dashboard-grid">
+    <div class="dashboard-grid dashboard-grid-cliente">
         <div class="panel">
             <div class="panel-header"><h2>Listas disponíveis</h2></div>
             @if ($listas->isEmpty())

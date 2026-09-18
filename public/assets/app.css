@@ -1185,6 +1185,17 @@ html[data-theme="light"] .theme-switch-thumb {
     margin-top: 14px;
 }
 
+/* Dashboard do cliente: cada painel tem a altura do próprio conteúdo (a lista
+   de servidores cresce com o número de servidores) e os dois começam alinhados
+   no topo -- sem herdar a margem de ".panel + .panel". */
+.dashboard-grid-cliente {
+    align-items: start;
+}
+
+.dashboard-grid-cliente > .panel + .panel {
+    margin-top: 0;
+}
+
 .panel-wide {
     grid-column: 1 / -1;
 }
