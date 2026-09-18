@@ -46,6 +46,10 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
    ```
 4. Do lado do cliente: confirmar que o bloco `rpz:` no `unbound.conf` dele está **depois** do bloco `server:` (antes, se usar `hyperlocal`), e rodar `unbound-checkconf` antes de qualquer restart.
 
+## Servidor sumiu do painel (removido por inatividade)
+
+A limpeza automática (`servidores:limpar-inativos`, desligada por padrão) remove servidor sem consultar a zona além do prazo configurado. Confirme em `/auditoria` → categoria **Servidores** (`servidor.inatividade_avisada` e `servidor.removido_inatividade` mostram nome, empresa e há quantos dias estava parado). Não há como desfazer pela tela: recadastre o servidor (o token muda, então o `url:` do `unbound.conf` do cliente precisa ser atualizado) ou restaure do backup do banco. Pra impedir que aconteça de novo, desligue a função em `/configuracoes` → **Geral**, ou aumente o prazo. Simulação segura: `docker compose exec app php artisan servidores:limpar-inativos --dry-run`.
+
 ## Lista externa não atualiza
 
 1. `docker compose ps external-sync` — container ativo? (roda em loop próprio, sincroniza a cada `AUTOMATION_INTERVAL` segundos, padrão 6h — ver `compose.yml`)

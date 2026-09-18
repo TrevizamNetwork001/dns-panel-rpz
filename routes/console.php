@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command('rbl:check --only-enabled --limit=100')
     ->everySixHours()->withoutOverlapping(1440);
+
+Schedule::command('servidores:limpar-inativos')
+    ->dailyAt('03:30')->withoutOverlapping(60);

@@ -153,6 +153,15 @@ Além do backup local diário do SQLite (`database/backups/*.bak` dentro do volu
 - Cada backup (local ou com envio ao R2) e cada teste de conexão gera um evento em `/auditoria` (`backup.r2_uploaded`, `backup.r2_failed`, `backup.manual_triggered`, etc).
 - **Nota de infraestrutura**: o comando roda tanto no container dedicado `backup` (loop automático) quanto no container `app` (quando disparado pela tela) — os dois precisam do volume `rpz-backups:/backups` montado (ver `compose.yml`).
 
+## Limpeza de servidores inativos
+
+Servidor que para de consultar a zona RPZ fica no banco indefinidamente, então existe uma rotina que avisa e depois remove — **desligada por padrão** (remover servidor é irreversível; apaga também o vínculo com as listas e o histórico de sincronização dele).
+
+- Configurável em `/configuracoes` → aba **Geral** → "Limpeza de servidores inativos": liga/desliga, **dias sem consulta** (padrão 60, mínimo 30) e **dias entre o aviso e a remoção** (padrão 7, mínimo 1). A tela também mostra quantos servidores já estão além do prazo hoje.
+- `php artisan servidores:limpar-inativos` roda todo dia às 03:30 pelo container `scheduler` (`routes/console.php`). Servidor que **nunca** consultou é medido pela data de criação.
+- Fluxo em duas etapas (`App\Services\ServidoresInativosCleaner`): (1) passou do prazo → **aviso** no Telegram e na Auditoria (`servidor.inatividade_avisada`), e a tela do servidor mostra a data prevista de remoção; (2) se depois do prazo de aviso ele continuar parado → **remoção** (`servidor.removido_inatividade`). Se voltar a consultar antes, o aviso é cancelado sozinho. Ao ligar a função pela primeira vez, servidores já vencidos só são avisados no primeiro ciclo — nunca removidos no mesmo dia.
+- `php artisan servidores:limpar-inativos --dry-run` lista o que seria avisado/removido **sem alterar nada** e funciona mesmo com a função desligada — use antes de ativar. No container: `docker compose exec app php artisan servidores:limpar-inativos --dry-run`.
+
 ## Infraestrutura (servidor `paineldns`)
 
 Desde set/2026 a aplicação roda em **Docker** (`docker compose`, ver [`compose.yml`](compose.yml) e [`Dockerfile`](Dockerfile)). Só ficam direto no host: nginx de borda (TLS), Certbot, fail2ban e os timers systemd de healthcheck/renovação de certificado — tudo documentado com mais detalhe em [`deploy/README.md`](deploy/README.md) e no [`RUNBOOK.md`](RUNBOOK.md).

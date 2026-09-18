@@ -56,6 +56,31 @@ class TelegramNotifier
         return $this->send('✅ <b>DNS Panel RPZ recuperado</b>'."\n\n".'O healthcheck voltou a passar: disco, certificado e site OK.');
     }
 
+    /**
+     * @param  list<array{servidor: string, empresa: string, dias: int}>  $avisados
+     * @param  list<array{servidor: string, empresa: string, dias: int}>  $removidos
+     */
+    public function notifyServidoresInativos(array $avisados, array $removidos, int $avisoDias): bool
+    {
+        $linhas = ['⚠️ <b>Servidores sem consultar a zona RPZ</b>'];
+
+        if ($avisados !== []) {
+            $linhas[] = "\n<b>Serão removidos em {$avisoDias} dia(s) se não voltarem a consultar:</b>";
+            foreach ($avisados as $item) {
+                $linhas[] = '• '.e($item['empresa']).' / '.e($item['servidor'])." — {$item['dias']} dia(s) sem consulta";
+            }
+        }
+
+        if ($removidos !== []) {
+            $linhas[] = "\n<b>Removidos por inatividade:</b>";
+            foreach ($removidos as $item) {
+                $linhas[] = '• '.e($item['empresa']).' / '.e($item['servidor'])." — {$item['dias']} dia(s) sem consulta";
+            }
+        }
+
+        return $this->send(implode("\n", $linhas));
+    }
+
     public function notifyRbl(string $texto): bool
     {
         return $this->send($texto);

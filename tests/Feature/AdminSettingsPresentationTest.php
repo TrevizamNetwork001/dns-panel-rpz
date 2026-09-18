@@ -58,7 +58,7 @@ class AdminSettingsPresentationTest extends TestCase
             $this->assertSame('', $token->getAttribute('value'));
             $this->assertSame('-1001234567890', $xpath->query('//input[@name="chat_id"]')[0]->getAttribute('value'));
             $this->assertSame('42', $xpath->query('//input[@name="thread_id"]')[0]->getAttribute('value'));
-            $this->assertSame((bool) $enabled, $xpath->query('//input[@name="ativo"]')[0]->hasAttribute('checked'));
+            $this->assertSame((bool) $enabled, $xpath->query('//form[@id="settings-telegram-save"]//input[@name="ativo"]')[0]->hasAttribute('checked'));
             $form = $xpath->query('//form[@id="settings-telegram-save"]')[0];
             $this->assertSame(route('configuracoes.telegram.update'), $form->getAttribute('action'));
             $this->assertSame('POST', $form->getAttribute('method'));

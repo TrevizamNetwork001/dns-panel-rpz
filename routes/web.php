@@ -139,6 +139,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes.index');
         Route::put('/configuracoes/telegram', [ConfiguracoesController::class, 'updateTelegram'])->name('configuracoes.telegram.update');
         Route::post('/configuracoes/telegram/testar', [ConfiguracoesController::class, 'testTelegram'])->name('configuracoes.telegram.test');
+        Route::put('/configuracoes/limpeza-servidores', [ConfiguracoesController::class, 'updateLimpezaServidores'])->name('configuracoes.limpeza-servidores.update');
         Route::put('/configuracoes/r2', [ConfiguracoesController::class, 'updateR2'])->name('configuracoes.r2.update');
         Route::post('/configuracoes/r2/testar', [ConfiguracoesController::class, 'testR2'])->name('configuracoes.r2.test');
         Route::post('/configuracoes/backup/executar', [ConfiguracoesController::class, 'runBackupNow'])->name('configuracoes.backup.run');

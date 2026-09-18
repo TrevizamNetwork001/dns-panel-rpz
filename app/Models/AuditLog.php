@@ -217,6 +217,7 @@ class AuditLog extends Model
             // Configurações
             'configuracoes.r2_atualizado' => 'Configuração de backup (R2) atualizada',
             'configuracoes.telegram_atualizado' => 'Configuração de notificação Telegram atualizada',
+            'configuracoes.limpeza_servidores_atualizado' => 'Configuração de limpeza de servidores inativos atualizada',
 
             // Empresas
             'empresa.cadastro_publico' => 'Empresa cadastrada via formulário público',
@@ -266,6 +267,8 @@ class AuditLog extends Model
             'servidor.ips.removed' => 'IP(s) removido(s) da lista de acesso do servidor',
             'servidor.ip_restriction_enabled' => 'Restrição de IP do servidor ativada',
             'servidor.ip_restriction_disabled' => 'Restrição de IP do servidor desativada',
+            'servidor.inatividade_avisada' => 'Servidor avisado: sem consultar a zona além do prazo',
+            'servidor.removido_inatividade' => 'Servidor removido automaticamente por inatividade',
 
             // Sugestões
             'sugestao.created' => 'Sugestão de domínio recebida',

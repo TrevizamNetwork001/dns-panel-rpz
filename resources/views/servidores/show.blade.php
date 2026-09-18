@@ -13,6 +13,10 @@
     $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    rpz-log: yes\n    rpz-log-name: \"dns-panel-rpz\"";
     $mikrotikConfig = "/ip dns set allow-remote-requests=yes\n/ip dns adlist add url=\"{$mikrotikUrl}\" ssl-verify=yes";
     $diasSemConsulta = $servidor->diasSemSincronizar();
+    $limpezaConfig = app(\App\Services\ServidoresInativosCleaner::class)->config();
+    $avisoRemocao = $limpezaConfig['ativo'] && $servidor->inatividade_avisada_em
+        ? $servidor->inatividade_avisada_em->copy()->addDays($limpezaConfig['aviso_dias'])
+        : null;
 @endphp
 
 @section('content')
@@ -26,6 +30,12 @@
             <a href="{{ route('servidores.edit', $servidor) }}" class="button button-secondary">Editar</a>
         </div>
     </div>
+
+    @if ($avisoRemocao)
+        <div class="alert-error" role="alert">
+            Este servidor está sem consultar a zona RPZ há muito tempo e será <strong>removido automaticamente em {{ $avisoRemocao->format('d/m/Y') }}</strong> se não voltar a consultar antes disso.
+        </div>
+    @endif
 
     @if (auth()->user()->isAdmin())
         @include('servidores.partials.admin-detail-styles')

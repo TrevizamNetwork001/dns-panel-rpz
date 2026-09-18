@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use App\Models\Lista;
 use App\Models\Setting;
 use App\Services\R2BackupUploader;
+use App\Services\ServidoresInativosCleaner;
 use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,7 +15,7 @@ use Illuminate\View\View;
 
 class ConfiguracoesController extends Controller
 {
-    public function index(TelegramNotifier $telegram, R2BackupUploader $r2): View
+    public function index(TelegramNotifier $telegram, R2BackupUploader $r2, ServidoresInativosCleaner $limpeza): View
     {
         $fontesGerenciadas = Lista::query()
             ->whereIn('origem', ['externa', 'anatel'])
@@ -27,6 +28,7 @@ class ConfiguracoesController extends Controller
         return view('configuracoes.index', [
             'telegram' => $telegram->config(),
             'r2' => $r2->config(),
+            'limpeza' => $limpeza->config() + ['candidatos' => $limpeza->inativosQuery()->count()],
             'ultimoBackup' => $ultimoBackup,
             'geral' => [
                 'nome' => config('app.name'),
@@ -100,6 +102,23 @@ class ConfiguracoesController extends Controller
         }
 
         AuditLog::record('configuracoes.r2_atualizado', 'Configuração de backup externo (R2) atualizada');
+
+        return back()->with('status', 'Configuração salva.');
+    }
+
+    public function updateLimpezaServidores(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ativo' => ['nullable', 'boolean'],
+            'dias' => ['required', 'integer', 'min:30', 'max:365'],
+            'aviso_dias' => ['required', 'integer', 'min:1', 'max:30'],
+        ]);
+
+        Setting::set('servidor_limpeza_ativo', $request->boolean('ativo') ? '1' : '0');
+        Setting::set('servidor_limpeza_dias', (string) $data['dias']);
+        Setting::set('servidor_limpeza_aviso_dias', (string) $data['aviso_dias']);
+
+        AuditLog::record('configuracoes.limpeza_servidores_atualizado', 'Configuração de limpeza de servidores inativos atualizada');
 
         return back()->with('status', 'Configuração salva.');
     }

@@ -28,6 +28,7 @@ class Servidor extends Model
 
     protected $casts = [
         'last_synced_at' => 'datetime',
+        'inatividade_avisada_em' => 'datetime',
         'ip_restriction_enabled' => 'boolean',
     ];
 

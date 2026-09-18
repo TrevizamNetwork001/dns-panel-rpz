@@ -30,6 +30,35 @@
                 <p class="settings-note">Esses valores são definidos no <code>.env</code> do servidor para evitar alterações acidentais em produção.</p>
             </section>
             <section class="settings-section">
+                <div class="settings-heading">
+                    <div><h2>Limpeza de servidores inativos</h2><p>Remove servidores que pararam de consultar a zona RPZ</p></div>
+                    <span class="settings-status {{ $limpeza['ativo'] ? 'is-enabled' : '' }}">{{ $limpeza['ativo'] ? 'Ativa' : 'Inativa' }}</span>
+                </div>
+                <p class="settings-copy">Todo dia às 03:30 o painel procura servidores sem consultar a zona há mais de {{ $limpeza['dias'] }} dias (servidor que nunca consultou conta desde o cadastro). Primeiro ele <strong>avisa</strong> pelo Telegram e pela Auditoria; só remove se, passado o prazo de aviso, o servidor continuar parado. Se voltar a consultar antes, o aviso é cancelado.</p>
+                <p class="settings-note">Hoje há {{ $limpeza['candidatos'] }} servidor(es) além do prazo de {{ $limpeza['dias'] }} dias. Ao ativar, eles serão apenas avisados no primeiro ciclo. Simulação sem alterar nada: <code>php artisan servidores:limpar-inativos --dry-run</code></p>
+                <form id="settings-limpeza-save" class="settings-form" action="{{ route('configuracoes.limpeza-servidores.update') }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <label class="settings-check">
+                        <span><strong>Limpeza automática ativa</strong><small>Desligada por padrão — remoção de servidor é irreversível</small></span>
+                        <input type="checkbox" name="ativo" value="1" @checked($limpeza['ativo'])>
+                    </label>
+                    <div class="settings-fields">
+                        <div class="field-group">
+                            <label for="limpeza_dias">Dias sem consulta para avisar</label>
+                            <input type="number" class="form-control settings-mono" id="limpeza_dias" name="dias" value="{{ $limpeza['dias'] }}" min="30" max="365" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="limpeza_aviso_dias">Dias entre o aviso e a remoção</label>
+                            <input type="number" class="form-control settings-mono" id="limpeza_aviso_dias" name="aviso_dias" value="{{ $limpeza['aviso_dias'] }}" min="1" max="30" required>
+                        </div>
+                    </div>
+                </form>
+                <div class="settings-actions">
+                    <button type="submit" form="settings-limpeza-save" class="button button-primary">Salvar alterações</button>
+                </div>
+            </section>
+            <section class="settings-section">
                 <div class="settings-heading"><h2>Administração</h2></div>
                 <ul class="settings-links">
                     <li><a href="{{ route('usuarios.index') }}"><strong>Usuários</strong><span>Gerencie contas e vínculos</span></a></li>
