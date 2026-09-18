@@ -81,6 +81,8 @@
         </div>
     </div>
 
+    @include('dashboard.partials.grafico-atualizacoes', ['pontos' => $graficoAtualizacoes])
+
     <div class="dashboard-grid">
         <div class="panel">
             <div class="panel-header"><h2>Listas disponíveis</h2></div>

@@ -233,6 +233,34 @@ class DashboardController extends Controller
             ->values();
     }
 
+    /**
+     * Quantas vezes os servidores informados buscaram a zona em cada um dos
+     * últimos $dias dias (dias sem consulta entram com 0, pro gráfico não
+     * "pular" datas).
+     *
+     * @param  \Illuminate\Support\Collection<int, int>  $servidorIds
+     * @return list<array{data: Carbon, total: int}>
+     */
+    private function atualizacoesPorDia($servidorIds, int $dias = 30): array
+    {
+        $inicio = now()->subDays($dias - 1)->startOfDay();
+
+        $porDia = $servidorIds->isEmpty() ? collect() : ServerSyncLog::query()
+            ->whereIn('servidor_id', $servidorIds)
+            ->where('created_at', '>=', $inicio)
+            ->selectRaw('date(created_at) as dia, count(*) as total')
+            ->groupBy('dia')
+            ->pluck('total', 'dia');
+
+        $pontos = [];
+        for ($i = 0; $i < $dias; $i++) {
+            $data = $inicio->copy()->addDays($i);
+            $pontos[] = ['data' => $data, 'total' => (int) ($porDia[$data->toDateString()] ?? 0)];
+        }
+
+        return $pontos;
+    }
+
     private function clienteDashboard($user): View
     {
         $empresa = $user->empresa;
@@ -286,7 +314,10 @@ class DashboardController extends Controller
                 ->get()
             : collect();
 
+        $graficoAtualizacoes = $this->atualizacoesPorDia($servidorIds);
+
         return view('dashboard.cliente', compact(
+            'graficoAtualizacoes',
             'empresa',
             'totalServidores',
             'totalListas',
