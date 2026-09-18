@@ -17,12 +17,8 @@
                         <span class="status-pill is-active">Catálogo — todas as empresas</span>
                     @endif
                 @endif
-                @if ($lista->isExterna())
-                    @if (auth()->user()->isAdmin())
-                        <span>Externa</span>
-                    @else
-                        <span class="status-pill is-info">fonte externa: {{ $lista->fonte_externa }}</span>
-                    @endif
+                @if ($lista->isExterna() && auth()->user()->isAdmin())
+                    <span>Externa</span>
                 @endif
                 @if ($lista->isAnatel())
                     @if (auth()->user()->isAdmin()) <span>Catálogo / Importação ANATEL</span>
@@ -66,7 +62,7 @@
             @endif
         </div>
 
-        @if ($lista->isExterna())
+        @if ($lista->isExterna() && auth()->user()->isAdmin())
         <div class="panel">
             <div class="panel-header"><h2>Sincronização automática</h2></div>
             <span class="status-pill @if($lista->sync_ativo) is-active @else is-warning @endif">

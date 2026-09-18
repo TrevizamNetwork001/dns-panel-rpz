@@ -46,7 +46,7 @@
                     <tbody>
                         @foreach ($listas as $lista)
                             @php
-                                $tipo = $lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo');
+                                $tipo = $lista->isExterna() && auth()->user()->isAdmin() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo');
                                 $tipoClasse = match ($tipo) {
                                     'Externa' => 'is-info',
                                     'Própria' => 'is-active',

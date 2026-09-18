@@ -178,7 +178,7 @@
                 <h2>Removidos</h2>
                 <span class="status-pill is-warning">{{ $removidos->count() }}</span>
             </div>
-            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">"Removido" aqui significa desativado — o domínio saiu do zonefile, mas o registro fica guardado (não é apagado do banco).</p>
+            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">@if (auth()->user()->isAdmin())"Removido" aqui significa desativado — o domínio saiu do zonefile, mas o registro fica guardado (não é apagado do banco).@else"Removido" aqui significa que o domínio deixou de ser bloqueado por esta lista.@endif</p>
             @if ($removidos->isEmpty())
                 <div class="empty-state"><span>Nenhum domínio removido nesse período.</span></div>
             @else

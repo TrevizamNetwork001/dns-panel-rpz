@@ -162,9 +162,7 @@
                             $tipoFonte = $lista->isAnatel()
                                 ? 'Catálogo / Importação ANATEL'
                                 : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'));
-                            $tipoListaCliente = $lista->isExterna()
-                                ? 'Externa'
-                                : ($lista->empresa_id ? 'Própria' : 'Catálogo');
+                            $tipoListaCliente = $lista->empresa_id ? 'Própria' : 'Catálogo';
                         @endphp
                         <label class="checkbox-label" data-fonte-nome="{{ mb_strtolower($lista->nome.' '.$lista->descricao) }}">
                             <input type="checkbox" name="lista_ids[]" value="{{ $lista->id }}" data-fonte-checkbox

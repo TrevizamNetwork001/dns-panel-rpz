@@ -63,6 +63,57 @@ class ListaShowIsolamentoTest extends TestCase
             ->assertSeeText('ANATEL / PDF');
     }
 
+    private function listaExterna(): Lista
+    {
+        return Lista::factory()->externa('threatfox')->create([
+            'empresa_id' => null, 'status' => 'active', 'nome' => 'Ameaças Gerais',
+            'fonte_url' => 'https://feeds.exemplo.test/segredo/lista.txt',
+            'descricao' => 'Lista ampla de ameaças.',
+        ]);
+    }
+
+    public function test_client_never_sees_how_an_external_list_is_fed(): void
+    {
+        $lista = $this->listaExterna();
+        $cliente = User::factory()->cliente(Empresa::factory()->create())->create();
+
+        $response = $this->actingAs($cliente)->get(route('listas.show', $lista))->assertOk()
+            ->assertSeeText('Ameaças Gerais')
+            ->assertDontSeeText('Sincronização automática')
+            ->assertDontSeeText('Última sincronização')
+            ->assertDontSeeText('feed externo')
+            ->assertDontSeeText('fonte externa')
+            ->assertDontSeeText('Externa');
+
+        $this->assertStringNotContainsString('feeds.exemplo.test', $response->getContent(), 'A URL do feed não pode aparecer para o cliente.');
+    }
+
+    public function test_admin_still_sees_the_sync_panel_and_feed_url(): void
+    {
+        $lista = $this->listaExterna();
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->get(route('listas.show', $lista))->assertOk()
+            ->assertSeeText('Sincronização automática')->assertSeeText('Última sincronização')
+            ->assertSee('feeds.exemplo.test', false);
+    }
+
+    public function test_lists_index_and_server_form_do_not_label_lists_as_external_for_clients(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        $servidor = Servidor::factory()->for($empresa)->create();
+        $this->listaExterna();
+
+        $this->actingAs($cliente)->get(route('listas.index'))->assertOk()
+            ->assertSeeText('Ameaças Gerais')->assertSeeText('Catálogo')->assertDontSeeText('Externa');
+        $this->get(route('servidores.edit', $servidor))->assertOk()
+            ->assertSeeText('Ameaças Gerais')->assertDontSeeText('Externa');
+
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->get(route('listas.index'))->assertOk()->assertSeeText('Externa');
+    }
+
     public function test_client_with_no_server_on_the_list_gets_an_empty_state(): void
     {
         $cliente = User::factory()->cliente(Empresa::factory()->create())->create();
