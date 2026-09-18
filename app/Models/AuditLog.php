@@ -267,6 +267,8 @@ class AuditLog extends Model
             'servidor.ips.removed' => 'IP(s) removido(s) da lista de acesso do servidor',
             'servidor.ip_restriction_enabled' => 'Restrição de IP do servidor ativada',
             'servidor.ip_restriction_disabled' => 'Restrição de IP do servidor desativada',
+            'servidor.ip_pendente' => 'Cliente informou o IP do servidor: aguardando liberação',
+            'servidor.ips.approved' => 'IP do servidor liberado pelo suporte',
             'servidor.inatividade_avisada' => 'Servidor avisado: sem consultar a zona além do prazo',
             'servidor.removido_inatividade' => 'Servidor removido automaticamente por inatividade',
 

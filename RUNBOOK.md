@@ -38,6 +38,7 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
    curl -s "https://rpz.trevizamnetwork.com.br/rpz/{token}.zone" | head -20
    ```
    - 404 → servidor ou empresa inativa, ou ACL de IP bloqueando (veja `/servidores/{id}` → Restrição de IP).
+   - 403 no endereço curto por empresa (`/rpz/{slug}.zone`) → o IP de quem consultou não está liberado em nenhum servidor da empresa. O IP que o painel enxergou aparece no log do nginx (`docker compose logs nginx | grep /rpz/`, último campo) e o pedido em `/auditoria` como "Acesso negado ao endpoint RPZ". Se o cliente informou o IP no cadastro, ele fica **pendente**: abra o servidor e clique em **Liberar**. O Unbound tenta de novo sozinho (com espera crescente); se quiser acelerar, `systemctl restart unbound` no DNS do cliente.
    - Zonefile vazio de domínios → nenhuma lista ativa vinculada, ou listas sem domínios ativos.
 3. Valide a sintaxe do zonefile gerado (precisa de `bind9-utils` instalado):
    ```bash

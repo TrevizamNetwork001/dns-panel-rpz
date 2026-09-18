@@ -129,6 +129,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/servidores/{servidor}/ip-restriction/toggle', [ServidorController::class, 'toggleIpRestriction'])->name('servidores.ip-restriction.toggle');
         Route::post('/servidores/{servidor}/ips', [ServidorController::class, 'addAllowedIp'])->name('servidores.ips.store');
         Route::delete('/servidores/{servidor}/ips/{ip}', [ServidorController::class, 'removeAllowedIp'])->name('servidores.ips.destroy');
+        Route::patch('/servidores/{servidor}/ips/{ip}/liberar', [ServidorController::class, 'approveAllowedIp'])->name('servidores.ips.approve');
 
         Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria.index');
         Route::get('/seguranca', [SegurancaController::class, 'index'])->name('seguranca.index');

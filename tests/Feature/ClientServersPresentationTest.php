@@ -160,6 +160,7 @@ class ClientServersPresentationTest extends TestCase
             'status' => 'active',
             'tipo_dns' => 'unbound',
             'bloqueio_modo' => 'nxdomain',
+            'ip_v4' => '203.0.113.10',
         ], $overrides);
     }
 }

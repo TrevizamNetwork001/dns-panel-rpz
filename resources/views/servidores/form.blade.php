@@ -92,19 +92,19 @@
                 </div>
 
                 <div class="field-group">
-                    <label for="ip_v4">IPv4 (opcional)</label>
+                    <label for="ip_v4">{{ auth()->user()->isCliente() ? 'IPv4 de saída do seu DNS' : 'IPv4 (opcional)' }}</label>
                     <input class="form-control" type="text" id="ip_v4" name="ip_v4" value="{{ old('ip_v4', $servidor->ip_v4) }}" placeholder="203.0.113.10">
                 </div>
 
                 <div class="field-group">
-                    <label for="ip_v6">IPv6 (opcional)</label>
+                    <label for="ip_v6">{{ auth()->user()->isCliente() ? 'IPv6 de saída do seu DNS (opcional)' : 'IPv6 (opcional)' }}</label>
                     <input class="form-control" type="text" id="ip_v6" name="ip_v6" value="{{ old('ip_v6', $servidor->ip_v6) }}" placeholder="2001:db8::1">
                 </div>
             </div>
             @if (auth()->user()->isAdmin())
                 <p class="endpoint-form-note">IPv4 e IPv6 são informativos e não controlam restrição de acesso ao feed RPZ.</p>
             @else
-                <p style="color:var(--text-muted);font-size:10px;margin-top:6px">IPv4 e IPv6 são informativos e não controlam o acesso ao feed RPZ.</p>
+                <p id="ip-liberacao-help" style="color:var(--text-muted);font-size:10px;margin-top:6px">Informe o IP <strong>público</strong> de onde o seu servidor DNS acessa a internet (IPv4 ou IPv6, pelo menos um). Depois de salvar, o suporte precisa <strong>liberar</strong> esse IP antes de o seu Unbound receber a lista — você vê o estado na tela do servidor. Não sabe qual é? No servidor DNS, rode <code>curl -4 ifconfig.me</code>.</p>
             @endif
         </div>
 

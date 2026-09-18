@@ -79,6 +79,7 @@ class MikrotikHostsEndpointTest extends TestCase
             'status' => 'active',
             'tipo_dns' => 'mikrotik',
             'bloqueio_modo' => 'redirect',
+            'ip_v4' => '203.0.113.20',
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('servidores', [

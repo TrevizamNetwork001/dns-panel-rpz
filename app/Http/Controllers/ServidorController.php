@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\ServerAllowedIp;
 use App\Models\Servidor;
+use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -21,7 +22,9 @@ class ServidorController extends Controller
     {
         $user = Auth::user();
 
-        $query = Servidor::with(['empresa', 'listas'])->orderByDesc('id');
+        $query = Servidor::with(['empresa', 'listas'])
+            ->withCount(['allowedIps as ips_pendentes_count' => fn ($ips) => $ips->where('status', 'pending')])
+            ->orderByDesc('id');
 
         if ($user->isCliente()) {
             $query->where('empresa_id', $user->empresa_id);
@@ -53,10 +56,10 @@ class ServidorController extends Controller
         return view('servidores.form', compact('servidor', 'empresas', 'licencaBlocker', 'listasDisponiveis'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TelegramNotifier $telegram): RedirectResponse
     {
         $user = Auth::user();
-        $data = $this->validated($request, $user);
+        $data = $this->validated($request, $user, exigirIp: $user->isCliente());
         if ($data['tipo_dns'] === 'mikrotik') {
             $data['bloqueio_modo'] = 'nxdomain';
         }
@@ -76,7 +79,11 @@ class ServidorController extends Controller
 
         AuditLog::record('servidor.created', "Servidor \"{$servidor->nome}\" criado", $servidor->empresa_id, 'servidor', $servidor->id);
 
-        return redirect()->route('servidores.show', $servidor)->with('status', 'Servidor criado com sucesso.');
+        $pendentes = $user->isCliente() ? $this->registrarIpsPendentes($servidor, $telegram) : [];
+
+        return redirect()->route('servidores.show', $servidor)->with('status', $pendentes !== []
+            ? 'Servidor criado. O IP informado aguarda liberação pelo suporte — assim que for liberado, o seu Unbound passa a receber a lista.'
+            : 'Servidor criado com sucesso.');
     }
 
     public function show(Servidor $servidor): View
@@ -110,7 +117,7 @@ class ServidorController extends Controller
         return view('servidores.form', compact('servidor', 'empresas', 'listasDisponiveis'));
     }
 
-    public function update(Request $request, Servidor $servidor): RedirectResponse
+    public function update(Request $request, Servidor $servidor, TelegramNotifier $telegram): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
@@ -130,6 +137,10 @@ class ServidorController extends Controller
         $servidor->listas()->sync($listaIds);
 
         AuditLog::record('servidor.updated', "Servidor \"{$servidor->nome}\" atualizado", $servidor->empresa_id, 'servidor', $servidor->id);
+
+        if ($user->isCliente()) {
+            $this->registrarIpsPendentes($servidor, $telegram);
+        }
 
         return redirect()->route('servidores.show', $servidor)->with('status', 'Servidor atualizado com sucesso.');
     }
@@ -196,12 +207,66 @@ class ServidorController extends Controller
             return back()->withErrors(['ip_cidr' => 'IP ou CIDR inválido.']);
         }
 
-        $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
+        $ip = $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
+        if ($ip->status !== 'active') {
+            $ip->update(['status' => 'active']);
+        }
 
         AuditLog::record('servidor.ips.added', "IP {$value} adicionado ao servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
         AuditLog::record('rpz.endpoint.acl_updated', 'ACL do endpoint RPZ atualizada', $servidor->empresa_id, 'servidor', $servidor->id);
 
         return back()->with('status', 'IP adicionado à lista de permitidos.');
+    }
+
+    public function approveAllowedIp(Servidor $servidor, ServerAllowedIp $ip): RedirectResponse
+    {
+        if ($ip->servidor_id !== $servidor->id) {
+            abort(404);
+        }
+
+        if ($ip->status !== 'active') {
+            $ip->update(['status' => 'active']);
+            AuditLog::record('servidor.ips.approved', "IP {$ip->ip_cidr} liberado para o servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
+        }
+
+        return back()->with('status', "IP {$ip->ip_cidr} liberado. O Unbound do cliente passa a receber a zona na próxima tentativa.");
+    }
+
+    /**
+     * IPv4/IPv6 informados pelo cliente viram pedidos de liberação
+     * (status "pending"): só o admin ativa. Pendentes que não batem mais com
+     * o formulário são descartados; IPs já ativos nunca são tocados.
+     *
+     * @return list<string> IPs recém-registrados como pendentes
+     */
+    private function registrarIpsPendentes(Servidor $servidor, TelegramNotifier $telegram): array
+    {
+        $desejados = collect([$servidor->ip_v4, $servidor->ip_v6])
+            ->map(fn ($ip) => is_string($ip) ? trim($ip) : '')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $servidor->allowedIps()->where('status', 'pending')->whereNotIn('ip_cidr', $desejados)->delete();
+
+        $existentes = $servidor->allowedIps()->pluck('ip_cidr');
+        $novos = $desejados->reject(fn ($ip) => $existentes->contains($ip))->values();
+
+        foreach ($novos as $ip) {
+            $servidor->allowedIps()->create(['ip_cidr' => $ip, 'status' => 'pending']);
+            AuditLog::record('servidor.ip_pendente', "IP {$ip} informado para o servidor \"{$servidor->nome}\", aguardando liberação", $servidor->empresa_id, 'servidor', $servidor->id);
+        }
+
+        if ($novos->isNotEmpty()) {
+            $telegram->notifyIpAguardandoLiberacao(
+                $servidor->empresa->nome ?? '-',
+                $servidor->nome,
+                $novos->all(),
+                route('servidores.show', $servidor),
+            );
+        }
+
+        return $novos->all();
     }
 
     public function removeAllowedIp(Servidor $servidor, ServerAllowedIp $ip): RedirectResponse
@@ -344,7 +409,7 @@ class ServidorController extends Controller
         return null;
     }
 
-    private function validated(Request $request, $user): array
+    private function validated(Request $request, $user, bool $exigirIp = false): array
     {
         $empresaId = $user->isAdmin() ? $request->input('empresa_id') : $user->empresa_id;
 
@@ -353,7 +418,7 @@ class ServidorController extends Controller
             'status' => ['required', 'in:active,inactive'],
             'tipo_dns' => ['required', 'in:unbound,mikrotik,bind9,outro'],
             'bloqueio_modo' => ['required', 'in:nxdomain,redirect'],
-            'ip_v4' => ['nullable', 'ip'],
+            'ip_v4' => $exigirIp ? ['required_without:ip_v6', 'nullable', 'ip'] : ['nullable', 'ip'],
             'ip_v6' => ['nullable', 'ip'],
             'lista_ids' => ['nullable', 'array'],
             'lista_ids.*' => [
@@ -372,6 +437,8 @@ class ServidorController extends Controller
             $rules['empresa_id'] = ['required', 'exists:empresas,id'];
         }
 
-        return $request->validate($rules);
+        return $request->validate($rules, [
+            'ip_v4.required_without' => 'Informe o IP de saída do seu servidor DNS (IPv4 ou IPv6).',
+        ]);
     }
 }

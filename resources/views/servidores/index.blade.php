@@ -64,6 +64,9 @@
                                         <div class="endpoint-status-stack">
                                             <span class="status-pill {{ $estadoClasse }}">{{ $estadoLabel }}</span>
                                             <small>{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }} no painel</small>
+                                            @if ($servidor->ips_pendentes_count > 0)
+                                                <span class="status-pill is-warning">IP aguardando liberação</span>
+                                            @endif
                                         </div>
                                     @else
                                         @php

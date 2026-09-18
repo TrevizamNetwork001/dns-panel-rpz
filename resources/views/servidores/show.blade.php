@@ -13,6 +13,8 @@
     $configSnippet = "rpz:\n    name: \"{$rpzZoneName}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    # rpz-log: yes\n    # rpz-log-name: \"dns-panel-rpz\"";
     $mikrotikConfig = "/ip dns set allow-remote-requests=yes\n/ip dns adlist add url=\"{$mikrotikUrl}\" ssl-verify=yes";
     $diasSemConsulta = $servidor->diasSemSincronizar();
+    $ipsAtivos = $servidor->allowedIps->where('status', 'active');
+    $ipsPendentes = $servidor->allowedIps->where('status', 'pending');
     $limpezaConfig = app(\App\Services\ServidoresInativosCleaner::class)->config();
     $avisoRemocao = $limpezaConfig['ativo'] && $servidor->inatividade_avisada_em
         ? $servidor->inatividade_avisada_em->copy()->addDays($limpezaConfig['aviso_dias'])
@@ -30,6 +32,20 @@
             <a href="{{ route('servidores.edit', $servidor) }}" class="button button-secondary">Editar</a>
         </div>
     </div>
+
+    @if (auth()->user()->isAdmin() && $ipsPendentes->isNotEmpty())
+        <div class="alert-error" role="alert">
+            Este servidor tem <strong>IP aguardando liberação</strong>: {{ $ipsPendentes->pluck('ip_cidr')->join(', ') }}. Libere em "Restrição de IP", mais abaixo, para o Unbound do cliente receber a zona.
+        </div>
+    @elseif (! auth()->user()->isAdmin() && $ipsAtivos->isEmpty())
+        <div class="alert-error" role="alert">
+            @if ($ipsPendentes->isNotEmpty())
+                <strong>Aguardando liberação pelo suporte.</strong> O IP informado ({{ $ipsPendentes->pluck('ip_cidr')->join(', ') }}) ainda não foi liberado; enquanto isso o seu Unbound recebe "acesso negado" ao buscar a lista. Assim que for liberado, ele passa a receber sozinho, sem você precisar fazer nada.
+            @else
+                <strong>Nenhum IP informado.</strong> Edite o servidor e informe o IP de saída do seu DNS. O suporte precisa liberá-lo para o seu Unbound receber a lista.
+            @endif
+        </div>
+    @endif
 
     @if ($avisoRemocao)
         <div class="alert-error" role="alert">
@@ -176,13 +192,27 @@
             @else
                 <div class="table-responsive">
                     <table class="data-table">
-                        <thead><tr><th>IP / CIDR</th><th class="table-actions-column"></th></tr></thead>
+                        <thead><tr><th>IP / CIDR</th><th>Status</th><th class="table-actions-column"></th></tr></thead>
                         <tbody>
                             @foreach ($servidor->allowedIps as $ip)
                                 <tr>
                                     <td class="table-mono">{{ $ip->ip_cidr }}</td>
                                     <td>
-                                        <form action="{{ route('servidores.ips.destroy', [$servidor, $ip]) }}" method="POST">
+                                        @if ($ip->status === 'active')
+                                            <span class="status-pill is-active">Liberado</span>
+                                        @else
+                                            <span class="status-pill is-warning">Aguardando liberação</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if ($ip->status !== 'active')
+                                            <form action="{{ route('servidores.ips.approve', [$servidor, $ip]) }}" method="POST" style="display:inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <button type="submit" class="button button-primary">Liberar</button>
+                                            </form>
+                                        @endif
+                                        <form action="{{ route('servidores.ips.destroy', [$servidor, $ip]) }}" method="POST" style="display:inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover este IP?')">Remover</button>

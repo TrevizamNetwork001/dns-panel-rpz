@@ -81,6 +81,18 @@ class TelegramNotifier
         return $this->send(implode("\n", $linhas));
     }
 
+    /**
+     * @param  list<string>  $ips
+     */
+    public function notifyIpAguardandoLiberacao(string $empresa, string $servidor, array $ips, string $url): bool
+    {
+        return $this->send("🔐 <b>IP aguardando liberação</b>\n\n"
+            .'<b>Empresa:</b> '.e($empresa)."\n"
+            .'<b>Servidor:</b> '.e($servidor)."\n"
+            .'<b>IP(s):</b> '.e(implode(', ', $ips))."\n\n"
+            .'Libere em <b>Restrição de IP</b> do servidor: '.e($url));
+    }
+
     public function notifyRbl(string $texto): bool
     {
         return $this->send($texto);

@@ -163,7 +163,7 @@ class DashboardController extends Controller
             $action === 'user.destroyed' => ['titulo' => 'Usuário removido', 'icone' => 'usuario', 'cor' => 'danger'],
             $action === 'user.password_reset' => ['titulo' => 'Senha redefinida', 'icone' => 'usuario', 'cor' => 'violet'],
             $action === 'user.updated' => ['titulo' => 'Usuário atualizado', 'icone' => 'usuario', 'cor' => 'violet'],
-            default => ['titulo' => 'Auditoria', 'icone' => 'sistema', 'cor' => 'muted'],
+            default => ['titulo' => AuditLog::actionLabel($action), 'icone' => 'sistema', 'cor' => 'muted'],
         };
     }
 
