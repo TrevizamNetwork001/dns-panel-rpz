@@ -32,7 +32,7 @@ class ClienteDashboardGraficoTest extends TestCase
 
         $response = $this->actingAs($cliente)->get(route('dashboard'))->assertOk()
             ->assertSee('id="grafico-atualizacoes"', false)
-            ->assertSeeText('Atualização dos servidores')
+            ->assertSeeText('Atualizações de servidores')
             ->assertSee('<polyline', false);
 
         $pontos = $response->viewData('graficoAtualizacoes');

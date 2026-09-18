@@ -11,9 +11,9 @@
     $linha = collect($pontos)->map(fn ($p, $i) => round($px($i), 1).','.round($py($p['total']), 1))->implode(' ');
     $resumo = 'Atualizações dos servidores nos últimos '.$n.' dias: '.$totalPeriodo.' no total, máximo de '.$maximo.' em um dia.';
 @endphp
-<div class="panel" id="grafico-atualizacoes" style="margin-bottom:14px">
+<div class="panel" id="grafico-atualizacoes" style="margin:14px 0">
     <div class="panel-header">
-        <h2>Atualização dos servidores</h2>
+        <h2>Atualizações de servidores</h2>
         <span class="status-pill is-muted">Últimos {{ $n }} dias</span>
     </div>
     @if ($totalPeriodo === 0)
