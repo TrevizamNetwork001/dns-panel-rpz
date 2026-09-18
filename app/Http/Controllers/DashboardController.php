@@ -8,7 +8,6 @@ use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\ServerSyncLog;
 use App\Models\Servidor;
-use App\Models\SugestaoDominio;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -306,14 +305,6 @@ class DashboardController extends Controller
             ? null
             : ($licencas->first()?->unavailableSummary() ?? 'Sem licença ativa');
 
-        $sugestoesRecentes = $empresa
-            ? SugestaoDominio::where('empresa_id', $empresa->id)
-                ->with('lista')
-                ->orderByDesc('updated_at')
-                ->take(5)
-                ->get()
-            : collect();
-
         $graficoAtualizacoes = $this->atualizacoesPorDia($servidorIds);
 
         return view('dashboard.cliente', compact(
@@ -327,7 +318,6 @@ class DashboardController extends Controller
             'servidores',
             'capacidadeLicenca',
             'estadoLicenca',
-            'sugestoesRecentes',
         ));
     }
 }

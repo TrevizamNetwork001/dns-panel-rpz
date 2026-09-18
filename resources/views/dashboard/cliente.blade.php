@@ -136,42 +136,5 @@
                 </div>
             @endif
         </div>
-
-        <div class="panel details-card-wide">
-            <div class="panel-header">
-                <h2>Minhas sugestões de domínio</h2>
-                <div class="table-actions">
-                    <a href="{{ route('sugestoes.index') }}" class="table-action-link">Ver todas</a>
-                    <a href="{{ route('sugestoes.create') }}" class="button button-primary">+ Sugerir domínio</a>
-                </div>
-            </div>
-            @if ($sugestoesRecentes->isEmpty())
-                <div class="empty-state"><span>Nenhuma sugestão enviada ainda.</span></div>
-            @else
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead>
-                        <tr><th>Domínio</th><th>Status</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($sugestoesRecentes as $sugestao)
-                            <tr>
-                                <td class="table-mono">{{ $sugestao->dominio }}</td>
-                                <td>
-                                    @if ($sugestao->status === 'pending')
-                                        <span class="status-pill is-inactive">Pendente</span>
-                                    @elseif ($sugestao->status === 'approved')
-                                        <span class="status-pill is-active">Aprovada &mdash; {{ $sugestao->lista->nome ?? '-' }}</span>
-                                    @else
-                                        <span class="status-pill is-inactive">Rejeitada</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            @endif
-        </div>
     </div>
 @endsection
