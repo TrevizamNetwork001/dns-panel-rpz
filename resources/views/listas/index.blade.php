@@ -57,6 +57,7 @@
                             <tr>
                                 <td @class(['admin-fontes-name' => auth()->user()->isAdmin()])>
                                     <a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a>
+                                    @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif
                                 </td>
                                 <td><span class="status-pill {{ $tipoClasse }}">{{ $tipo }}</span></td>
                                 @if (auth()->user()->isAdmin())

@@ -166,12 +166,13 @@
                                 ? 'Externa'
                                 : ($lista->empresa_id ? 'Própria' : 'Catálogo');
                         @endphp
-                        <label class="checkbox-label" data-fonte-nome="{{ strtolower($lista->nome) }}">
+                        <label class="checkbox-label" data-fonte-nome="{{ mb_strtolower($lista->nome.' '.$lista->descricao) }}">
                             <input type="checkbox" name="lista_ids[]" value="{{ $lista->id }}" data-fonte-checkbox
                                 @checked($servidor->exists && $servidor->listas->contains($lista->id))>
                             <div>
                                 <strong>{{ $lista->nome }}</strong>
                                 <small>{{ auth()->user()->isAdmin() ? $tipoFonte : $tipoListaCliente }}</small>
+                                @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif
                             </div>
                         </label>
                     @endforeach
