@@ -69,7 +69,15 @@ class ListaController extends Controller
     {
         $this->authorizeAccess($lista);
 
-        $lista->load(['empresa', 'servidores.empresa']);
+        // Lista de catálogo é vinculada a servidores de várias empresas: o
+        // cliente só pode ver os da própria empresa, nunca os dos outros.
+        $user = Auth::user();
+        $lista->load([
+            'empresa',
+            'servidores' => fn ($query) => $query
+                ->when($user->isCliente(), fn ($proprios) => $proprios->where('empresa_id', $user->empresa_id))
+                ->with('empresa'),
+        ]);
         $lista->loadCount(['dominios', 'dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)]);
         $dominiosPreview = $lista->dominios()
             ->select(['id', 'lista_id', 'dominio', 'ativo'])

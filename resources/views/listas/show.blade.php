@@ -96,16 +96,16 @@
 
         @if ($lista->isAnatel())
         <div class="panel">
-            <div class="panel-header"><h2>ANATEL / PDF</h2><div><a href="{{ route('anatel.exclusions',$lista) }}" class="button button-secondary">Exclusões</a> <a href="{{ route('anatel.history',$lista) }}" class="button button-secondary">Histórico</a></div></div>
+            <div class="panel-header"><h2>ANATEL / PDF</h2>@if (auth()->user()->isAdmin())<div><a href="{{ route('anatel.exclusions',$lista) }}" class="button button-secondary">Exclusões</a> <a href="{{ route('anatel.history',$lista) }}" class="button button-secondary">Histórico</a></div>@endif</div>
             <p>{{ number_format($lista->dominios_ativos_count,0,',','.') }} domínios ativos. A importação é incremental e nunca remove domínios ausentes de um PDF novo.</p>
             @if(auth()->user()->isAdmin()) <a class="button button-primary" href="{{ route('anatel.dashboard') }}">Importar PDFs</a> @endif
         </div>
         @endif
 
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Endpoints RPZ vinculados</h2></div>
+            <div class="panel-header"><h2>{{ auth()->user()->isAdmin() ? 'Endpoints RPZ vinculados' : 'Meus servidores que usam esta lista' }}</h2></div>
             @if ($lista->servidores->isEmpty())
-                <div class="empty-state"><span>Nenhum endpoint vinculado.</span></div>
+                <div class="empty-state"><span>{{ auth()->user()->isAdmin() ? 'Nenhum endpoint vinculado.' : 'Nenhum dos seus servidores usa esta lista ainda.' }}</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
@@ -114,7 +114,7 @@
                                 <tr>
                                     <td>
                                         <a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">{{ $servidor->nome }}</a>
-                                        @if (! $lista->empresa_id)
+                                        @if (auth()->user()->isAdmin() && ! $lista->empresa_id)
                                             <span class="table-secondary-text">{{ $servidor->empresa->nome }}</span>
                                         @endif
                                     </td>
