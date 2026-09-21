@@ -18,9 +18,19 @@
             @endif
 
             <div class="form-grid">
-                <div class="field-group field-span-2">
+                <div class="field-group">
                     <label for="nome">Nome</label>
                     <input class="form-control" type="text" id="nome" name="nome" value="{{ old('nome', $empresa->nome) }}" required>
+                </div>
+
+                <div class="field-group">
+                    <label for="nome_fantasia">Nome fantasia</label>
+                    <input class="form-control" type="text" id="nome_fantasia" name="nome_fantasia" value="{{ old('nome_fantasia', $empresa->nome_fantasia) }}" maxlength="255">
+                </div>
+
+                <div class="field-group">
+                    <label for="telefone">Telefone</label>
+                    <input class="form-control" type="tel" id="telefone" name="telefone" value="{{ old('telefone', $empresa->telefone) }}" maxlength="32" autocomplete="tel" placeholder="(11) 99999-9999">
                 </div>
 
                 <div class="field-group">

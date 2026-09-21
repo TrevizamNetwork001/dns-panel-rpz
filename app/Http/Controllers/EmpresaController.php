@@ -101,6 +101,8 @@ class EmpresaController extends Controller
 
         return $request->validate([
             'nome' => ['required', 'string', 'max:255'],
+            'nome_fantasia' => ['nullable', 'string', 'max:255'],
+            'telefone' => ['nullable', 'string', 'max:32'],
             'rpz_slug' => [
                 'nullable',
                 'string',

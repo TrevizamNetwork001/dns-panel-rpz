@@ -4,6 +4,14 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 
 ## 21/09/2026
 
+### Cadastro e edição de empresas
+
+- Adicionados campos opcionais **Nome fantasia** (até 255 caracteres) e **Telefone** (até 32 caracteres) no formulário administrativo. Telefone aceita formatação, código de país e ramal; usa input `tel` sem máscara obrigatória.
+- Valores persistidos no model e validados no controller, com preenchimento na edição e possibilidade de limpar os campos. Empresas existentes continuam válidas com valores nulos.
+- Migration `2026_09_21_180000_add_contact_fields_to_empresas_table.php` adiciona duas colunas nullable. Fazer backup antes de aplicá-la; reverter essa migration remove os dados desses campos.
+- Testes específicos: **2 testes / 20 assertions aprovados**, cobrindo criação, edição, limpeza, campos opcionais e limites. Duas falhas de `ClientCompanyPresentationTest` foram reproduzidas com model, controller e formulário originais; são preexistentes.
+- Publicado com a imagem `dns-panel-rpz-app:company-contact-20260921`: backup local `database.sqlite.auto-20260921-195802.bak` e envio ao R2 concluídos antes da migration. Serviço app recriado, Blade recompilado e `/login` com HTTP 200. Imagem anterior preservada em `dns-panel-rpz-app:before-company-contact-20260921`.
+
 ### Listas do cliente
 
 - Nova apresentação baseada na imagem de `referencias/`: cartões responsivos com ícones por categoria, nome, descrição, selo Catálogo/Própria e quantidade de domínios ativos.
