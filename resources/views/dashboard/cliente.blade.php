@@ -85,30 +85,6 @@
 
     <div class="dashboard-grid dashboard-grid-cliente">
         <div class="panel">
-            <div class="panel-header"><h2>Listas disponíveis</h2></div>
-            @if ($listas->isEmpty())
-                <div class="empty-state"><span>Nenhuma lista disponível ainda.</span></div>
-            @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Lista</th><th>Domínios ativos</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($listas as $lista)
-                                <tr>
-                                    <td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a>
-                                        @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif</td>
-                                    <td class="table-mono">{{ number_format($lista->dominios_ativos_count, 0, ',', '.') }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-        </div>
-
-        <div class="panel">
             <div class="panel-header"><h2>Meus servidores</h2></div>
             @if ($servidores->isEmpty())
                 <div class="empty-state"><span>Nenhum servidor cadastrado ainda.</span></div>

@@ -279,20 +279,6 @@ class DashboardController extends Controller
             $q->whereIn('servidores.id', $servidorIds);
         })->count();
 
-        $listas = $empresa
-            ? Lista::where(function ($q) use ($empresa) {
-                $q->whereNull('empresa_id')->orWhere('empresa_id', $empresa->id);
-            })
-                ->withCount([
-                    'dominios',
-                    'dominios as dominios_ativos_count' => function ($query) {
-                        $query->where('ativo', true);
-                    },
-                ])
-                ->orderByDesc('dominios_count')
-                ->get()
-            : collect();
-
         $servidores = $empresa
             ? $empresa->servidores()->orderByRaw('last_synced_at IS NULL, last_synced_at DESC')->get()
             : collect();
@@ -314,7 +300,6 @@ class DashboardController extends Controller
             'totalListas',
             'totalDominios',
             'totalDominiosAtivos',
-            'listas',
             'servidores',
             'capacidadeLicenca',
             'estadoLicenca',
