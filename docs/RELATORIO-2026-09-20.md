@@ -75,6 +75,28 @@ O usuário confirmou o funcionamento do DNS-01. Na revisão para versionamento, 
 
 Validação da revisão em container temporário sem rede, com fonte somente para leitura e SQLite em memória: **30 testes e 231 assertions passaram**, cobrindo apresentação da empresa, isolamento das listas e telas de servidores de clientes e administradores.
 
+## Trabalho adicional realizado no mesmo dia
+
+### Auditoria de domínios e alteração das listas
+
+Foi verificada a presença dos nove domínios solicitados no banco. `jhkkjkj.com`, `weerrhoop.cc` e `ojsbdjn.com` estavam ativos na lista **ANATEL — Bloqueios Oficiais** (ID 14), sem vínculo que comprovasse uma importação específica. Os três foram desativados com `inactive_reason = anatel_exclusion` e receberam exclusões exatas ativas, para que uma importação futura não os reative. A decisão registrada é **monitorar**; não foi feita afirmação de que sejam legítimos.
+
+Foi criada a lista manual global **Segurança — Malware / C2 / IoT** (ID 19), com seis domínios: `3gipcam.com`, `cross-compiling.org`, `i-kiss-boys.com`, `furry-femboys.top`, `twinkfinder.nl` e `wpad.domain.name`. Os cinco primeiros foram documentados como IOCs históricos da campanha Mirai/Gayfemboy segundo FortiGuard Labs; `i-kiss-boys.com` também possui registro histórico no ThreatFox como Mirai/Katana com alta confiança, já expirado. `wpad.domain.name` foi mantido por risco histórico de WPAD/proxy documentado pela D-Link e ICANN.
+
+O registro `wpad.domain.name` foi desativado na lista ANATEL e protegido por exclusão exata nessa lista. A regra RPZ especial não emite `*.wpad.domain.name`; o domínio pai `domain.name` também não foi cadastrado. A lista de segurança foi vinculada aos servidores ativos 2, 6, 8, 9, 10, 11 e 12. A documentação completa está em [SEGURANCA-2026-09-20.md](SEGURANCA-2026-09-20.md).
+
+### Telas administrativas e do cliente
+
+A tela `/servidores` do administrador agora ordena **Última consulta** do horário mais recente para o mais antigo; registros sem consulta ficam no final. A auditoria `/auditoria` recebeu rótulos em português, categoria **RPZ**, identificação separada de autoria, empresa, servidor ou lista, IP, e descrições longas recolhidas em **Ver detalhes**. Quando não existe usuário associado, a tela exibe **Sem usuário identificado**; consultas automáticas de zona aparecem como originadas pelo **Servidor DNS**.
+
+Na tela **Minha empresa**, o painel de listas próprias foi ocultado para clientes enquanto a função não estiver disponível. Administradores continuam vendo o painel **Fontes**.
+
+### Publicações e verificações
+
+As alterações foram publicadas em imagens derivadas da aplicação local. O app foi recriado, o cache Blade foi limpo, o nginx foi reiniciado e `/login` retornou HTTP 200. Os containers app e nginx ficaram saudáveis.
+
+Foram feitos 45 testes com 121 assertions para a geração RPZ/WPAD, 16 testes com 289 assertions para auditoria/dashboard e 16 testes com 144 assertions para servidores. Uma zona de teste com os seis domínios passou no `named-checkzone`. Não houve migration nem execução remota nos DNS dos clientes; eles receberão a lista no ciclo normal de aproximadamente uma hora.
+
 ## Referência técnica
 
 O comando `auth_zone_transfer` solicita a busca/transferência da zona; `auth_zone_reload` relê o arquivo local e não substitui essa operação. O suporte a `auth_zone_transfer` foi conferido também no código da versão 1.13.1, identificada no User-Agent do cliente.

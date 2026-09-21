@@ -15,6 +15,22 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 - Corrigido contraste nos seis blocos de comandos/configuração e na prévia RPZ no tema claro; cores anteriores preservadas no tema escuro.
 - Publicação Docker concluída. Validação inicial: 16 testes/144 assertions; renderização da tela, posição das instruções, HTTP 200 e CSS servido conferidos. Sem migrations; funcionamento do DNS-01 confirmado posteriormente pelo usuário, sem verificação remota direta.
 
+### Revisão de segurança e dados RPZ
+- Auditoria dos domínios indicados: `jhkkjkj.com`, `weerrhoop.cc` e `ojsbdjn.com` foram desativados na lista **ANATEL — Bloqueios Oficiais**, receberam exclusões exatas para não voltarem em importações e ficaram classificados para monitoramento.
+- Criada a lista manual global **Segurança — Malware / C2 / IoT** (ID 19), com `3gipcam.com`, `cross-compiling.org`, `i-kiss-boys.com`, `furry-femboys.top`, `twinkfinder.nl` e `wpad.domain.name`. A lista foi vinculada aos sete servidores ativos existentes que já usavam listas de segurança.
+- `wpad.domain.name` foi retirado do conjunto ativo da ANATEL. O gerador RPZ bloqueia somente esse FQDN; não são cadastrados `wpad`, `domain.name` nem curingas de WPAD.
+- As justificativas, fontes e limites da evidência estão em [SEGURANCA-2026-09-20.md](SEGURANCA-2026-09-20.md). Não houve migration; foram alterações de dados operacionais registradas na auditoria.
+
+### Administração e auditoria
+- A listagem administrativa de servidores passou a ordenar **Última consulta** da mais recente para a mais antiga; servidores sem consulta ficam no final.
+- A tela de auditoria passou a usar nomes claros em português, categoria **RPZ**, identificação separada de quem executou, empresa e servidor/lista envolvidos, IP explícito e detalhes longos sob **Ver detalhes**. Eventos sem autoria registrada aparecem como **Sem usuário identificado**.
+- A tela **Minha empresa** do cliente não exibe o painel de listas próprias enquanto essa função não estiver disponível para o cliente; administradores continuam vendo **Fontes**.
+
+### Publicação e validação adicional
+- Commits locais de hoje: `b868262`, `98c7b96`, `88ae93e` e `17e1135`.
+- A lista de segurança foi publicada no container `dns-panel-rpz-app:security-20260920`; a ordenação no `:server-order-20260920`; os textos da auditoria no `:audit-texts-20260920`; e a tela de empresa no `:company-view-20260920`. App e nginx ficaram saudáveis e `/login` retornou HTTP 200 após as publicações.
+- Validação: 45 testes/121 assertions para RPZ e WPAD, zona de teste aprovada pelo `named-checkzone`; 16 testes/289 assertions para auditoria e dashboard; 16 testes/144 assertions para a tela de servidores. A sincronização nos DNS remotos ocorre no refresh normal de 1 hora e não foi forçada remotamente.
+
 ## 18/09/2026
 
 ### Servidores e liberação de IP

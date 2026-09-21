@@ -14,6 +14,14 @@ docker compose exec app php artisan health:check # roda a checagem na hora, most
 
 Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes já deixa rastro lá antes de você precisar entrar por SSH.
 
+## Revisão da lista manual de segurança
+
+A lista global **Segurança — Malware / C2 / IoT** contém bloqueios manuais separados da lista **ANATEL — Bloqueios Oficiais**. Antes de adicionar um domínio, registre a fonte da evidência e confirme se o bloqueio deve atingir o domínio e seus subdomínios. Para WPAD, mantenha apenas `wpad.domain.name`: não adicione `wpad`, `domain.name` ou um curinga genérico.
+
+Os domínios `jhkkjkj.com`, `weerrhoop.cc` e `ojsbdjn.com` foram retirados da RPZ e têm exclusões exatas na ANATEL. Não os reative sem evidência concreta e revisão registrada. Após qualquer ajuste de dados, confira a auditoria, a consulta RPZ gerada e aguarde o ciclo normal de aproximadamente uma hora nos clientes.
+
+Detalhes da alteração de 20/09/2026: [`docs/SEGURANCA-2026-09-20.md`](docs/SEGURANCA-2026-09-20.md).
+
 ---
 
 ## Site fora do ar (HTTP não responde / 502 / 500)

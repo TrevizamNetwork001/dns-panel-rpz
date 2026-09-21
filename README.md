@@ -135,9 +135,9 @@ Sem licença ativa, o formulário de criar servidor mostra o motivo do bloqueio 
 
 ## Auditoria
 
-`/auditoria` (admin) registra quem fez o quê, quando e de qual IP. Cada evento mostra data/hora, o autor (ou "Sistema (automático)"), o rótulo em português, o alvo (ex.: "Lista #14"), a empresa, a categoria, a **descrição completa** e o IP.
+`/auditoria` (admin) registra quem fez o quê, quando e de qual IP. Cada evento mostra data/hora, quem executou (ou **Sem usuário identificado** quando o registro antigo não tem autor), o rótulo em português, o alvo com o nome do servidor/lista quando disponível, a empresa, a categoria, a **descrição completa** em **Ver detalhes** e o IP. A categoria de endpoints é chamada **RPZ**.
 
-- **Filtros**: busca livre (descrição, IP, ação, usuário, empresa), **Categoria** (ANATEL, Autenticação e segurança, Backup, Configurações, Empresas, Licenças, Listas e fontes, Endpoints RPZ/Mikrotik, RBL Checker, Servidores, Sugestões, Sistema/healthcheck, Usuários), **Usuário**, **Período** (De/Até) e **Severidade**. Categoria, usuário e período são `WHERE` no banco (histórico completo); busca e severidade (heurística em PHP, `AuditLog::bucket()`) rodam sobre os 1.000 eventos mais recentes já reduzidos por esses filtros. Paginação de 50 por página.
+- **Filtros**: busca livre (descrição, IP, ação, usuário, empresa), **Categoria** (incluindo **RPZ**), **Usuário**, **Período** (De/Até) e **Severidade**. Categoria, usuário e período são `WHERE` no banco (histórico completo); busca e severidade (heurística em PHP, `AuditLog::bucket()`) rodam sobre os 1.000 eventos mais recentes já reduzidos por esses filtros. Paginação de 50 por página.
 - **Ao criar uma ação nova** (`area.verbo`, ex.: `servidor.ip_pendente`): registre com `AuditLog::record()` (pega usuário e IP da requisição) ou, em comando/job, com `AuditLog::create()` e `user_id` nulo; e **adicione o rótulo em `AuditLog::actionLabel()`**. Sem rótulo cai no texto cru. O prefixo define a categoria (`AuditLog::category()`). O dashboard do admin usa o mesmo dicionário.
 
 ## Dashboard do cliente
