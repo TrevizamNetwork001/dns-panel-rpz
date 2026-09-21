@@ -23,8 +23,12 @@ class ServidorController extends Controller
         $user = Auth::user();
 
         $query = Servidor::with(['empresa', 'listas'])
-            ->withCount(['allowedIps as ips_pendentes_count' => fn ($ips) => $ips->where('status', 'pending')])
-            ->orderByDesc('id');
+            ->withCount(['allowedIps as ips_pendentes_count' => fn ($ips) => $ips->where('status', 'pending')]);
+
+        if ($user->isAdmin()) {
+            $query->orderByRaw('last_synced_at IS NULL ASC')->orderByDesc('last_synced_at');
+        }
+        $query->orderByDesc('id');
 
         if ($user->isCliente()) {
             $query->where('empresa_id', $user->empresa_id);
