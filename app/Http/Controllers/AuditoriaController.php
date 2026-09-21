@@ -24,7 +24,7 @@ class AuditoriaController extends Controller
         $dataFim = (string) $request->input('data_fim', '');
         $page = max(1, (int) $request->input('page', 1));
 
-        $builder = AuditLog::with(['user', 'empresa'])->orderByDesc('id');
+        $builder = AuditLog::with(['user', 'empresa'])->orderByDesc('created_at')->orderByDesc('id');
 
         if ($categoryFilter !== 'all' && array_key_exists($categoryFilter, AuditLog::categories())) {
             $prefixes = AuditLog::prefixesForCategory($categoryFilter);
@@ -84,11 +84,18 @@ class AuditoriaController extends Controller
         $authFailureCount = $logs->filter(fn (AuditLog $log) => str_contains($log->action, 'login_failed'))->count();
         $destructiveCount = $logs->filter(fn (AuditLog $log) => AuditLog::bucket($log->action) === 'warning')->count();
 
+        // Busca os nomes em lote, sem uma consulta por evento.
+        $targetNames = [];
+        foreach (['servidor' => \App\Models\Servidor::class, 'lista' => \App\Models\Lista::class, 'empresa' => \App\Models\Empresa::class] as $type => $model) {
+            $ids = $visibleLogs->getCollection()->where('target_type', $type)->pluck('target_id')->filter()->unique();
+            $targetNames[$type] = $ids->isEmpty() ? collect() : $model::whereIn('id', $ids)->pluck('nome', 'id');
+        }
+
         $users = User::orderBy('name')->get(['id', 'name']);
 
         return view('auditoria.index', compact(
             'visibleLogs', 'totalFiltered', 'recentCount', 'authFailureCount', 'destructiveCount',
-            'query', 'bucketFilter', 'categoryFilter', 'userFilter', 'dataInicio', 'dataFim', 'users'
+            'query', 'bucketFilter', 'categoryFilter', 'userFilter', 'dataInicio', 'dataFim', 'users', 'targetNames'
         ));
     }
 }

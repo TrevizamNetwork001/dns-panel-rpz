@@ -57,7 +57,7 @@
 
     <div class="panel">
         <div class="panel-header"><h2>Filtros</h2></div>
-        <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">Categoria, usuário e período filtram direto no histórico completo. Severidade e busca livre são aplicadas sobre os 1.000 eventos mais recentes que já batem com os outros filtros.</p>
+        <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">Busque por descrição, IP, ação, usuário ou empresa. A lista e os totais consideram até 1.000 resultados mais recentes da busca; a severidade filtra esses resultados.</p>
         <form action="{{ route('auditoria.index') }}" method="GET" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
             <div class="field-group" style="margin:0;min-width:0;width:220px;max-width:100%">
                 <label for="audit-search">Buscar</label>
@@ -76,7 +76,7 @@
                 <label for="audit-usuario">Usuário</label>
                 <select id="audit-usuario" name="usuario" class="form-control">
                     <option value="all" @selected($userFilter === 'all')>Todos</option>
-                    <option value="sistema" @selected($userFilter === 'sistema')>Sistema (automático)</option>
+                    <option value="sistema" @selected($userFilter === 'sistema')>Sem usuário registrado</option>
                     @foreach ($users as $user)
                         <option value="{{ $user->id }}" @selected($userFilter === (string) $user->id)>{{ $user->name }}</option>
                     @endforeach
@@ -107,7 +107,7 @@
 
     <div class="panel">
         <div class="panel-header">
-            <h2>Eventos recentes</h2>
+            <h2>Eventos recentes</h2><span style="color:var(--text-muted);font-size:11px">Mais recentes primeiro</span>
         </div>
 
         @if ($visibleLogs->isEmpty())
@@ -126,9 +126,12 @@
                         $severity = \App\Models\AuditLog::bucketLabel($bucket);
                         $actionLabel = \App\Models\AuditLog::actionLabel($log->action);
                         $categoryLabel = \App\Models\AuditLog::categoryLabel($log->action);
-                        $actor = $log->user->name ?? 'Sistema (automático)';
+                        $actor = $log->actorLabel();
                         $target = \App\Models\AuditLog::targetLabel($log->target_type, $log->target_id);
+                        $targetName = ($targetNames[$log->target_type] ?? collect())->get($log->target_id);
+                        if ($targetName) $target .= ' — '.$targetName;
                         $empresaNome = $log->empresa->nome ?? null;
+                        if ($log->target_type === 'empresa' && $targetName === $empresaNome) $empresaNome = null;
                         $date = $log->created_at->format('d/m/Y H:i:s');
                         $searchText = mb_strtolower(implode(' ', [$log->action, $actionLabel, $actor, $target, $log->ip_address, $date, $severity, $log->description, $empresaNome ?? '']));
                         $routine = in_array($log->action, ['health.ok', 'rpz.endpoint.downloaded'], true);
@@ -138,17 +141,17 @@
                         <div class="audit-content">
                             <strong class="audit-action" title="{{ $log->action }}">{{ $actionLabel }}</strong>
                             <div class="audit-meta">
-                                <strong>{{ $actor }}</strong>
-                                @if ($target)<span aria-hidden="true">·</span> {{ $target }}@endif
-                                @if ($empresaNome)<span aria-hidden="true">·</span> {{ $empresaNome }}@endif
-                                <span aria-hidden="true">·</span> {{ $categoryLabel }}
+                                <span>Quem executou: <strong>{{ $actor }}</strong></span>
+                                @if ($target)<span class="audit-context">{{ $target }}</span>@endif
+                                @if ($empresaNome)<span class="audit-context">Empresa: {{ $empresaNome }}</span>@endif
+                                <span class="audit-context">Categoria: {{ $categoryLabel }}</span>
                             </div>
                             @if ($log->description)
-                                <div class="audit-description">{{ $log->description }}</div>
+                                <details class="audit-details"><summary>Ver detalhes</summary><div class="audit-description">{{ $log->description }}</div></details>
                             @endif
                             <span class="audit-sr-only">Severidade: {{ $severity }}</span>
                         </div>
-                        <span class="audit-ip"><span class="audit-sr-only">IP: </span>{{ $log->ip_address ?? '-' }}</span>
+                        <span class="audit-ip">{{ $log->ip_address ? 'IP: '.$log->ip_address : 'IP não registrado' }}</span>
                     </li>
                 @endforeach
             </ul>

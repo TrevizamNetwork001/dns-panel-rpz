@@ -21,8 +21,8 @@ class AdminAuditPresentationTest extends TestCase
             'auth.login' => 'Login realizado',
             'auth.logout' => 'Sessão encerrada',
             'user.password_reset' => 'Senha de usuário redefinida por um admin',
-            'rpz.endpoint.downloaded' => 'Zona RPZ baixada por um servidor',
-            'health.ok' => 'Healthcheck OK (disco, certificado e site)',
+            'rpz.endpoint.downloaded' => 'Servidor consultou a lista RPZ',
+            'health.ok' => 'Verificação do sistema: tudo normal',
             'custom.action_name' => 'Custom action name',
             'auth.login_failed' => 'Falha de login',
             'sugestao.created' => 'Sugestão de domínio recebida',
@@ -165,4 +165,29 @@ class AdminAuditPresentationTest extends TestCase
         $this->get(route('auditoria.index'))->assertRedirect(route('login'));
         $this->actingAs(User::factory()->cliente()->create())->get(route('auditoria.index'))->assertForbidden();
     }
+    public function test_manual_domain_event_shows_list_name_and_does_not_invent_an_automatic_actor(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $list = \App\Models\Lista::factory()->create(['nome' => 'Segurança manual']);
+        AuditLog::create(['action' => 'dominio.created', 'target_type' => 'lista', 'target_id' => $list->id,
+            'description' => 'Bloqueio manual autorizado: malware.example', 'created_at' => now()]);
+        $this->actingAs($admin)->get(route('auditoria.index', ['categoria' => 'dominio']))
+            ->assertOk()->assertViewHas('totalFiltered', 1)
+            ->assertSeeText('Domínio adicionado ao bloqueio')->assertSeeText('Segurança manual')
+            ->assertSeeText('Sem usuário identificado')->assertSeeText('Ver detalhes')
+            ->assertDontSee('Endpoints (RPZ / Mikrotik)');
+    }
+
+    public function test_server_event_identifies_server_company_and_authenticated_actor(): void
+    {
+        $admin = User::factory()->admin()->create(['name' => 'Operador de teste']);
+        $company = Empresa::factory()->create(['nome' => 'Provedor de teste']);
+        $server = \App\Models\Servidor::factory()->for($company)->create(['nome' => 'DNS de teste']);
+        AuditLog::create(['action' => 'servidor.lista_vinculada', 'target_type' => 'servidor', 'target_id' => $server->id,
+            'description' => 'Lista de teste vinculada ao servidor', 'empresa_id' => $company->id, 'user_id' => $admin->id, 'created_at' => now()]);
+        $this->actingAs($admin)->get(route('auditoria.index'))->assertOk()
+            ->assertSeeText('Lista vinculada ao servidor')->assertSeeText('Operador de teste')
+            ->assertSeeText('DNS de teste')->assertSeeText('Empresa: Provedor de teste');
+    }
+
 }

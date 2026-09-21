@@ -112,7 +112,8 @@ class AuditLog extends Model
             'empresa' => 'Empresas',
             'licenca' => 'Licenças',
             'lista' => 'Listas e fontes',
-            'endpoint' => 'Endpoints (RPZ / Mikrotik)',
+            'dominio' => 'Domínios',
+            'endpoint' => 'RPZ',
             'rbl' => 'RBL Checker',
             'servidor' => 'Servidores',
             'sugestao' => 'Sugestões',
@@ -144,7 +145,7 @@ class AuditLog extends Model
      */
     public static function prefixesForCategory(string $categoryKey): array
     {
-        $prefixes = ['anatel', 'auth', 'security', 'backup', 'configuracoes', 'empresa', 'licenca', 'lista', 'mikrotik', 'rpz', 'rbl', 'servidor', 'sugestao', 'health', 'user'];
+        $prefixes = ['anatel', 'auth', 'security', 'backup', 'configuracoes', 'empresa', 'licenca', 'lista', 'dominio', 'mikrotik', 'rpz', 'rbl', 'servidor', 'sugestao', 'health', 'user'];
 
         return array_values(array_filter($prefixes, fn ($prefix) => self::category($prefix) === $categoryKey));
     }
@@ -174,6 +175,20 @@ class AuditLog extends Model
         };
 
         return $targetId !== null ? "{$label} #{$targetId}" : $label;
+    }
+
+    public function actorLabel(): string
+    {
+        if ($this->user !== null) {
+            return $this->user->name;
+        }
+        if (in_array($this->action, ['rpz.endpoint.downloaded', 'mikrotik.endpoint.downloaded'], true)) {
+            return 'Servidor DNS';
+        }
+        if (str_starts_with($this->action, 'health.')) {
+            return 'Sistema (automático)';
+        }
+        return 'Sem usuário identificado';
     }
 
     public static function actionLabel(string $action): string
@@ -230,6 +245,11 @@ class AuditLog extends Model
             'licenca.updated' => 'Licença atualizada',
             'licenca.destroyed' => 'Licença removida',
 
+            // Domínios
+            'dominio.created' => 'Domínio adicionado ao bloqueio',
+            'dominio.updated' => 'Domínio atualizado',
+            'dominio.destroyed' => 'Domínio removido',
+
             // Listas e fontes
             'lista.created' => 'Lista criada',
             'lista.updated' => 'Lista atualizada',
@@ -244,7 +264,7 @@ class AuditLog extends Model
             'mikrotik.endpoint.downloaded' => 'Lista Mikrotik baixada por um servidor',
             'rpz.endpoint.acl_updated' => 'Lista de IPs autorizados do endpoint RPZ atualizada',
             'rpz.endpoint.denied' => 'Acesso negado ao endpoint RPZ',
-            'rpz.endpoint.downloaded' => 'Zona RPZ baixada por um servidor',
+            'rpz.endpoint.downloaded' => 'Servidor consultou a lista RPZ',
             'rpz.endpoint.slug_changed' => 'Identificador (slug) do endpoint RPZ alterado',
 
             // RBL Checker
@@ -260,6 +280,7 @@ class AuditLog extends Model
             'rbl.event.investigation_updated' => 'Investigação de evento RBL atualizada',
 
             // Servidores
+            'servidor.lista_vinculada' => 'Lista vinculada ao servidor',
             'servidor.created' => 'Servidor criado',
             'servidor.updated' => 'Servidor atualizado',
             'servidor.destroyed' => 'Servidor removido',
@@ -278,7 +299,7 @@ class AuditLog extends Model
             'sugestao.rejected' => 'Sugestão de domínio rejeitada',
 
             // Sistema (healthcheck)
-            'health.ok' => 'Healthcheck OK (disco, certificado e site)',
+            'health.ok' => 'Verificação do sistema: tudo normal',
             'health.disk_low' => 'Alerta: disco do servidor com pouco espaço',
             'health.cert_unreadable' => 'Alerta: certificado TLS ilegível',
             'health.cert_expiring' => 'Alerta: certificado TLS perto de expirar',
