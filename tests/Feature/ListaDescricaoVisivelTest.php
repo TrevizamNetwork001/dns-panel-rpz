@@ -22,13 +22,13 @@ class ListaDescricaoVisivelTest extends TestCase
         return [$empresa, $cliente, $servidor];
     }
 
-    public function test_client_dashboard_shows_what_each_list_is_for(): void
+    public function test_client_list_index_shows_what_each_list_is_for(): void
     {
         [, $cliente] = $this->contexto();
         Lista::factory()->create(['empresa_id' => null, 'status' => 'active', 'nome' => 'Phishing e Golpes', 'descricao' => 'Falsos sites de banco criados para roubar dados.']);
         Lista::factory()->create(['empresa_id' => null, 'status' => 'active', 'nome' => 'Lista sem texto', 'descricao' => null]);
 
-        $this->actingAs($cliente)->get(route('dashboard'))->assertOk()
+        $this->actingAs($cliente)->get(route('listas.index'))->assertOk()
             ->assertSeeText('Phishing e Golpes')
             ->assertSeeText('Falsos sites de banco criados para roubar dados.')
             ->assertSeeText('Lista sem texto');
@@ -52,7 +52,7 @@ class ListaDescricaoVisivelTest extends TestCase
         $servidorVinculado = Servidor::factory()->for($servidor->empresa)->create();
         $servidorVinculado->listas()->attach($lista);
 
-        $this->actingAs($cliente)->get(route('servidores.show', $servidor))->assertOk()->assertSeeText('Sites que distribuem vírus.');
+        $this->actingAs($cliente)->get(route('servidores.show', $servidor))->assertOk()->assertDontSeeText('Sites que distribuem vírus.');
         $this->get(route('servidores.show', $servidorVinculado))->assertOk()->assertSeeText('Sites que distribuem vírus.');
         $this->get(route('listas.index'))->assertOk()->assertSeeText('Sites que distribuem vírus.');
     }

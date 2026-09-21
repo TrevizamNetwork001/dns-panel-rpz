@@ -12,6 +12,8 @@ A interface de **Servidores do cliente**, seus componentes e as verificações e
 
 A tela **Listas do cliente**, com cartões informativos em ordem alfabética, está documentada em [`docs/LISTAS-CLIENTE.md`](docs/LISTAS-CLIENTE.md).
 
+O cadastro e os detalhes de **Empresas**, incluindo nome fantasia, telefone e criação de servidores vinculados, estão em [`docs/EMPRESAS.md`](docs/EMPRESAS.md).
+
 ## Como funciona a distribuição de listas
 
 1. O admin (ou o próprio cliente, dentro do limite da licença) cadastra um **Servidor**, que recebe um **token** único gerado automaticamente.

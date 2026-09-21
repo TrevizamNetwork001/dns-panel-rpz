@@ -54,6 +54,11 @@ class ServidorController extends Controller
             }
         } else {
             $empresas = Empresa::orderBy('nome')->get();
+            $empresaSelecionada = $empresas->firstWhere('id', request('empresa_id'));
+            if ($empresaSelecionada) {
+                $servidor->empresa_id = $empresaSelecionada->id;
+                $listasDisponiveis = $this->listasParaEmpresa($empresaSelecionada->id);
+            }
             $licencaBlocker = null;
         }
 

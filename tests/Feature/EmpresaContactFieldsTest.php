@@ -40,4 +40,24 @@ class EmpresaContactFieldsTest extends TestCase
         $this->post(route('empresas.store'), $data + ['nome_fantasia' => str_repeat('a', 256), 'telefone' => str_repeat('1', 33)])
             ->assertSessionHasErrors(['nome_fantasia', 'telefone']);
     }
+
+    public function test_admin_company_uses_current_layout_and_links_to_prefilled_server_form(): void
+    {
+        $empresa = Empresa::factory()->create(['nome_fantasia' => 'Marca atual', 'telefone' => '(11) 99999-8888']);
+        $outra = Empresa::factory()->create();
+        $servidor = \App\Models\Servidor::factory()->for($empresa)->create(['nome' => 'Servidor da empresa']);
+        \App\Models\Servidor::factory()->for($outra)->create(['nome' => 'Servidor de outra empresa']);
+        $this->actingAs(User::factory()->admin()->create());
+        $this->get(route('empresas.show', $empresa))->assertOk()
+            ->assertSee('company-profile', false)->assertSee('admin-compact-table', false)
+            ->assertSee('Marca atual')->assertSee('(11) 99999-8888')
+            ->assertSee('Servidor da empresa')->assertDontSee('Servidor de outra empresa')
+            ->assertSee('href="'.route('servidores.create', ['empresa_id' => $empresa->id]).'"', false)
+            ->assertSee('href="'.route('servidores.edit', $servidor).'"', false)
+            ->assertSee('company-rpz-access')->assertSee('Criar acesso');
+        $this->get(route('servidores.create', ['empresa_id' => $empresa->id]))->assertOk()
+            ->assertViewHas('servidor', fn ($servidor) => $servidor->empresa_id === $empresa->id);
+        $this->get(route('servidores.create'))->assertOk()
+            ->assertViewHas('servidor', fn ($servidor) => $servidor->empresa_id === null);
+    }
 }

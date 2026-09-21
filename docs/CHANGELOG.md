@@ -4,6 +4,14 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 
 ## 21/09/2026
 
+### Correção da apresentação e revisão da suíte
+
+- **Minha empresa** passa a exibir Nome fantasia e Telefone salvos no cadastro; antes, os dois campos mostravam apenas um traço fixo. Campos vazios continuam exibindo `—`.
+- Corrigidas expectativas antigas de apresentação: a empresa mostra resumo de utilização dos servidores e botão de edição desabilitado para cliente; nomes individuais ficam na tela de servidores. Descrições das listas são conferidas no catálogo e nas listas vinculadas ao servidor, conforme o layout vigente. Verificações de isolamento entre empresas e bloqueio de edição permanecem nos testes.
+- Suíte completa aprovada após incluir a tela administrativa: **416 testes / 2.514 assertions, sem falhas**, em SQLite em memória e contêiner sem rede. O ambiente de teste recebeu `bind-tools` para executar `named-checkzone`; a ausência desse binário na imagem de produção era a causa da falha do teste de sintaxe DNS. Nenhum teste foi desabilitado.
+- Esta revisão resolve as falhas preexistentes registradas abaixo. Não exigiu nova migration.
+- Ao abrir uma empresa pelo administrador, o perfil e o resumo de licença agora seguem o layout atual. Servidores aparecem em tabela responsiva com tipo, listas, última consulta, status e ações. **Novo servidor** abre o formulário com a empresa selecionada. Fontes, usuários e controles RPZ continuam disponíveis; distribuição RPZ fica recolhível e abre automaticamente após testar ACL. Detalhes em [EMPRESAS.md](EMPRESAS.md).
+
 ### Cadastro e edição de empresas
 
 - Adicionados campos opcionais **Nome fantasia** (até 255 caracteres) e **Telefone** (até 32 caracteres) no formulário administrativo. Telefone aceita formatação, código de país e ramal; usa input `tel` sem máscara obrigatória.

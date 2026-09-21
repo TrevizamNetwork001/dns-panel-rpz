@@ -45,7 +45,7 @@
 <div class="company-profile">
     <div class="page-heading">
         <div>
-            <div class="page-eyebrow">Minha empresa</div>
+            <div class="page-eyebrow">{{ $isAdmin ? 'Empresa' : 'Minha empresa' }}</div>
             <div class="company-title">
                 <h1>{{ $empresa->nome }}</h1>
                 <span class="status-pill {{ $empresa->status === 'active' ? 'is-active' : 'is-inactive' }}">{{ $empresa->status === 'active' ? 'Ativa' : 'Inativa' }}</span>
@@ -56,8 +56,12 @@
             </p>
         </div>
         <div class="company-edit">
+            @if ($isAdmin)
+            <a href="{{ route('empresas.edit', $empresa) }}" class="button button-secondary"><x-ui-icon name="pencil" />Editar empresa</a>
+            @else
             <button type="button" class="button button-secondary" disabled aria-describedby="company-edit-help">Editar empresa</button>
             <small id="company-edit-help">Edição disponível para administradores.</small>
+            @endif
         </div>
     </div>
 
@@ -68,10 +72,10 @@
         </div>
         <dl class="company-fields">
             <div><dt>Razão social</dt><dd>{{ $empresa->nome }}</dd></div>
-            <div><dt>Nome fantasia</dt><dd>—</dd></div>
+            <div><dt>Nome fantasia</dt><dd>{{ $empresa->nome_fantasia ?: '—' }}</dd></div>
             <div><dt>CNPJ</dt><dd>{{ $empresa->documentoFormatado() ?? '—' }}</dd></div>
             <div><dt>E-mail de contato</dt><dd>{{ $empresa->email_contato ?? '—' }}</dd></div>
-            <div><dt>Telefone</dt><dd>—</dd></div>
+            <div><dt>Telefone</dt><dd>{{ $empresa->telefone ?: '—' }}</dd></div>
         </dl>
     </section>
 

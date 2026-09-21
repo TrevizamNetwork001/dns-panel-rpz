@@ -22,6 +22,8 @@ class ClientCompanyPresentationTest extends TestCase
             'nome' => 'provedor exemplo',
             'documento' => '86999450000190',
             'email_contato' => 'contato@teste.cn.nrt',
+            'nome_fantasia' => 'Marca exemplo',
+            'telefone' => '+55 (11) 99999-9999',
             'status' => 'active',
         ]);
         $empresa->licencas()->delete();
@@ -44,7 +46,9 @@ class ClientCompanyPresentationTest extends TestCase
             ->assertSee('contato@teste.cn.nrt')
             ->assertSee('Ativa')
             ->assertSee('Servidores')
-            ->assertSee('dns01')
+            ->assertDontSee('dns01')
+            ->assertSee('Marca exemplo')
+            ->assertSee('+55 (11) 99999-9999')
             ->assertSee('Listas')
             ->assertDontSee('malware')
             ->assertSee('Licença')
@@ -54,7 +58,9 @@ class ClientCompanyPresentationTest extends TestCase
             ->assertSee('1 de 2 servidores utilizados')
             ->assertDontSee('Endpoints RPZ')
             ->assertDontSee('Fontes')
-            ->assertDontSee('Editar');
+            ->assertSee('disabled aria-describedby="company-edit-help"', false)
+            ->assertSee('Edição disponível para administradores.')
+            ->assertDontSee('href="'.route('empresas.edit', $empresa).'"', false);
     }
 
     public function test_client_company_preserves_non_cnpj_document_and_singular_server_usage(): void
@@ -109,7 +115,8 @@ class ClientCompanyPresentationTest extends TestCase
 
         $this->actingAs($cliente)->get(route('empresas.show', $empresa))
             ->assertOk()
-            ->assertSee('Servidor próprio')
+            ->assertDontSee('Servidor próprio')
+            ->assertSee('1 de 5 servidores utilizados')
             ->assertDontSee('Lista própria')
             ->assertDontSee('Servidor alheio')
             ->assertDontSee('Lista alheia');
