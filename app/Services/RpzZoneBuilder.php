@@ -122,7 +122,8 @@ class RpzZoneBuilder
             }
             $previous = $domain;
             yield $domain.' CNAME '.$target;
-            if ($this->ownerFitsZone('*.'.$domain, $host)) {
+            // WPAD: bloquear apenas este FQDN, sem ampliar a regra a subdomínios.
+            if ($domain !== 'wpad.domain.name' && $this->ownerFitsZone('*.'.$domain, $host)) {
                 yield '*.'.$domain.' CNAME '.$target;
             }
         }
