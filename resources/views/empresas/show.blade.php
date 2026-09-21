@@ -15,6 +15,9 @@
         $rpzListas = $empresa->servidores->where('status', 'active')->flatMap->listas->where('status', 'active')->unique('id')->sortBy('nome');
     @endphp
 
+    @if (! $isAdmin)
+        @include('empresas.partials.company-profile')
+    @else
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Empresa</div>
@@ -201,5 +204,6 @@
             });
         });
     </script>
+    @endif
     @endif
 @endsection
