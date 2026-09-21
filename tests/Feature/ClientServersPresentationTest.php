@@ -31,12 +31,12 @@ class ClientServersPresentationTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Editar servidor')
-            ->assertSee('Configuração do servidor')
+            ->assertSee('Configuração DNS')
             ->assertDontSee('Acesso ao feed')
             ->assertDontSee($servidor->token)
             ->assertDontSee('id="token-toggle-btn"', false)
             ->assertSee('Listas habilitadas')
-            ->assertSee('Pesquisar listas...')
+            ->assertSee('Pesquisar e adicionar listas...')
             ->assertSee('name="tipo_dns"', false)
             ->assertSee('MikroTik RouterOS v7 (Adlist)')
             ->assertSeeInOrder(['ANATEL', 'Catálogo', 'Anatel', 'Catálogo'])
@@ -61,9 +61,9 @@ class ClientServersPresentationTest extends TestCase
         $this->actingAs($cliente)->get(route('servidores.create'))
             ->assertOk()
             ->assertSee('Novo servidor')
-            ->assertSee('Configuração do servidor')
+            ->assertSee('Configuração DNS')
             ->assertSee('Listas habilitadas')
-            ->assertSee('Pesquisar listas...')
+            ->assertSee('Pesquisar e adicionar listas...')
             ->assertSee('<option value="unbound" selected>Unbound (RPZ)</option>', false)
             ->assertSee('MikroTik RouterOS v7 (Adlist)')
             ->assertDontSee('Novo endpoint RPZ');
@@ -168,6 +168,40 @@ class ClientServersPresentationTest extends TestCase
         $cliente = User::factory()->cliente($empresa)->create();
         $html = $this->actingAs($cliente)->get(route('servidores.edit', $servidor))->assertOk()->getContent();
         $this->assertStringNotContainsString($servidor->token, $html, 'O token não pode aparecer nem no JS da página do cliente.');
+    }
+
+    public function test_client_index_shows_dns_type_and_actions_without_public_ips(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        Servidor::factory()->for($empresa)->create([
+            'ip_v4' => '203.0.113.42', 'ip_v6' => '2001:db8::42',
+            'tipo_dns' => 'mikrotik', 'last_synced_at' => now(),
+        ]);
+
+        $this->actingAs($cliente)->get(route('servidores.index'))->assertOk()
+            ->assertSeeInOrder(['<th>Nome</th>', '<th>Tipo</th>', '<th>Listas</th>', '<th>Última sincronização</th>', '<th>Status</th>'], false)
+            ->assertSee('MikroTik (Adlist)')->assertSee('Em dia')->assertSee('Editar')
+            ->assertDontSee('203.0.113.42')->assertDontSee('2001:db8::42');
+    }
+
+    public function test_list_chips_preserve_empty_selection_after_validation_failure(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        $servidor = Servidor::factory()->for($empresa)->create();
+        $lista = Lista::factory()->create(['empresa_id' => $empresa->id]);
+        $servidor->listas()->attach($lista);
+
+        $this->actingAs($cliente)->get(route('servidores.edit', $servidor))->assertOk()
+            ->assertSee('1 de 1 selecionadas')->assertDontSee('type="checkbox"', false);
+
+        $this->from(route('servidores.edit', $servidor))->put(route('servidores.update', $servidor), $this->serverPayload(['nome' => '']))
+            ->assertSessionHasErrors('nome');
+        $this->get(route('servidores.edit', $servidor))->assertOk()
+            ->assertSee('0 de 1 selecionadas')
+            ->assertSee('value="'.$lista->id.'" disabled', false);
+        $this->assertTrue($servidor->fresh()->listas->contains($lista));
     }
 
     private function serverPayload(array $overrides = []): array

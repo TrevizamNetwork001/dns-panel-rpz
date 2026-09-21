@@ -75,8 +75,8 @@
                     <div><span>Modo de bloqueio</span><strong>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</strong></div>
                 </div>
             @else
-                <span class="status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
-                    {{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
+                <span class="status-pill server-status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
+                    <x-ui-icon name="dot" size="14" />{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
                 </span>
             @endif
             @unless (auth()->user()->isAdmin())

@@ -8,6 +8,8 @@ Deu algum problema em produção? Veja o [`RUNBOOK.md`](RUNBOOK.md) — site for
 
 Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que gerencia provisionamento/tuning de servidores Unbound via SSH). Os dois não compartilham banco, código ou usuários.
 
+A interface de **Servidores do cliente**, seus componentes e as verificações estão documentados em [`docs/SERVIDORES-CLIENTE.md`](docs/SERVIDORES-CLIENTE.md).
+
 ## Como funciona a distribuição de listas
 
 1. O admin (ou o próprio cliente, dentro do limite da licença) cadastra um **Servidor**, que recebe um **token** único gerado automaticamente.

@@ -2,6 +2,17 @@
 
 Histórico das mudanças por data, agrupadas por área. Os commits ficam no branch `feat/dockerize-rpz` (PR nº 1 para o `master`). Este arquivo começa em 17/09/2026; o que veio antes está no histórico do git.
 
+## 21/09/2026
+
+### Servidores do cliente
+- Tabela com Nome, Tipo, Listas, Última sincronização, Status e Ações, sem IPs públicos. Botão Editar visível e menu de ações secundárias preservado; estado de sincronização normal apresentado como **Em dia**.
+- Cadastro e edição organizados em Identificação, Configuração DNS e Listas habilitadas. Campos compactos, aviso NXDOMAIN discreto e rodapé dentro do card, com exclusão confirmada, Cancelar e Salvar alterações/Cadastrar servidor.
+- Seletor compartilhado com pesquisa por nome/descrição (sem distinção de acentos), chips removíveis, contador e catálogo com Adicionar/Adicionada. Seleção preservada após erro de validação, inclusive quando todas as listas foram removidas.
+- Ícones SVG locais com traço uniforme; cores por categoria no catálogo e nos chips. Adicionar em azul-ciano, Adicionada em verde; status com espaço de 6 px entre indicador e texto. Tema claro preservado.
+- Sem mudanças em controllers, API, banco, licença, validações de IP, ACL, sincronização ou permissões.
+- Validação final: **86 testes / 468 assertions**, além de verificação isolada do JavaScript do seletor durante a implementação. Uma falha preexistente no teste de descrições do dashboard foi reproduzida com as views originais e ficou fora desta seleção de regressão.
+- Publicado nos contêineres app/nginx; cache de views renovado, HTTP 200 e hashes do CSS servido conferidos. Detalhes de manutenção e arquivos em [SERVIDORES-CLIENTE.md](SERVIDORES-CLIENTE.md).
+
 ## 20/09/2026
 
 ### Diagnóstico e sincronização RPZ

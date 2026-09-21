@@ -40,7 +40,7 @@
                     @if (auth()->user()->isAdmin())
                     <a href="{{ route('rbl.index') }}" class="sidebar-link @if(request()->routeIs('rbl.*')) is-active @endif">RBL Checker</a>
                     @endif
-                    <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg>{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</a>
+                    <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif"><x-ui-icon name="server" size="18" class="sidebar-nav-icon" />{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</a>
                 </nav>
 
                 <p class="sidebar-section-label">Gestão</p>

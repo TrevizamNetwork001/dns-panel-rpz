@@ -11,7 +11,7 @@
 @endphp
 
 @section('content')
-    <div @if(auth()->user()->isAdmin()) class="admin-endpoint-form" @endif>
+    <div @if(auth()->user()->isAdmin()) class="admin-endpoint-form" @else class="client-server-form" @endif>
     <div class="page-heading page-heading-compact">
         <div>
             <h1>{{ auth()->user()->isAdmin()
@@ -34,8 +34,9 @@
             @method('PUT')
         @endif
 
+        <div class="server-settings @unless(auth()->user()->isAdmin()) panel @endunless">
         <div class="panel form-panel" style="margin-bottom:14px">
-            <div class="panel-header"><h2>Identificação</h2></div>
+            <div class="panel-header"><h2>@unless(auth()->user()->isAdmin())<x-ui-icon name="server" size="18" />@endunless Identificação</h2></div>
             <div class="form-grid">
                 @if (auth()->user()->isAdmin())
                     <div class="field-group">
@@ -47,33 +48,31 @@
                             @endforeach
                         </select>
                     </div>
-                @else
-                    <div class="field-group">
-                        <label>Empresa</label>
-                        <input class="form-control" type="text" value="{{ $empresas->first()->nome ?? '-' }}" disabled>
-                    </div>
                 @endif
 
                 <div class="field-group">
-                    <label for="nome">Nome</label>
+                    <label for="nome">{{ auth()->user()->isAdmin() ? 'Nome' : 'Nome do servidor' }}</label>
                     <input class="form-control" type="text" id="nome" name="nome" value="{{ old('nome', $servidor->nome) }}" required>
                 </div>
 
                 <div class="field-group">
                     <label for="status">Status</label>
+                    <div class="server-status-field">
+                    @unless(auth()->user()->isAdmin())<x-ui-icon name="dot" size="14" class="server-status-indicator" />@endunless
                     <select class="form-control" id="status" name="status">
                         <option value="active" @selected(old('status', $servidor->status) === 'active')>Ativo</option>
                         <option value="inactive" @selected(old('status', $servidor->status) === 'inactive')>Inativo</option>
                     </select>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="panel form-panel" style="margin-bottom:14px">
-            <div class="panel-header"><h2>{{ auth()->user()->isAdmin() ? 'Configuração RPZ' : 'Configuração do servidor' }}</h2></div>
+            <div class="panel-header"><h2>@unless(auth()->user()->isAdmin())<x-ui-icon name="server" size="18" />@endunless{{ auth()->user()->isAdmin() ? 'Configuração RPZ' : 'Configuração DNS' }}</h2></div>
             <div class="form-grid">
                 <div class="field-group">
-                    <label for="tipo_dns">Tipo de DNS</label>
+                    <label for="tipo_dns" class="server-icon-label"><x-ui-icon name="server" />Tipo de DNS</label>
                     @php $tipoDnsAtual = old('tipo_dns', $servidor->tipo_dns ?? 'unbound'); @endphp
                     <select class="form-control" id="tipo_dns" name="tipo_dns">
                         <option value="unbound" @selected($tipoDnsAtual === 'unbound')>Unbound (RPZ)</option>
@@ -87,17 +86,16 @@
                         <option value="nxdomain" @selected(old('bloqueio_modo', $servidor->bloqueio_modo ?? 'nxdomain') === 'nxdomain')>NXDOMAIN (domínio não existe)</option>
                         <option value="redirect" @selected(old('bloqueio_modo', $servidor->bloqueio_modo) === 'redirect')>Página de bloqueio (redireciona)</option>
                     </select>
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">No MikroTik, o Adlist sempre responde com 0.0.0.0; a página de bloqueio só se aplica ao RPZ/Unbound.</p>
-                    <p style="color:var(--amber, #f5a524);font-size:10px;margin-top:4px"><strong>Atenção:</strong> a opção "Página de bloqueio" ainda não está disponível no servidor do painel — os sites bloqueados ficariam sem resposta em vez de mostrar a página. Em sites HTTPS o navegador também mostra alerta de certificado. Use NXDOMAIN.</p>
+                    <aside class="server-dns-notice"><x-ui-icon name="info" /><span>Página de bloqueio indisponível; use NXDOMAIN. HTTPS pode gerar alerta de certificado. No MikroTik, o Adlist responde com 0.0.0.0.</span></aside>
                 </div>
 
                 <div class="field-group">
-                    <label for="ip_v4">{{ auth()->user()->isCliente() ? 'IPv4 de saída do seu DNS' : 'IPv4 (opcional)' }}</label>
+                    <label for="ip_v4">{{ auth()->user()->isCliente() ? 'IPv4 de saída do DNS' : 'IPv4 (opcional)' }}</label>
                     <input class="form-control" type="text" id="ip_v4" name="ip_v4" value="{{ old('ip_v4', $servidor->ip_v4) }}" placeholder="203.0.113.10">
                 </div>
 
                 <div class="field-group">
-                    <label for="ip_v6">{{ auth()->user()->isCliente() ? 'IPv6 de saída do seu DNS (opcional)' : 'IPv6 (opcional)' }}</label>
+                    <label for="ip_v6">{{ auth()->user()->isCliente() ? 'IPv6 de saída do DNS (opcional)' : 'IPv6 (opcional)' }}</label>
                     <input class="form-control" type="text" id="ip_v6" name="ip_v6" value="{{ old('ip_v6', $servidor->ip_v6) }}" placeholder="2001:db8::1">
                 </div>
             </div>
@@ -143,6 +141,13 @@
             <p style="color:var(--text-muted);font-size:11px;margin-top:10px">O token é gerado automaticamente ao salvar.</p>
         @endif
 
+        @unless(auth()->user()->isAdmin())
+            @include('servidores.partials.form-actions')
+        @endunless
+        </div>
+        @if (! auth()->user()->isAdmin())
+            @include('servidores.partials.list-selector', ['listasDisponiveis' => $listasDisponiveis ?? collect()])
+        @else
         @if (isset($listasDisponiveis) && $listasDisponiveis->isNotEmpty())
             <div class="panel form-panel" style="margin-bottom:14px" id="fontes-habilitadas-panel">
                 <div class="panel-header">
@@ -180,11 +185,19 @@
             <p style="color:var(--text-muted);font-size:11px;margin-top:14px">Selecione a empresa e salve para poder escolher as fontes.</p>
         @endif
 
-        <div class="form-actions">
-            <a href="{{ route('servidores.index') }}" class="button button-secondary">Cancelar</a>
-            <button type="submit" class="button button-primary" @if(!empty($licencaBlocker)) disabled @endif>Salvar</button>
-        </div>
+        @endif
+
+        @if (auth()->user()->isAdmin())
+            @include('servidores.partials.form-actions')
+        @endif
+
     </form>
+    @if ($servidor->exists && ! auth()->user()->isAdmin())
+        <form id="delete-server-form" action="{{ route('servidores.destroy', $servidor) }}" method="POST" onsubmit="return confirm('Excluir servidor?')">
+            @csrf
+            @method('DELETE')
+        </form>
+    @endif
 
     <script>
         (function () {
