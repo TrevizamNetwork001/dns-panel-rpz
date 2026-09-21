@@ -1983,6 +1983,7 @@ input.endpoint-code-field:focus {
 
 html[data-theme="light"] {
     color-scheme: light;
+    --command-background: var(--surface-soft);
 
     --background: #eef3f8;
     --surface: #ffffff;
@@ -2024,6 +2025,12 @@ html[data-theme="light"] .form-control,
 html[data-theme="light"] .checkbox-label {
     background: #ffffff;
     color: var(--text);
+}
+
+html[data-theme="light"] .rpz-code {
+    background: var(--surface-soft);
+    color: var(--text);
+    border-color: var(--border);
 }
 
 html[data-theme="light"] .panel,

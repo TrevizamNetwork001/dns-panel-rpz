@@ -2,6 +2,19 @@
 
 Histórico das mudanças por data, agrupadas por área. Os commits ficam no branch `feat/dockerize-rpz` (PR nº 1 para o `master`). Este arquivo começa em 17/09/2026; o que veio antes está no histórico do git.
 
+## 20/09/2026
+
+### Diagnóstico e sincronização RPZ
+- Diagnóstico de DNS-01 que recebeu zona com zero domínios antes da vinculação das listas. O DNS-02 consultou depois e recebeu 314.948 domínios. Linha do tempo e limites da verificação no [registro do atendimento](RELATORIO-2026-09-20.md).
+- Atalho **Antecipar sincronização** e bloco **Caso a sincronização não ocorra** na tela Unbound, após a configuração e antes da restrição de IP. Comandos `auth_zone_transfer` e `list_auth_zones`, ambos com botão **Copiar**, para executar no DNS do cliente. Não há execução remota pelo painel.
+- Orientações sobre controle local habilitado, nome da zona, diferença entre solicitação e carregamento e reutilização do arquivo salvo após reinício. Tratamento de falha/indisponibilidade do clipboard.
+
+### Interface e tema claro
+- Painel de listas próprias da empresa oculto para clientes; administradores mantêm o painel Fontes. Painel de servidores vinculados à lista com largura compacta para clientes. Testes de apresentação ajustados ao comportamento.
+- Tipografia e espaçamento do novo bloco alinhados às instruções existentes.
+- Corrigido contraste nos seis blocos de comandos/configuração e na prévia RPZ no tema claro; cores anteriores preservadas no tema escuro.
+- Publicação Docker concluída. Validação inicial: 16 testes/144 assertions; renderização da tela, posição das instruções, HTTP 200 e CSS servido conferidos. Sem migrations; funcionamento do DNS-01 confirmado posteriormente pelo usuário, sem verificação remota direta.
+
 ## 18/09/2026
 
 ### Servidores e liberação de IP

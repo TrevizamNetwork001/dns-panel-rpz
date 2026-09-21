@@ -24,6 +24,22 @@ Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que ge
    **Liberação de IP (fluxo do cliente):** o cliente só informa o IP de saída do DNS dele ao cadastrar o servidor (IPv4 ou IPv6, pelo menos um — obrigatório para cliente; para admin continua opcional). Esse IP entra como **pendente** (`server_allowed_ips.status = 'pending'`) e **não dá acesso** à zona: a checagem de ACL só considera IPs `active`. O admin recebe um aviso no Telegram ("IP aguardando liberação", com link do servidor), vê o selo "IP aguardando liberação" na lista de endpoints e clica em **Liberar** na seção "Restrição de IP" do servidor; o Unbound do cliente pega a zona sozinho na tentativa seguinte, sem reiniciar. Enquanto está pendente, a tela do servidor do cliente explica o estado. **Admin que cadastra o servidor** já libera o IPv4/IPv6 informado na hora (ACL ativa, com registro na auditoria) — só na criação; na edição esses campos continuam informativos, pra editar um nome não liberar um IP que estava de fora de propósito. Só o admin libera, adiciona ou remove IPs (rotas com middleware `admin`); pendentes que o cliente troca no formulário são descartados e IPs já liberados nunca são alterados. Sem IP liberado, o endpoint por empresa responde **403** (com aviso em `/auditoria`: "Acesso negado ao endpoint RPZ") e o legado por token responde 404.
 5. Validado com `named-checkzone` (pacote `bind9-utils`) — sintaticamente correto mesmo com dezenas de milhares de domínios.
 
+### Antecipar a sincronização do Unbound
+
+Na tela do servidor Unbound, o atalho **Antecipar sincronização** leva ao bloco **Caso a sincronização não ocorra**, após a configuração e antes de **Restrição de IP** (visível ao administrador). Use quando as listas forem vinculadas depois da primeira consulta ou quando a zona não atualizar.
+
+Clique em **Copiar** e execute no terminal do DNS do cliente, como root ou com sudo:
+
+```bash
+unbound-control auth_zone_transfer rpz.trevizamnetwork.com.br
+```
+
+O controle local do Unbound deve estar habilitado. Use o nome definido no bloco `rpz:`; se foi personalizado, substitua o nome acima. A opção **Se o comando apresentar erro** oferece `unbound-control list_auth_zones` para consultar os nomes configurados.
+
+O botão apenas copia: o painel não tem acesso remoto ao DNS. O retorno `ok` indica solicitação aceita, não download concluído. Confira a nova consulta e a quantidade de domínios no histórico do painel e confirme o carregamento nos logs do Unbound. Reiniciar o serviço pode reutilizar a zona salva; para antecipar a busca, use o comando de transferência.
+
+Os campos de comando e a prévia RPZ acompanham o tema claro/escuro. Detalhes do diagnóstico e da implementação no [registro de 20/09/2026](docs/RELATORIO-2026-09-20.md).
+
 ### MikroTik RouterOS v7
 
 Servidores cadastrados como **MikroTik RouterOS v7 (Adlist)** recebem um feed adicional em formato hosts:

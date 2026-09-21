@@ -38,14 +38,34 @@ Olhe também `/seguranca` e `/auditoria` no painel — a maioria dos incidentes 
    curl -s "https://rpz.trevizamnetwork.com.br/rpz/{token}.zone" | head -20
    ```
    - 404 → servidor ou empresa inativa, ou ACL de IP bloqueando (veja `/servidores/{id}` → Restrição de IP).
-   - 403 no endereço curto por empresa (`/rpz/{slug}.zone`) → o IP de quem consultou não está liberado em nenhum servidor da empresa. O IP que o painel enxergou aparece no log do nginx (`docker compose logs nginx | grep /rpz/`, último campo) e o pedido em `/auditoria` como "Acesso negado ao endpoint RPZ". Se o cliente informou o IP no cadastro, ele fica **pendente**: abra o servidor e clique em **Liberar**. O Unbound tenta de novo sozinho (com espera crescente); se quiser acelerar, `systemctl restart unbound` no DNS do cliente.
+   - 403 no endereço curto por empresa (`/rpz/{slug}.zone`) → o IP de quem consultou não está liberado em nenhum servidor da empresa. O IP que o painel enxergou aparece no log do nginx (`docker compose logs nginx | grep /rpz/`, último campo) e o pedido em `/auditoria` como "Acesso negado ao endpoint RPZ". Se o cliente informou o IP no cadastro, ele fica **pendente**: abra o servidor e clique em **Liberar**. O Unbound tenta de novo sozinho (com espera crescente); se quiser acelerar, use `unbound-control auth_zone_transfer rpz.trevizamnetwork.com.br` no DNS do cliente (com controle local habilitado e o nome definido no bloco `rpz:`).
    - Zonefile vazio de domínios → nenhuma lista ativa vinculada, ou listas sem domínios ativos.
+   - Para solicitar nova busca antes do intervalo: abra o servidor no painel → **Antecipar sincronização** → **Copiar** e execute no DNS do cliente como root ou com sudo. O painel não executa comandos remotamente. `ok` confirma a solicitação, não a conclusão: confira o histórico do painel e os logs do Unbound. Reiniciar pode reutilizar a zona salva. Se o nome da zona foi personalizado, use o nome local; `unbound-control list_auth_zones` lista as zonas configuradas.
 3. Valide a sintaxe do zonefile gerado (precisa de `bind9-utils` instalado):
    ```bash
    curl -s "https://.../rpz/{token}.zone" > /tmp/check.zone
    named-checkzone rpz.trevizamnetwork.com.br /tmp/check.zone
    ```
 4. Do lado do cliente: confirmar que o módulo `respip` está habilitado no bloco `server:` (`module-config: "respip validator iterator"` — `respip` primeiro; sem ele o RPZ não bloqueia nada e o Unbound não avisa) e que o bloco `rpz:` no `unbound.conf` dele está **depois** do bloco `server:` (antes, se usar `hyperlocal`), e rodar `unbound-checkconf` antes de qualquer restart.
+
+### Solicitar nova busca sem esperar o refresh
+
+Execute no **servidor DNS do cliente**, como root ou com sudo, com `unbound-control` habilitado:
+
+```bash
+unbound-control list_auth_zones
+unbound-control auth_zone_transfer rpz.trevizamnetwork.com.br
+```
+
+O segundo argumento deve corresponder ao `name:` do bloco `rpz:`. O painel disponibiliza esses comandos no bloco **Caso a sincronização não ocorra**, antes da restrição de IP; ambos têm botão **Copiar**. Não há execução remota ao clicar.
+
+- Erro de conexão/controle desabilitado: conferir a configuração local do controle do Unbound.
+- Zona não encontrada: conferir os nomes retornados por `list_auth_zones` e a configuração efetivamente carregada.
+- Retorno `ok`: aguardar a transferência, conferir nova consulta/contagem no painel e carregamento nos logs do Unbound. O registro do painel é criado antes do término da resposta.
+- Reinício sem atualização: o serviço pode reutilizar a zona salva. `auth_zone_reload` também relê o arquivo local; use `auth_zone_transfer` para solicitar busca.
+- Zona sem domínios: conferir listas ativas, vínculos e seus horários. Se a consulta ocorreu antes dos vínculos, uma resposta HTTP 200 pequena pode conter somente cabeçalho/canário.
+
+Caso diagnosticado e mudanças de interface: [registro de 20/09/2026](docs/RELATORIO-2026-09-20.md).
 
 ## Servidor sumiu do painel (removido por inatividade)
 

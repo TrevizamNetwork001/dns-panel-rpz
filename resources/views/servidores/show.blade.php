@@ -29,6 +29,9 @@
             <p><a href="{{ route('empresas.show', $servidor->empresa) }}" class="inline-link">{{ $servidor->empresa->nome }}</a></p>
         </div>
         <div class="page-actions">
+            @if ($servidor->tipo_dns === 'unbound')
+                <a href="#rpz-manual-sync" class="button button-secondary">Antecipar sincronização</a>
+            @endif
             <a href="{{ route('servidores.edit', $servidor) }}" class="button button-secondary">Editar</a>
         </div>
     </div>
@@ -112,7 +115,7 @@
                 <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
                     <strong>Passo 1 — habilitar os módulos no bloco <code>server:</code>.</strong> O RPZ depende do módulo <code>respip</code>; sem ele o Unbound aceita a configuração, mas não bloqueia nada. <strong>A ordem importa</strong>: <code>respip</code> vem primeiro. Se o seu <code>unbound.conf</code> já tem uma linha <code>module-config</code>, só acrescente <code>respip</code> no início dela, mantendo os demais módulos que você já usa — não duplique a linha.
                 </p>
-                <pre id="module-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">server:
+                <pre id="module-snippet" style="background:var(--command-background, #080d17);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">server:
     module-config: "respip validator iterator"</pre>
                 <div style="margin:0 0 18px"><button type="button" class="button button-secondary" data-endpoint-copy="module-snippet" aria-live="polite">Copiar</button></div>
             @endunless
@@ -130,14 +133,14 @@
             @if (auth()->user()->isAdmin())
                 <pre class="endpoint-config-snippet" id="config-snippet">{{ str_replace($servidor->token, '••••••••••••', $isMikrotik ? $mikrotikConfig : $configSnippet) }}</pre>
             @else
-                <pre id="config-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $isMikrotik ? $mikrotikConfig : $configSnippet }}</pre>
+                <pre id="config-snippet" style="background:var(--command-background, #080d17);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre">{{ $isMikrotik ? $mikrotikConfig : $configSnippet }}</pre>
             @endif
             @unless ($isMikrotik)
                 <div id="rpz-restart-steps" style="margin-top:16px">
                     <p style="color:var(--text-muted);font-size:11px;margin:0 0 8px">
                         <strong>Passo 3 — validar e reiniciar.</strong> Depois de salvar o <code>unbound.conf</code>, valide a configuração e só reinicie se aparecer <em>no errors</em>. Se houver erro, corrija antes: um arquivo inválido impede o serviço de subir e derruba o DNS da sua rede.
                     </p>
-                    <pre id="restart-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">unbound-checkconf
+                    <pre id="restart-snippet" style="background:var(--command-background, #080d17);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">unbound-checkconf
 systemctl restart unbound</pre>
                     <div style="margin:0 0 6px"><button type="button" class="button button-secondary" data-endpoint-copy="restart-snippet" aria-live="polite">Copiar</button></div>
                     <p style="color:var(--text-muted);font-size:10px;margin:0 0 16px">Reinicie só nesta primeira configuração ou quando alterar o <code>unbound.conf</code>. Depois disso o Unbound atualiza a lista sozinho, a cada hora, sem reiniciar.</p>
@@ -145,7 +148,7 @@ systemctl restart unbound</pre>
                     <p style="color:var(--text-muted);font-size:11px;margin:0 0 8px">
                         <strong>Passo 4 — conferir.</strong> Consulte o domínio de teste, que é sempre bloqueado:
                     </p>
-                    <pre id="verify-snippet" style="background:#080d17;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">dig @127.0.0.1 blocktest.{{ $rpzZoneName }}</pre>
+                    <pre id="verify-snippet" style="background:var(--command-background, #080d17);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">dig @127.0.0.1 blocktest.{{ $rpzZoneName }}</pre>
                     <div style="margin:0 0 6px"><button type="button" class="button button-secondary" data-endpoint-copy="verify-snippet" aria-live="polite">Copiar</button></div>
                     <p style="color:var(--text-muted);font-size:10px;margin:0">A resposta esperada é <code>status: NXDOMAIN</code>. Logo depois do reinício a primeira consulta pode demorar alguns segundos, enquanto a lista é baixada. Se não bloquear, confira se o IP do seu DNS já foi liberado (aviso no topo desta tela).</p>
                 </div>
@@ -175,6 +178,24 @@ systemctl restart unbound</pre>
             @endunless
             <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $isMikrotik ? $mikrotikUrl : $rpzUrl }}</code></p>
         </div>
+
+        @if ($servidor->tipo_dns === 'unbound')
+            <div class="panel details-card-wide" id="rpz-manual-sync">
+                <div class="panel-header"><h2>Caso a sincronização não ocorra</h2></div>
+                <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">Se as listas não atualizarem após vincular novas fontes ou se a zona estiver vazia, copie o comando abaixo e <strong>execute no terminal do servidor DNS do cliente ({{ $servidor->nome }})</strong>, como root ou com sudo. Ele solicita uma nova busca sem esperar o intervalo de atualização.</p>
+                <pre id="rpz-transfer-command" style="background:var(--command-background, #080d17);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">unbound-control auth_zone_transfer {{ escapeshellarg($rpzZoneName) }}</pre>
+                <div style="margin:0 0 14px"><button type="button" class="button button-secondary" data-endpoint-copy="rpz-transfer-command" aria-live="polite">Copiar</button></div>
+                <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">O botão copia o comando; a execução acontece no DNS do cliente. É necessário ter o <code>unbound-control</code> habilitado. Se o nome no bloco <code>rpz:</code> foi personalizado, use esse nome no comando.</p>
+                <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">O retorno <code>ok</code> indica que a busca foi solicitada. Aguarde o download e atualize esta página para conferir a última consulta e a quantidade de domínios no histórico. Esse registro confirma a consulta ao painel; confira também os logs do Unbound para confirmar que a zona foi carregada.</p>
+                <details style="color:var(--text-muted);font-size:11px;line-height:1.6">
+                    <summary style="cursor:pointer;margin-bottom:10px">Se o comando apresentar erro</summary>
+                    <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">Se aparecer erro de conexão ou de controle desabilitado, confira a configuração local do <code>unbound-control</code>. Se a zona não for encontrada, consulte os nomes configurados:</p>
+                    <pre id="rpz-list-zones-command" style="background:var(--command-background, #080d17);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">unbound-control list_auth_zones</pre>
+                    <div style="margin:0 0 14px"><button type="button" class="button button-secondary" data-endpoint-copy="rpz-list-zones-command" aria-live="polite">Copiar</button></div>
+                    <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">Reiniciar o serviço pode reutilizar o arquivo de zona salvo. Para antecipar a atualização, use <code>auth_zone_transfer</code>.</p>
+                </details>
+            </div>
+        @endif
 
         @if (auth()->user()->isAdmin())
         <div class="panel details-card-wide">
@@ -391,10 +412,16 @@ systemctl restart unbound</pre>
                     var target = document.getElementById(copyButton.dataset.endpointCopy);
                     if (!target) return;
                     var copyValue = ('value' in target ? target.value : target.textContent).trim();
+                    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+                        copyButton.textContent = 'Selecione e copie o comando acima';
+                        return;
+                    }
                     navigator.clipboard.writeText(copyValue).then(function () {
                         var original = copyButton.textContent;
                         copyButton.textContent = 'Copiado!';
                         setTimeout(function () { copyButton.textContent = original; }, 1500);
+                    }).catch(function () {
+                        copyButton.textContent = 'Selecione e copie o texto acima';
                     });
                 });
             });

@@ -97,7 +97,7 @@
         </div>
         @endif
 
-        <div class="panel details-card-wide">
+        <div @class(['panel', 'details-card-wide' => auth()->user()->isAdmin()])>
             <div class="panel-header"><h2>{{ auth()->user()->isAdmin() ? 'Endpoints RPZ vinculados' : 'Meus servidores que usam esta lista' }}</h2></div>
             @if ($lista->servidores->isEmpty())
                 <div class="empty-state"><span>{{ auth()->user()->isAdmin() ? 'Nenhum endpoint vinculado.' : 'Nenhum dos seus servidores usa esta lista ainda.' }}</span></div>

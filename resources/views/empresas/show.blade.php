@@ -94,10 +94,12 @@
             @endif
         </div>
 
+        {{-- Listas próprias do cliente são função do painel 2.0: por ora só o admin vê este painel. --}}
+        @if ($isAdmin)
         <div class="panel details-card-wide">
-            <div class="panel-header"><h2>{{ $isAdmin ? 'Fontes' : 'Listas' }}</h2></div>
+            <div class="panel-header"><h2>Fontes</h2></div>
             @if ($empresa->listas->isEmpty())
-                <div class="empty-state"><span>{{ $isAdmin ? 'Nenhuma fonte cadastrada.' : 'Nenhuma lista própria cadastrada.' }}</span></div>
+                <div class="empty-state"><span>Nenhuma fonte cadastrada.</span></div>
             @else
                 <div class="table-responsive">
                     <table class="data-table">
@@ -110,6 +112,7 @@
                 </div>
             @endif
         </div>
+        @endif
 
         @if (auth()->user()->isAdmin())
         <div class="panel details-card-wide">

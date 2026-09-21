@@ -46,7 +46,7 @@ class ClientCompanyPresentationTest extends TestCase
             ->assertSee('Servidores')
             ->assertSee('dns01')
             ->assertSee('Listas')
-            ->assertSee('malware')
+            ->assertDontSee('malware')
             ->assertSee('Licença')
             ->assertSee('20/08/2026')
             ->assertSee('05/09/2026')
@@ -70,7 +70,7 @@ class ClientCompanyPresentationTest extends TestCase
             ->assertSee('1 de 1 servidor utilizado');
     }
 
-    public function test_client_company_empty_state_refers_only_to_company_owned_lists(): void
+    public function test_client_company_page_does_not_show_own_lists_panel_yet(): void
     {
         $empresa = Empresa::factory()->create();
         $cliente = User::factory()->cliente($empresa)->create();
@@ -78,8 +78,9 @@ class ClientCompanyPresentationTest extends TestCase
 
         $this->actingAs($cliente)->get(route('empresas.show', $empresa))
             ->assertOk()
-            ->assertSee('Nenhuma lista própria cadastrada.')
-            ->assertDontSee('Nenhuma lista cadastrada.');
+            ->assertDontSee('Nenhuma lista própria cadastrada.')
+            ->assertDontSee('Nenhuma lista cadastrada.')
+            ->assertDontSee('Catálogo global');
     }
 
     public function test_client_company_explains_invalid_license_without_impossible_usage(): void
@@ -109,7 +110,7 @@ class ClientCompanyPresentationTest extends TestCase
         $this->actingAs($cliente)->get(route('empresas.show', $empresa))
             ->assertOk()
             ->assertSee('Servidor próprio')
-            ->assertSee('Lista própria')
+            ->assertDontSee('Lista própria')
             ->assertDontSee('Servidor alheio')
             ->assertDontSee('Lista alheia');
 

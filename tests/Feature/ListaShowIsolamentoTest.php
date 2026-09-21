@@ -36,6 +36,18 @@ class ListaShowIsolamentoTest extends TestCase
             ->assertDontSeeText('Empresa Concorrente SA');
     }
 
+    public function test_client_servers_panel_is_compact_and_admin_keeps_the_wide_one(): void
+    {
+        [, $lista, $cliente] = $this->catalogoComDoisClientes();
+
+        $html = $this->actingAs($cliente)->get(route('listas.show', $lista))->assertOk()->getContent();
+        $this->assertSame(0, preg_match('/details-card-wide"?>\s*<div class="panel-header"><h2>Meus servidores/', $html), 'Cliente: painel compacto, não de largura total.');
+
+        $admin = User::factory()->admin()->create();
+        $html = $this->actingAs($admin)->get(route('listas.show', $lista))->assertOk()->getContent();
+        $this->assertSame(1, preg_match('/details-card-wide"?>\s*<div class="panel-header"><h2>Endpoints RPZ vinculados/', $html));
+    }
+
     public function test_client_does_not_get_the_history_button_nor_the_anatel_pdf_panel(): void
     {
         [, $lista, $cliente] = $this->catalogoComDoisClientes();
