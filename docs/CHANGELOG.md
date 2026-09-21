@@ -12,6 +12,15 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 - Sem alterações de backend, rotas, banco, sincronização, geração RPZ ou permissões. Referência visual local excluída do versionamento.
 - Regressão final: **87 testes / 503 assertions aprovados**. Verificação Chromium/Playwright com dados fictícios em desktop e celular. Publicações Docker concluídas, cache limpo, HTTP 200 e hashes conferidos. Manutenção, limites e reversão em [INTERFACE-ENDPOINTS.md](INTERFACE-ENDPOINTS.md).
 
+### Dashboard do cliente
+- Dashboard reorganizado conforme a referência visual, mantendo os quatro cards de resumo existentes e os SVGs de servidores em uso e contratados.
+- Novo bloco **Saúde da distribuição RPZ** com buscas dos últimos 30 dias, última sincronização, intervalo médio, cobertura da licença, gráfico de sincronizações por dia e status dos servidores.
+- Métricas calculadas apenas a partir de `ServerSyncLog`, `last_synced_at`, servidores da empresa e capacidade da licença; não foram inventadas métricas de bloqueio, ameaças ou consultas DNS de rede.
+- Status derivado da última sincronização, com estados **Em dia**, **Atenção** e **Sem sincronização**.
+- SVGs dos indicadores centralizados nos cards; ajuste posterior que adicionaria um SVG ao título do gráfico foi revertido para preservar o layout anterior.
+- Validação direcionada: **11 testes / 61 assertions**, `git diff --check` e health check HTTP 200 após publicação Docker.
+- Detalhamento completo em [RELATORIO-2026-09-21.md](RELATORIO-2026-09-21.md).
+
 ### Servidores do cliente
 - Tabela com Nome, Tipo, Listas, Última sincronização, Status e Ações, sem IPs públicos. Botão Editar visível e menu de ações secundárias preservado; estado de sincronização normal apresentado como **Em dia**.
 - Cadastro e edição organizados em Identificação, Configuração DNS e Listas habilitadas. Campos compactos, aviso NXDOMAIN discreto e rodapé dentro do card, com exclusão confirmada, Cancelar e Salvar alterações/Cadastrar servidor.

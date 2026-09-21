@@ -293,6 +293,26 @@ class DashboardController extends Controller
 
         $graficoAtualizacoes = $this->atualizacoesPorDia($servidorIds);
 
+        $periodoInicio = now()->subDays(29)->startOfDay();
+        $logsPeriodo = $servidorIds->isEmpty() ? collect() : ServerSyncLog::query()
+            ->whereIn('servidor_id', $servidorIds)
+            ->where('created_at', '>=', $periodoInicio)
+            ->orderBy('created_at')
+            ->get(['created_at']);
+        $ultimaSincronizacao = $logsPeriodo->last()?->created_at;
+        if ($ultimaSincronizacao === null && ! $servidorIds->isEmpty()) {
+            $ultimaSincronizacao = ServerSyncLog::whereIn('servidor_id', $servidorIds)->max('created_at');
+            $ultimaSincronizacao = $ultimaSincronizacao ? Carbon::parse($ultimaSincronizacao) : null;
+        }
+        $intervalos = $logsPeriodo->pluck('created_at')->sliding(2)->map(fn ($par) => $par->values())->map(fn ($par) => $par[0]->diffInMinutes($par[1]))->filter(fn ($minutos) => $minutos > 0);
+        $intervaloMedioMinutos = $intervalos->isNotEmpty() ? (int) round($intervalos->average()) : null;
+        $coberturaLicenca = $capacidadeLicenca > 0 ? min(100, (int) round(($totalServidores / $capacidadeLicenca) * 100)) : null;
+        $statusServidores = [
+            'normal' => $servidores->filter(fn ($servidor) => $servidor->last_synced_at !== null && $servidor->diasSemSincronizar() < 2)->count(),
+            'atencao' => $servidores->filter(fn ($servidor) => $servidor->last_synced_at !== null && $servidor->diasSemSincronizar() >= 2)->count(),
+            'sem_consulta' => $servidores->whereNull('last_synced_at')->count(),
+        ];
+
         return view('dashboard.cliente', compact(
             'graficoAtualizacoes',
             'empresa',
@@ -303,6 +323,11 @@ class DashboardController extends Controller
             'servidores',
             'capacidadeLicenca',
             'estadoLicenca',
+            'logsPeriodo',
+            'ultimaSincronizacao',
+            'intervaloMedioMinutos',
+            'coberturaLicenca',
+            'statusServidores',
         ));
     }
 }

@@ -3,6 +3,7 @@
 @section('title', 'Dashboard')
 
 @section('content')
+    @include('dashboard.partials.cliente-dashboard-styles')
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">{{ $empresa->nome ?? 'Minha empresa' }}</div>
@@ -81,36 +82,45 @@
         </div>
     </div>
 
-    @include('dashboard.partials.grafico-atualizacoes', ['pontos' => $graficoAtualizacoes])
-
-    <div class="dashboard-grid dashboard-grid-cliente">
-        <div class="panel">
-            <div class="panel-header"><h2>Meus servidores</h2></div>
-            @if ($servidores->isEmpty())
-                <div class="empty-state"><span>Nenhum servidor cadastrado ainda.</span></div>
-            @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Servidor</th><th>Última sincronização</th><th>Status</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($servidores as $servidor)
-                                <tr>
-                                    <td><a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">{{ $servidor->nome }}</a></td>
-                                    @php
-                                        $dias = $servidor->diasSemSincronizar();
-                                        $estadoLabel = $dias === null ? 'Sem sincronização' : ($dias >= 2 ? 'Atenção' : 'Normal');
-                                        $estadoClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active');
-                                    @endphp
-                                    <td class="table-mono">{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</td>
-                                    <td><span class="status-pill {{ $estadoClasse }}">{{ $estadoLabel }}</span></td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
+    @php
+        $intervaloMedioTexto = $intervaloMedioMinutos === null
+            ? '—'
+            : ($intervaloMedioMinutos >= 60
+                ? intdiv($intervaloMedioMinutos, 60).'h '.($intervaloMedioMinutos % 60).'min'
+                : $intervaloMedioMinutos.'min');
+        $coberturaTexto = $coberturaLicenca === null ? 'Sem licença ativa' : $coberturaLicenca.'%';
+    @endphp
+    <section class="panel cliente-rpz-health dashboard-grid-cliente" aria-labelledby="cliente-rpz-health-title">
+        <div class="cliente-health-heading">
+            <div class="cliente-health-title"><x-ui-icon name="activity" size="31" /><div><h2 id="cliente-rpz-health-title">Saúde da distribuição RPZ</h2><p>Acompanhe as sincronizações, o status dos servidores e a entrega das listas.</p></div></div>
+            <span class="status-pill is-muted">Últimos 30 dias</span>
         </div>
-    </div>
+        <div class="cliente-health-metrics">
+            <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-cyan"><x-ui-icon name="search" size="22" /></span><div><strong>{{ number_format($logsPeriodo->count(), 0, ',', '.') }}</strong><span>buscas no período</span></div><small>últimos 30 dias</small></div>
+            <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-green"><x-ui-icon name="clock" size="22" /></span><div><strong>{{ $ultimaSincronizacao ? \App\Http\Controllers\DashboardController::relativoPt($ultimaSincronizacao) : '—' }}</strong><span>última sincronização</span></div><small>{{ $ultimaSincronizacao?->format('d/m/Y H:i') ?? 'Ainda não executada' }}</small></div>
+            <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-cyan"><x-ui-icon name="refresh" size="22" /></span><div><strong>{{ $intervaloMedioTexto }}</strong><span>intervalo médio entre buscas</span></div><small>{{ $intervaloMedioMinutos === null ? 'Dados insuficientes' : 'com base nas buscas registradas' }}</small></div>
+            <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-green"><x-ui-icon name="shield" size="22" /></span><div><strong>{{ $coberturaTexto }}</strong><span>cobertura da licença</span></div><small>{{ $capacidadeLicenca > 0 ? $totalServidores.' de '.$capacidadeLicenca.' servidores' : 'Sem capacidade disponível' }}</small></div>
+        </div>
+        <div class="cliente-health-panels">
+            <div class="cliente-health-chart">@include('dashboard.partials.grafico-atualizacoes', ['pontos' => $graficoAtualizacoes])</div>
+            <div class="cliente-health-status">
+                <div class="cliente-health-subheading"><div><x-ui-icon name="server" size="22" /><h3>Status dos servidores</h3></div><span>{{ $totalServidores }} {{ $totalServidores === 1 ? 'servidor' : 'servidores' }}</span></div>
+                @if ($totalServidores === 0)
+                    <div class="empty-state"><span>Nenhum servidor cadastrado ainda.</span></div>
+                @else
+                    @php $percentualEmDia = $totalServidores > 0 ? (int) round(($statusServidores['normal'] / $totalServidores) * 100) : 0; $circunferencia = 251.2; $arcoEmDia = round($circunferencia * $percentualEmDia / 100, 1); @endphp
+                    <div class="cliente-status-summary">
+                        <svg class="cliente-status-donut" viewBox="0 0 100 100" role="img" aria-label="{{ $statusServidores['normal'] }} de {{ $totalServidores }} servidores em dia"><circle class="cliente-status-donut-track" cx="50" cy="50" r="40" /><circle class="cliente-status-donut-value" cx="50" cy="50" r="40" stroke-dasharray="{{ $arcoEmDia }} {{ $circunferencia }}" /><text x="50" y="48" text-anchor="middle">{{ $statusServidores['normal'] }}</text><text class="cliente-status-donut-label" x="50" y="61" text-anchor="middle">de {{ $totalServidores }}</text></svg>
+                        <div><strong>{{ $statusServidores['normal'] }}</strong><span>em dia</span><small>{{ $percentualEmDia }}% dos servidores</small></div>
+                    </div>
+                    <div class="cliente-status-list">
+                        @foreach ($servidores as $servidor)
+                            @php $dias = $servidor->diasSemSincronizar(); $statusLabel = $dias === null ? 'Sem sincronização' : ($dias >= 2 ? 'Atenção' : 'Em dia'); $statusClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active'); @endphp
+                            <a href="{{ route('servidores.show', $servidor) }}" class="cliente-status-item"><span class="cliente-status-dot {{ $statusClasse }}"></span><span><strong>{{ $servidor->nome }}</strong><small>Última sincronização: {{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</small></span><span class="status-pill {{ $statusClasse }}">{{ $statusLabel }}</span></a>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </div>
+    </section>
 @endsection
