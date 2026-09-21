@@ -13,6 +13,31 @@ class AdminSourcesPresentationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_admin_sources_are_alphabetical_without_sort_controls(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $zulu = Lista::factory()->create(['nome' => 'Zulu', 'last_sync_at' => now()->subDays(3), 'updated_at' => now()]);
+        $alpha = Lista::factory()->create(['nome' => 'Alpha', 'last_sync_at' => null, 'updated_at' => now()->subDays(2)]);
+        $beta = Lista::factory()->create(['nome' => 'Beta', 'last_sync_at' => now()->subDay()]);
+
+        $this->actingAs($admin)->get(route('listas.index'))
+            ->assertOk()
+            ->assertDontSee('Ordenar por')
+            ->assertDontSee('name="ordenacao"', false)
+            ->assertViewHas('listas', fn ($listas) => $listas->pluck('id')->all() === [$alpha->id, $beta->id, $zulu->id]);
+    }
+
+    public function test_admin_alphabetical_order_is_applied_before_pagination(): void
+    {
+        $admin = User::factory()->admin()->create();
+        Lista::factory()->count(21)->sequence(fn ($sequence) => ['nome' => sprintf('Fonte %02d', 20 - $sequence->index)])->create();
+
+        $this->actingAs($admin)->get(route('listas.index'))
+            ->assertOk()
+            ->assertViewHas('listas', fn ($listas) => $listas->first()->nome === 'Fonte 00'
+                && $listas->last()->nome === 'Fonte 19');
+    }
+
     public function test_admin_listing_formats_counts_types_dates_and_real_actions(): void
     {
         $admin = User::factory()->admin()->create();

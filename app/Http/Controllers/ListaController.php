@@ -21,8 +21,9 @@ class ListaController extends Controller
         $user = Auth::user();
 
         $query = Lista::with('empresa')
-            ->withCount(['dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)])
-            ->orderByDesc('id');
+            ->withCount(['dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)]);
+
+        $query->orderBy('nome')->orderByDesc('id');
 
         if ($user->isCliente()) {
             $query->where(function ($q) use ($user) {
@@ -32,6 +33,10 @@ class ListaController extends Controller
 
         $listasAtivas = (clone $query)->where('status', 'active')->count();
         $listas = $query->paginate(20);
+
+        if ($user->isCliente()) {
+            return view('listas.cliente', compact('listas', 'listasAtivas'));
+        }
 
         return view('listas.index', compact('listas', 'listasAtivas'));
     }

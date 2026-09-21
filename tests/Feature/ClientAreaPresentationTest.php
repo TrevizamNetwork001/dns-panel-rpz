@@ -146,4 +146,22 @@ class ClientAreaPresentationTest extends TestCase
         $this->actingAs($cliente)->get("/listas/{$listaAlheia->id}")->assertForbidden();
         $this->actingAs($cliente)->get("/servidores/{$servidorAlheio->id}")->assertForbidden();
     }
+
+    public function test_cliente_lists_are_alphabetical_across_pages(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        foreach (range(1, 21) as $number) {
+            Lista::factory()->create([
+                'empresa_id' => null,
+                'nome' => sprintf('Lista %02d', $number),
+            ]);
+        }
+
+        $this->actingAs($cliente)->get('/listas')->assertOk()
+            ->assertSeeInOrder(['Lista 01', 'Lista 02', 'Lista 20'])
+            ->assertDontSee('Lista 21');
+        $this->actingAs($cliente)->get('/listas?page=2')->assertOk()
+            ->assertSee('Lista 21')->assertDontSee('Lista 01');
+    }
 }

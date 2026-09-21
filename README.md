@@ -10,6 +10,8 @@ Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que ge
 
 A interface de **Servidores do cliente**, seus componentes e as verificações estão documentados em [`docs/SERVIDORES-CLIENTE.md`](docs/SERVIDORES-CLIENTE.md).
 
+A tela **Listas do cliente**, com cartões informativos em ordem alfabética, está documentada em [`docs/LISTAS-CLIENTE.md`](docs/LISTAS-CLIENTE.md).
+
 ## Como funciona a distribuição de listas
 
 1. O admin (ou o próprio cliente, dentro do limite da licença) cadastra um **Servidor**, que recebe um **token** único gerado automaticamente.

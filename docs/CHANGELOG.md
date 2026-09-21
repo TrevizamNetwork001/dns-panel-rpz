@@ -4,6 +4,15 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 
 ## 21/09/2026
 
+### Listas do cliente
+
+- Nova apresentação baseada na imagem de `referencias/`: cartões responsivos com ícones por categoria, nome, descrição, selo Catálogo/Própria e quantidade de domínios ativos.
+- Ordenação por nome antes da paginação de 20 itens; desempate por ID decrescente. Ordenação alfabética administrativa preservada.
+- Sem campo de busca. Cartões apenas informativos: sem link, navegação ao clicar ou efeito ao passar o mouse, conforme ajuste solicitado após a primeira publicação.
+- Escopo das listas preservado: catálogo e listas da própria empresa. Sem migrations ou mudanças nas regras de distribuição RPZ.
+- Antes do ajuste final dos cartões: **13 testes / 79 assertions aprovados**. Após o ajuste: `git diff --check`, compilação Blade e `/login` com **HTTP 200**.
+- Publicado no serviço Docker `app`. Implementação, limites das validações e manutenção em [LISTAS-CLIENTE.md](LISTAS-CLIENTE.md).
+
 ### Detalhes de endpoints e administração
 - Detalhes compactos para admin e cliente com status em faixa única e SVGs, resumo de listas, modal lateral de listas e histórico recente limitado a 5 eventos. Histórico completo preserva os até 80 eventos dos últimos 30 dias já carregados.
 - Configuração técnica e Solução de problemas recolhíveis, com botão Fechar no rodapé. Sincronizar agora abre as instruções existentes do Unbound, sem execução remota. URL incorporada à configuração; adição de fontes permanece na edição.
