@@ -46,9 +46,9 @@ Detalhes da alteração de 20/09/2026: [`docs/SEGURANCA-2026-09-20.md`](docs/SEG
    curl -s "https://rpz.trevizamnetwork.com.br/rpz/{token}.zone" | head -20
    ```
    - 404 → servidor ou empresa inativa, ou ACL de IP bloqueando (veja `/servidores/{id}` → Restrição de IP).
-   - 403 no endereço curto por empresa (`/rpz/{slug}.zone`) → o IP de quem consultou não está liberado em nenhum servidor da empresa. O IP que o painel enxergou aparece no log do nginx (`docker compose logs nginx | grep /rpz/`, último campo) e o pedido em `/auditoria` como "Acesso negado ao endpoint RPZ". Se o cliente informou o IP no cadastro, ele fica **pendente**: abra o servidor e clique em **Liberar**. O Unbound tenta de novo sozinho (com espera crescente); se quiser acelerar, use `unbound-control auth_zone_transfer rpz.trevizamnetwork.com.br` no DNS do cliente (com controle local habilitado e o nome definido no bloco `rpz:`).
+   - 403 no endereço curto por empresa (`/rpz/{slug}.zone`) → o IP de quem consultou não está liberado em nenhum servidor da empresa. O IP que o painel enxergou aparece no log do nginx (`docker compose logs nginx | grep /rpz/`, último campo) e o pedido em `/auditoria` como "Acesso negado ao endpoint RPZ". Se o cliente informou o IP no cadastro, ele fica **pendente**: abra o servidor → **Restrição de IP → Gerenciar IPs → Liberar**. O Unbound tenta de novo sozinho (com espera crescente); se quiser acelerar, use `unbound-control auth_zone_transfer rpz.trevizamnetwork.com.br` no DNS do cliente (com controle local habilitado e o nome definido no bloco `rpz:`).
    - Zonefile vazio de domínios → nenhuma lista ativa vinculada, ou listas sem domínios ativos.
-   - Para solicitar nova busca antes do intervalo: abra o servidor no painel → **Antecipar sincronização** → **Copiar** e execute no DNS do cliente como root ou com sudo. O painel não executa comandos remotamente. `ok` confirma a solicitação, não a conclusão: confira o histórico do painel e os logs do Unbound. Reiniciar pode reutilizar a zona salva. Se o nome da zona foi personalizado, use o nome local; `unbound-control list_auth_zones` lista as zonas configuradas.
+   - Para solicitar nova busca antes do intervalo: abra o servidor no painel → **Sincronizar agora** → **Solução de problemas** → **Copiar** e execute no DNS do cliente como root ou com sudo. O painel não executa comandos remotamente. `ok` confirma a solicitação, não a conclusão: confira o histórico do painel e os logs do Unbound. Reiniciar pode reutilizar a zona salva. Se o nome da zona foi personalizado, use o nome local; `unbound-control list_auth_zones` lista as zonas configuradas.
 3. Valide a sintaxe do zonefile gerado (precisa de `bind9-utils` instalado):
    ```bash
    curl -s "https://.../rpz/{token}.zone" > /tmp/check.zone
@@ -65,7 +65,7 @@ unbound-control list_auth_zones
 unbound-control auth_zone_transfer rpz.trevizamnetwork.com.br
 ```
 
-O segundo argumento deve corresponder ao `name:` do bloco `rpz:`. O painel disponibiliza esses comandos no bloco **Caso a sincronização não ocorra**, antes da restrição de IP; ambos têm botão **Copiar**. Não há execução remota ao clicar.
+O segundo argumento deve corresponder ao `name:` do bloco `rpz:`. O painel disponibiliza esses comandos na seção recolhível **Configuração técnica → Solução de problemas**; ambos têm botão **Copiar**. Não há execução remota ao clicar.
 
 - Erro de conexão/controle desabilitado: conferir a configuração local do controle do Unbound.
 - Zona não encontrada: conferir os nomes retornados por `list_auth_zones` e a configuração efetivamente carregada.

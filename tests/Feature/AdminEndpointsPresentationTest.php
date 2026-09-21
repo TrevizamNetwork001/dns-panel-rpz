@@ -80,7 +80,12 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSee('Status cadastral')
             ->assertSee('Estado operacional')
             ->assertSee('Última consulta')
-            ->assertSee('Acesso RPZ')
+            ->assertDontSee('Acesso RPZ')
+            ->assertDontSee('Fontes disponíveis para adicionar')
+            ->assertSee('Ver listas')
+            ->assertSee('Sincronizar agora')
+            ->assertSee('Solução de problemas')
+            ->assertSee('Ver histórico completo')
             ->assertSee('detail-rpz-url')
             ->assertDontSee('detail-token-value')
             ->assertDontSee('detail-token-masked')
@@ -184,7 +189,11 @@ class AdminEndpointsPresentationTest extends TestCase
         $this->actingAs($cliente)->get(route('servidores.show', $servidor))
             ->assertOk()
             ->assertDontSee('admin-endpoint-access')
-            ->assertDontSee('Status cadastral');
+            ->assertSee('Status cadastral')
+            ->assertSee('Estado operacional')
+            ->assertSee('endpoint-detail-statuses')
+            ->assertDontSee('server-status-pill')
+            ->assertDontSee('id="endpoint-ips"', false);
     }
 
     public function test_unbound_server_page_shows_module_config_step_but_mikrotik_does_not(): void

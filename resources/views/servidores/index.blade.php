@@ -3,6 +3,9 @@
 @section('title', auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores')
 
 @section('content')
+    @if (auth()->user()->isAdmin())
+        @include('servidores.partials.admin-index')
+    @else
     <div class="page-heading page-heading-compact">
         <div>
             <h1>{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</h1>
@@ -108,4 +111,5 @@
     </div>
 
     {{ $servidores->links('pagination.compact') }}
+    @endif
 @endsection

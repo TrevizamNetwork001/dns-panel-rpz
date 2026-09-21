@@ -11,13 +11,22 @@
 @endphp
 
 @section('content')
+    @if (auth()->user()->isAdmin())
+        @include('servidores.partials.admin-form-styles')
+    @endif
     <div @if(auth()->user()->isAdmin()) class="admin-endpoint-form" @else class="client-server-form" @endif>
+    @if (auth()->user()->isAdmin())
+        <nav class="endpoint-form-breadcrumb" aria-label="Navegação"><a href="{{ route('servidores.index') }}">Endpoints RPZ</a><x-ui-icon name="chevron" size="14" /><span>{{ $servidor->exists ? $servidor->nome : 'Novo endpoint' }}</span></nav>
+    @endif
     <div class="page-heading page-heading-compact">
         <div>
+            @if (auth()->user()->isAdmin())<div class="page-eyebrow">Configuração do servidor</div>@endif
             <h1>{{ auth()->user()->isAdmin()
                 ? ($servidor->exists ? 'Editar endpoint RPZ' : 'Novo endpoint RPZ')
                 : ($servidor->exists ? 'Editar servidor' : 'Novo servidor') }}</h1>
+            @if (auth()->user()->isAdmin())<p>{{ $servidor->exists ? $servidor->nome.' · '.$servidor->empresa->nome : 'Defina o servidor, o acesso e as listas de proteção.' }}</p>@endif
         </div>
+        @if (auth()->user()->isAdmin() && $servidor->exists)<a href="{{ route('servidores.show', $servidor) }}" class="button button-secondary"><x-ui-icon name="server" size="17" />Ver servidor</a>@endif
     </div>
 
     @isset($licencaBlocker)
@@ -36,7 +45,7 @@
 
         <div class="server-settings @unless(auth()->user()->isAdmin()) panel @endunless">
         <div class="panel form-panel" style="margin-bottom:14px">
-            <div class="panel-header"><h2>@unless(auth()->user()->isAdmin())<x-ui-icon name="server" size="18" />@endunless Identificação</h2></div>
+            <div class="panel-header"><h2><x-ui-icon name="server" size="{{ auth()->user()->isAdmin() ? 23 : 18 }}" /> Identificação</h2></div>
             <div class="form-grid">
                 @if (auth()->user()->isAdmin())
                     <div class="field-group">
@@ -69,7 +78,7 @@
         </div>
 
         <div class="panel form-panel" style="margin-bottom:14px">
-            <div class="panel-header"><h2>@unless(auth()->user()->isAdmin())<x-ui-icon name="server" size="18" />@endunless{{ auth()->user()->isAdmin() ? 'Configuração RPZ' : 'Configuração DNS' }}</h2></div>
+            <div class="panel-header"><h2><x-ui-icon name="{{ auth()->user()->isAdmin() ? 'settings' : 'server' }}" size="{{ auth()->user()->isAdmin() ? 23 : 18 }}" />{{ auth()->user()->isAdmin() ? 'Configuração RPZ' : 'Configuração DNS' }}</h2></div>
             <div class="form-grid">
                 <div class="field-group">
                     <label for="tipo_dns" class="server-icon-label"><x-ui-icon name="server" />Tipo de DNS</label>
@@ -112,7 +121,7 @@
 
         @if ($servidor->exists && auth()->user()->isAdmin())
             <div class="panel form-panel" style="margin-bottom:14px">
-                <div class="panel-header"><h2>Acesso ao feed</h2></div>
+                <div class="panel-header"><h2><x-ui-icon name="lock" size="23" />Acesso ao feed</h2></div>
                 <div class="field-group">
                     <label>URL do feed</label>
                     @if (auth()->user()->isAdmin())
@@ -151,7 +160,7 @@
         @if (isset($listasDisponiveis) && $listasDisponiveis->isNotEmpty())
             <div class="panel form-panel" style="margin-bottom:14px" id="fontes-habilitadas-panel">
                 <div class="panel-header">
-                    <h2>{{ auth()->user()->isAdmin() ? 'Fontes habilitadas' : 'Listas habilitadas' }}</h2>
+                    <h2><x-ui-icon name="link" size="23" />Fontes habilitadas</h2>
                     <div class="endpoint-sources-heading">
                         @if (auth()->user()->isAdmin())
                             <button type="button" class="inline-link endpoint-selection-action" id="fontes-selecionar-todas">Selecionar todas</button>
@@ -160,8 +169,9 @@
                         <span id="fontes-selecionadas-count"></span>
                     </div>
                 </div>
-                <input type="text" class="form-control" id="fontes-filtro" placeholder="{{ auth()->user()->isAdmin() ? 'Pesquisar fontes...' : 'Pesquisar listas...' }}" style="margin-bottom:10px">
-                <div style="display:grid;gap:6px;max-height:340px;overflow-y:auto">
+                <p class="endpoint-source-help">Selecione as listas que este servidor deve utilizar.</p>
+                <label class="endpoint-source-search"><x-ui-icon name="search" size="18" /><input aria-label="Pesquisar fontes" type="text" class="form-control" id="fontes-filtro" placeholder="{{ auth()->user()->isAdmin() ? 'Pesquisar fontes...' : 'Pesquisar listas...' }}" ></label>
+                <div class="endpoint-source-options">
                     @foreach ($listasDisponiveis as $lista)
                         @php
                             $tipoFonte = $lista->isAnatel()
@@ -172,6 +182,7 @@
                         <label class="checkbox-label" data-fonte-nome="{{ mb_strtolower($lista->nome.' '.$lista->descricao) }}">
                             <input type="checkbox" name="lista_ids[]" value="{{ $lista->id }}" data-fonte-checkbox
                                 @checked($servidor->exists && $servidor->listas->contains($lista->id))>
+                            <x-list-category-icon :lista="$lista" />
                             <div>
                                 <strong>{{ $lista->nome }}</strong>
                                 <small>{{ auth()->user()->isAdmin() ? $tipoFonte : $tipoListaCliente }}</small>
@@ -259,7 +270,7 @@
                         var termo = fontesFiltro.value.trim().toLowerCase();
                         linhas.forEach(function (linha) {
                             var nome = linha.getAttribute('data-fonte-nome') || '';
-                            linha.style.display = nome.indexOf(termo) === -1 ? 'none' : '';
+                            linha.hidden = nome.indexOf(termo) === -1;
                         });
                     });
                 }

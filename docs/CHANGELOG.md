@@ -4,6 +4,14 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 
 ## 21/09/2026
 
+### Detalhes de endpoints e administração
+- Detalhes compactos para admin e cliente com status em faixa única e SVGs, resumo de listas, modal lateral de listas e histórico recente limitado a 5 eventos. Histórico completo preserva os até 80 eventos dos últimos 30 dias já carregados.
+- Configuração técnica e Solução de problemas recolhíveis, com botão Fechar no rodapé. Sincronizar agora abre as instruções existentes do Unbound, sem execução remota. URL incorporada à configuração; adição de fontes permanece na edição.
+- Restrição de IP em resumo compacto e gerenciamento lateral com SVGs, adicionar, liberar pendentes, remover e fechar. Retirada a frase sobre restrição desativada para token legado do resumo; regras de ACL preservadas.
+- Listagem do admin modernizada com contadores, ícones, status, atalhos de detalhes/edição e apresentação responsiva. Cadastro/edição admin em duas colunas, fontes com ícones e seleção destacada, barra de ações sticky e correção da ocultação dos resultados na busca local.
+- Sem alterações de backend, rotas, banco, sincronização, geração RPZ ou permissões. Referência visual local excluída do versionamento.
+- Regressão final: **87 testes / 503 assertions aprovados**. Verificação Chromium/Playwright com dados fictícios em desktop e celular. Publicações Docker concluídas, cache limpo, HTTP 200 e hashes conferidos. Manutenção, limites e reversão em [INTERFACE-ENDPOINTS.md](INTERFACE-ENDPOINTS.md).
+
 ### Servidores do cliente
 - Tabela com Nome, Tipo, Listas, Última sincronização, Status e Ações, sem IPs públicos. Botão Editar visível e menu de ações secundárias preservado; estado de sincronização normal apresentado como **Em dia**.
 - Cadastro e edição organizados em Identificação, Configuração DNS e Listas habilitadas. Campos compactos, aviso NXDOMAIN discreto e rodapé dentro do card, com exclusão confirmada, Cancelar e Salvar alterações/Cadastrar servidor.

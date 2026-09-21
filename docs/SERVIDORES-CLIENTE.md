@@ -61,3 +61,9 @@ O teste `ListaDescricaoVisivelTest::test_client_dashboard_shows_what_each_list_i
 As imagens finais da interface foram publicadas como `dns-panel-rpz-app:category-colors-20260921` e `dns-panel-rpz-web:category-colors-20260921`, também apontadas pelas tags `:local`. App e nginx foram recriados; views limpas/recompiladas; saúde dos contêineres, HTTP 200 e hash do CSS servido conferidos. Sem migrations ou alterações no banco.
 
 Para futuras publicações, seguir o [RUNBOOK](../RUNBOOK.md#fazer-um-deploy): alterações de CSS precisam chegar às imagens app e nginx, pois o layout usa `filemtime` do CSS para a versão do asset. Mudanças de Blade exigem limpar/recompilar o cache de views. As imagens anteriores estão disponíveis para reversão operacional.
+
+## Complemento: detalhes compartilhados e administração
+
+Ainda em 21/09/2026, os detalhes do servidor passaram a usar o mesmo resumo de status com SVGs para admin e cliente, listas em modal lateral, histórico recente limitado a 5 eventos e configuração técnica recolhível. O gerenciamento de IPs continua exclusivo do admin. A listagem e a edição administrativas também foram modernizadas; o seletor e a listagem do cliente descritos acima permanecem próprios desse perfil.
+
+A validação e as tags de publicação desta seção anterior são históricas. Para o estado mais recente, a verificação em navegador e as imagens posteriores, consulte [Interface de endpoints e servidores](INTERFACE-ENDPOINTS.md).

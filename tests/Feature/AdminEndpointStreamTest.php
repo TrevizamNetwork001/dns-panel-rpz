@@ -57,21 +57,23 @@ class AdminEndpointStreamTest extends TestCase
         DB::disableQueryLog();
         $response->assertOk();
         $this->assertSame($baseline, $queries, 'Mais fontes e eventos não devem adicionar queries.');
-        $this->assertSame(80, substr_count($response->getContent(), '<li class="endpoint-event '));
+        preg_match('/<div class="panel endpoint-history-card">(.*?)<dialog id="endpoint-history"/s', $response->getContent(), $recent);
+        $this->assertSame(5, substr_count($recent[1], '<li class="endpoint-event '));
+        $this->assertSame(85, substr_count($response->getContent(), '<li class="endpoint-event '));
         $events = $response->viewData('logServidor');
         $this->assertCount(80, $events);
         $this->assertSame('Servidor sincronizou — 1 domínios entregues', $events[0]['detalhe']);
         $this->assertSame('Servidor sincronizou — 80 domínios entregues', $events[79]['detalhe']);
     }
 
-    public function test_client_keeps_original_log_and_admin_has_no_legacy_panel(): void
+    public function test_client_has_recent_history_and_admin_has_no_legacy_panel(): void
     {
         $server = Servidor::factory()->create();
         $client = User::factory()->cliente($server->empresa)->create();
         $server->syncLogs()->create(['dominios_count' => 244493, 'created_at' => now()]);
         $this->actingAs($client)->get(route('servidores.show', $server))->assertOk()
-            ->assertDontSee('endpoint-event-stream')->assertDontSee('admin-endpoint-detail')
-            ->assertSee('Log do servidor (últimos 30 dias)')->assertSee('244493 domínios entregues')
+            ->assertSee('endpoint-event-stream')
+            ->assertSee('Histórico recente')->assertSee('244.493 domínios entregues')
             ->assertSee('Cole este bloco no');
         $admin = User::factory()->admin()->create();
         $response = $this->actingAs($admin)->get(route('servidores.show', $server));

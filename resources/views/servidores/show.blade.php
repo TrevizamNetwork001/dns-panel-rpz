@@ -22,6 +22,8 @@
 @endphp
 
 @section('content')
+    <div class="endpoint-workspace">
+    <nav class="endpoint-breadcrumb" aria-label="Navegação"><a href="{{ route('servidores.index') }}">Endpoints RPZ</a><x-ui-icon name="chevron" size="14" /><span>{{ $servidor->nome }}</span></nav>
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">{{ $isMikrotik ? 'Feed MikroTik Adlist' : 'Endpoint RPZ' }}</div>
@@ -30,9 +32,9 @@
         </div>
         <div class="page-actions">
             @if ($servidor->tipo_dns === 'unbound')
-                <a href="#rpz-manual-sync" class="button button-secondary">Antecipar sincronização</a>
+                <a href="#rpz-manual-sync" class="button button-primary endpoint-sync-action" data-open-sync title="Abrir instruções para sincronizar no servidor DNS"><x-ui-icon name="refresh" size="19" />Sincronizar agora</a>
             @endif
-            <a href="{{ route('servidores.edit', $servidor) }}" class="button button-secondary">Editar</a>
+            <a href="{{ route('servidores.edit', $servidor) }}" class="button button-secondary"><x-ui-icon name="pencil" size="18" />Editar</a>
         </div>
     </div>
 
@@ -56,60 +58,153 @@
         </div>
     @endif
 
-    @if (auth()->user()->isAdmin())
-        @include('servidores.partials.admin-detail-styles')
-    @endif
-    <div class="details-grid{{ auth()->user()->isAdmin() ? ' admin-endpoint-detail' : '' }}">
-        <div class="panel{{ auth()->user()->isAdmin() ? ' details-card-wide admin-endpoint-status' : '' }}">
-            <div class="panel-header"><h2>Status</h2></div>
-            @if (auth()->user()->isAdmin())
+    @include('servidores.partials.admin-detail-styles')
+    <div class="details-grid endpoint-overview admin-endpoint-detail">
+        <div class="panel details-card-wide admin-endpoint-status">
                 @php
                     $estadoOperacional = $diasSemConsulta === null ? 'Sem consulta' : ($diasSemConsulta >= 2 ? 'Atenção' : 'Normal');
                     $classeOperacional = $diasSemConsulta === null ? 'is-muted' : ($diasSemConsulta >= 2 ? 'is-warning' : 'is-active');
                 @endphp
                 <div class="endpoint-detail-statuses">
-                    <div><span>Status cadastral</span><strong class="status-pill {{ $servidor->status === 'active' ? 'is-active' : 'is-inactive' }}">{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}</strong></div>
-                    <div><span>Estado operacional</span><strong class="status-pill {{ $classeOperacional }}">{{ $estadoOperacional }}</strong></div>
-                    <div><span>Última consulta</span><strong>{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</strong></div>
-                    <div><span>Tipo de DNS</span><strong>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</strong></div>
-                    <div><span>Modo de bloqueio</span><strong>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</strong></div>
+                    <div><x-ui-icon name="server" size="23" /><span>Status cadastral</span><strong class="status-pill {{ $servidor->status === 'active' ? 'is-active' : 'is-inactive' }}">{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}</strong></div>
+                    <div><x-ui-icon name="activity" size="23" /><span>Estado operacional</span><strong class="status-pill {{ $classeOperacional }}">{{ $estadoOperacional }}</strong></div>
+                    <div><x-ui-icon name="clock" size="23" /><span>Última consulta</span><strong>{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</strong></div>
+                    <div><x-ui-icon name="server" size="23" /><span>Tipo de DNS</span><strong>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</strong></div>
+                    <div><x-ui-icon name="shield" size="23" /><span>Modo de bloqueio</span><strong>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</strong></div>
                 </div>
-            @else
-                <span class="status-pill server-status-pill @if($servidor->status === 'active') is-active @else is-inactive @endif">
-                    <x-ui-icon name="dot" size="14" />{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}
-                </span>
-            @endif
-            @unless (auth()->user()->isAdmin())
-            <dl class="details-list" style="margin-top:14px">
-                <div><dt>Última consulta</dt><dd>{{ auth()->user()->isAdmin() ? \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) : (optional($servidor->last_synced_at)->format('d/m/Y H:i:s') ?? 'nunca') }}</dd></div>
-                <div><dt>Tipo de DNS</dt><dd>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</dd></div>
-                <div><dt>Modo de bloqueio</dt><dd>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</dd></div>
-            </dl>
-            @endunless
         </div>
 
+        <div class="endpoint-left-column">
+        <div class="panel endpoint-lists-card">
+            <div class="panel-header"><div class="endpoint-card-title"><x-ui-icon name="link" size="26" /><div><h2>Listas vinculadas</h2><p class="endpoint-detail-note">{{ $servidor->listas->count() }} listas vinculadas</p></div></div><button type="button" class="button button-secondary" data-endpoint-dialog="endpoint-lists"><x-ui-icon name="list" size="16" />Ver listas<x-ui-icon name="chevron" size="13" /></button></div>
+            <div class="endpoint-tags">
+                @forelse ($servidor->listas->take(3) as $lista)
+                    <span class="endpoint-tag" title="{{ $lista->nome }}">{{ $lista->nome }}</span>
+                @empty
+                    <span class="endpoint-detail-note">Nenhuma lista vinculada.</span>
+                @endforelse
+                @if ($servidor->listas->count() > 3)<span class="endpoint-tag">+{{ $servidor->listas->count() - 3 }}</span>@endif
+            </div>
+        </div>
+        <dialog id="endpoint-lists" class="endpoint-drawer" aria-labelledby="endpoint-lists-title">
+            <div class="panel-header endpoint-drawer-heading"><div class="endpoint-card-title"><x-ui-icon name="link" size="27" /><div><h2 id="endpoint-lists-title">Listas vinculadas</h2><p class="endpoint-detail-note">{{ $servidor->listas->count() }} listas vinculadas a este servidor</p></div></div><button type="button" class="endpoint-dismiss" data-close-dialog aria-label="Fechar listas"><x-ui-icon name="x" size="20" /></button></div>
+            @if ($servidor->listas->isEmpty())
+                <div class="empty-state"><span>Nenhuma fonte vinculada ainda.</span></div>
+            @else
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Fonte</th><th>Tipo</th><th class="table-actions-column"></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($servidor->listas as $lista)
+                                @php $tipoFonte = auth()->user()->isAdmin() ? ($lista->isAnatel() ? 'Catálogo / Importação ANATEL' : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'))) : ($lista->empresa_id ? 'Própria' : 'Catálogo'); @endphp
+                                <tr>
+                                    <td><div class="endpoint-source-name"><x-list-category-icon :lista="$lista" /><div><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a>
+                                        @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif</div></div></td>
+                                    <td>
+                                        <span class="status-pill status-pill-normal-case {{ auth()->user()->isAdmin() && $lista->isExterna() ? 'is-info' : ($lista->empresa_id ? 'is-active' : 'is-muted') }}">{{ $tipoFonte }}</span>
+                                    </td>
+                                    <td>
+                                        <form action="{{ route('servidores.listas.detach', [$servidor, $lista]) }}" method="POST">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover esta fonte do endpoint?')">Remover</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+            <div class="endpoint-drawer-footer"><x-ui-icon name="info" size="21" /><p>As alterações nas listas são aplicadas na próxima sincronização do servidor.</p><button type="button" class="button button-secondary" data-close-dialog>Fechar</button></div>
+        </dialog>
         @if (auth()->user()->isAdmin())
-        <div class="panel details-card-wide admin-endpoint-access">
-            <div class="panel-header"><h2>Acesso RPZ</h2></div>
-            <dl class="details-list" style="margin-bottom:14px">
-                <div><dt>Método</dt><dd>{{ $usesCompanyEndpoint ? 'ACL por IP' : 'Token legado (fallback)' }}</dd></div>
-                <div><dt>Status da ACL</dt><dd>{{ $servidor->allowedIps->where('status', 'active')->isNotEmpty() ? 'Configurada' : 'Sem IP autorizado' }}</dd></div>
-                <div><dt>IPs autorizados</dt><dd class="endpoint-detail-mono">{{ $servidor->allowedIps->where('status', 'active')->pluck('ip_cidr')->join(', ') ?: 'Nenhum' }}</dd></div>
-            </dl>
+        <div class="panel endpoint-ip-card">
+            <div class="panel-header">
+                <div class="endpoint-card-title"><x-ui-icon name="shield" size="26" /><div><h2>Restrição de IP</h2><p class="endpoint-detail-note">{{ $ipsAtivos->count() }} IPs autorizados</p></div></div>
+                <button type="button" class="button button-secondary" data-endpoint-dialog="endpoint-ips"><x-ui-icon name="settings" size="16" />Gerenciar IPs</button>
+            </div>
+            <div class="endpoint-tags">
+                @foreach ($ipsAtivos->take(3) as $ip)
+                    <span class="endpoint-tag endpoint-ip-tag">{{ $ip->ip_cidr }}<small>{{ str_contains($ip->ip_cidr, ':') ? 'IPv6' : 'IPv4' }}</small></span>
+                @endforeach
+                @if ($ipsAtivos->count() > 3)<span class="endpoint-tag">+{{ $ipsAtivos->count() - 3 }}</span>@endif
+                @if ($ipsPendentes->isNotEmpty())<span class="status-pill is-warning">{{ $ipsPendentes->count() }} pendentes</span>@endif
+            </div>
+        </div>
+        <dialog id="endpoint-ips" class="endpoint-drawer endpoint-ip-drawer" aria-labelledby="endpoint-ips-title">
+            <div class="panel-header endpoint-drawer-heading">
+                <div class="endpoint-card-title"><x-ui-icon name="shield" size="27" /><div><h2 id="endpoint-ips-title">Restrição de IP</h2><p class="endpoint-detail-note">{{ $ipsAtivos->count() }} autorizados · {{ $ipsPendentes->count() }} aguardando liberação</p></div></div>
+                <button type="button" class="endpoint-dismiss" data-close-dialog aria-label="Fechar gerenciamento de IPs"><x-ui-icon name="x" size="20" /></button>
+            </div>
+
+            <section class="endpoint-ip-access" aria-label="Controle de acesso">
+                <div class="endpoint-ip-access-heading"><x-ui-icon name="lock" size="20" /><div><h3>Controle de acesso</h3><p class="endpoint-detail-note">Método: {{ $usesCompanyEndpoint ? 'ACL por IP' : 'Token legado (fallback)' }}</p></div></div>
+                <form action="{{ route('servidores.ip-restriction.toggle', $servidor) }}" method="POST">
+                    @csrf
+                    <button type="submit" class="button button-secondary">{{ $servidor->ip_restriction_enabled ? 'Desativar restrição' : 'Ativar restrição' }}</button>
+                </form>
+                <p class="endpoint-detail-note">A URL empresarial exige um IP autorizado. Este controle ativa ou desativa a restrição no acesso por token.</p>
+            </section>
+
+            <form action="{{ route('servidores.ips.store', $servidor) }}" method="POST" class="endpoint-ip-add">
+                @csrf
+                <label for="endpoint-new-ip">Adicionar IP ou rede</label>
+                <p id="endpoint-ip-help" class="endpoint-detail-note">IPv4 ou IPv6, com ou sem CIDR. Informe o IP de saída do servidor DNS.</p>
+                <div class="endpoint-ip-form">
+                    <input id="endpoint-new-ip" class="form-control endpoint-detail-mono" type="text" name="ip_cidr" placeholder="Ex.: 203.0.113.10 ou 2001:db8::/64" aria-describedby="endpoint-ip-help" required>
+                    <button type="submit" class="button button-primary"><x-ui-icon name="plus" size="17" />Adicionar IP</button>
+                </div>
+            </form>
+
+            <div class="endpoint-ip-list-heading"><h3>IPs cadastrados</h3><span class="endpoint-detail-note">{{ $servidor->allowedIps->count() }} registros</span></div>
+            <ul class="endpoint-ip-list" aria-label="IPs cadastrados">
+                @forelse ($servidor->allowedIps as $ip)
+                    <li class="endpoint-ip-entry">
+                        <x-ui-icon name="{{ $ip->status === 'active' ? 'shield' : 'clock' }}" size="23" />
+                        <div class="endpoint-ip-entry-copy">
+                            <strong>{{ $ip->ip_cidr }}</strong>
+                            <div class="endpoint-ip-entry-meta"><span>{{ str_contains($ip->ip_cidr, ':') ? 'IPv6' : 'IPv4' }}</span><span class="status-pill {{ $ip->status === 'active' ? 'is-active' : 'is-warning' }}">{{ $ip->status === 'active' ? 'Liberado' : 'Aguardando liberação' }}</span></div>
+                        </div>
+                        <div class="endpoint-ip-entry-actions">
+                            @if ($ip->status !== 'active')
+                                <form action="{{ route('servidores.ips.approve', [$servidor, $ip]) }}" method="POST">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit" class="endpoint-ip-approve" aria-label="Liberar IP {{ $ip->ip_cidr }}"><x-ui-icon name="check" size="16" />Liberar</button>
+                                </form>
+                            @endif
+                            <form action="{{ route('servidores.ips.destroy', [$servidor, $ip]) }}" method="POST">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="endpoint-ip-remove" aria-label="Remover IP {{ $ip->ip_cidr }}" onclick="return confirm('Remover este IP?')"><x-ui-icon name="trash" size="15" />Remover</button>
+                            </form>
+                        </div>
+                    </li>
+                @empty
+                    <li class="empty-state"><x-ui-icon name="shield" size="28" /><span>Nenhum IP cadastrado.</span></li>
+                @endforelse
+            </ul>
+            <div class="endpoint-drawer-footer"><x-ui-icon name="info" size="21" /><p>Em redes dual-stack, confira também o IPv6 de saída do servidor.</p><button type="button" class="button button-secondary" data-close-dialog>Fechar</button></div>
+        </dialog>
+        @endif
+
+        <section class="panel endpoint-technical">
+            <div class="panel-header"><div class="endpoint-card-title"><x-ui-icon name="settings" size="26" /><div><h2>Configuração técnica</h2><p class="endpoint-detail-note">Detalhes de configuração e solução de problemas</p></div></div></div>
+        <details class="endpoint-disclosure">
+            <summary><x-ui-icon name="server" size="18" />{{ $isMikrotik ? 'Configuração do MikroTik' : 'Configuração do Unbound' }}<x-ui-icon name="chevron" size="15" /></summary>
+            <div class="endpoint-disclosure-body">
+            <div class="panel-header">
+                <button type="button" class="button button-secondary" id="copy-config-btn" data-copy-target="config-snippet">Copiar</button>
+            </div>
             <div class="field-group">
                 <label>{{ $usesCompanyEndpoint ? 'URL curta' : 'URL do feed de fallback' }}</label>
                 <div class="endpoint-secret-row">
                     <input class="endpoint-code-field" id="detail-rpz-url" type="text" value="{{ $isMikrotik ? $mikrotikUrl : $rpzUrl }}" readonly spellcheck="false">
                     <button type="button" class="button button-secondary" data-endpoint-copy="detail-rpz-url" aria-live="polite">Copiar</button>
                 </div>
-            </div>
-        </div>
-        @endif
-
-        <div class="panel details-card-wide">
-            <div class="panel-header">
-                <h2>{{ $isMikrotik ? 'Configuração do MikroTik' : 'Configuração do Unbound' }}</h2>
-                <button type="button" class="button button-secondary" id="copy-config-btn" data-copy-target="config-snippet">Copiar</button>
             </div>
             @unless ($isMikrotik)
                 <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
@@ -176,12 +271,14 @@ systemctl restart unbound</pre>
                     </ul>
                 </div>
             @endunless
-            <p style="color:var(--text-muted);font-size:10px;margin-top:8px">URL isolada, se precisar só dela: <code style="word-break:break-all">{{ $isMikrotik ? $mikrotikUrl : $rpzUrl }}</code></p>
-        </div>
+                <div class="endpoint-disclosure-footer"><button type="button" class="button button-secondary" data-close-disclosure><x-ui-icon name="x" size="16" />Fechar</button></div>
+            </div>
+        </details>
 
         @if ($servidor->tipo_dns === 'unbound')
-            <div class="panel details-card-wide" id="rpz-manual-sync">
-                <div class="panel-header"><h2>Caso a sincronização não ocorra</h2></div>
+            <details class="endpoint-disclosure" id="rpz-manual-sync">
+                <summary><x-ui-icon name="wrench" size="18" />Solução de problemas<x-ui-icon name="chevron" size="15" /></summary>
+                <div class="endpoint-disclosure-body">
                 <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">Se as listas não atualizarem após vincular novas fontes ou se a zona estiver vazia, copie o comando abaixo e <strong>execute no terminal do servidor DNS do cliente ({{ $servidor->nome }})</strong>, como root ou com sudo. Ele solicita uma nova busca sem esperar o intervalo de atualização.</p>
                 <pre id="rpz-transfer-command" style="background:var(--command-background, #080d17);border:1px solid var(--border);border-radius:10px;padding:14px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--text);overflow-x:auto;white-space:pre;margin:0 0 6px">unbound-control auth_zone_transfer {{ escapeshellarg($rpzZoneName) }}</pre>
                 <div style="margin:0 0 14px"><button type="button" class="button button-secondary" data-endpoint-copy="rpz-transfer-command" aria-live="polite">Copiar</button></div>
@@ -194,208 +291,47 @@ systemctl restart unbound</pre>
                     <div style="margin:0 0 14px"><button type="button" class="button button-secondary" data-endpoint-copy="rpz-list-zones-command" aria-live="polite">Copiar</button></div>
                     <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">Reiniciar o serviço pode reutilizar o arquivo de zona salvo. Para antecipar a atualização, use <code>auth_zone_transfer</code>.</p>
                 </details>
-            </div>
+                <div class="endpoint-disclosure-footer"><button type="button" class="button button-secondary" data-close-disclosure><x-ui-icon name="x" size="16" />Fechar</button></div>
+                </div>
+            </details>
         @endif
 
-        @if (auth()->user()->isAdmin())
-        <div class="panel details-card-wide">
-            <div class="panel-header">
-                <h2>Restrição de IP</h2>
-                <form action="{{ route('servidores.ip-restriction.toggle', $servidor) }}" method="POST">
-                    @csrf
-                    <button type="submit" class="button button-secondary">
-                        {{ $servidor->ip_restriction_enabled ? 'Desativar restrição' : 'Ativar restrição' }}
-                    </button>
-                </form>
-            </div>
-            <p style="color:var(--text-muted);font-size:11px;margin:0 0 14px">
-                @if ($servidor->ip_restriction_enabled)
-                    Os IPs abaixo podem acessar a URL curta e o acesso legado.
-                @else
-                    Desativada para o token legado. A URL curta empresarial continua exigindo pelo menos um IP autorizado.
-                @endif
-            </p>
-
-            <p style="color:var(--text-muted);font-size:10px;margin:0 0 8px">
-                Aceita IPv4 e IPv6, com ou sem CIDR. Em dual-stack, confirme o IP de saída: o servidor pode usar IPv6.
-            </p>
-            <form action="{{ route('servidores.ips.store', $servidor) }}" method="POST" class="endpoint-ip-form" style="display:flex;gap:8px;margin-bottom:14px">
-                @csrf
-                <input class="form-control endpoint-detail-mono" type="text" name="ip_cidr" placeholder="203.0.113.10, 203.0.113.0/24 ou 2001:db8::1" required>
-                <button type="submit" class="button button-primary">Adicionar IP</button>
-            </form>
-
-            @if ($servidor->allowedIps->isEmpty())
-                <div class="empty-state"><span>Nenhum IP cadastrado.</span></div>
-            @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead><tr><th>IP / CIDR</th><th>Status</th><th class="table-actions-column"></th></tr></thead>
-                        <tbody>
-                            @foreach ($servidor->allowedIps as $ip)
-                                <tr>
-                                    <td class="table-mono">{{ $ip->ip_cidr }}</td>
-                                    <td>
-                                        @if ($ip->status === 'active')
-                                            <span class="status-pill is-active">Liberado</span>
-                                        @else
-                                            <span class="status-pill is-warning">Aguardando liberação</span>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        @if ($ip->status !== 'active')
-                                            <form action="{{ route('servidores.ips.approve', [$servidor, $ip]) }}" method="POST" style="display:inline">
-                                                @csrf
-                                                @method('PATCH')
-                                                <button type="submit" class="button button-primary">Liberar</button>
-                                            </form>
-                                        @endif
-                                        <form action="{{ route('servidores.ips.destroy', [$servidor, $ip]) }}" method="POST" style="display:inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover este IP?')">Remover</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
+        </section>
         </div>
-        @endif
+        @include('servidores.partials.admin-event-stream', ['recent' => true])
+        <dialog id="endpoint-history" class="endpoint-drawer endpoint-history-drawer" aria-labelledby="endpoint-history-title">
+            <div class="panel-header"><h2 id="endpoint-history-title">Histórico completo</h2><button type="button" class="button button-secondary" data-close-dialog>Fechar</button></div>
+            <p class="endpoint-detail-note">Últimos 30 dias, até 80 eventos disponíveis. Detalhes no histórico de cada fonte.</p>
+            @include('servidores.partials.admin-event-stream', ['recent' => false])
+        </dialog>
+    </div>
 
-        <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Fontes vinculadas ({{ $servidor->listas->count() }})</h2></div>
-            @if ($servidor->listas->isEmpty())
-                <div class="empty-state"><span>Nenhuma fonte vinculada ainda.</span></div>
-            @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Fonte</th><th>Tipo</th><th class="table-actions-column"></th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($servidor->listas as $lista)
-                                @php $tipoFonte = auth()->user()->isAdmin() ? ($lista->isAnatel() ? 'Catálogo / Importação ANATEL' : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'))) : ($lista->empresa_id ? 'Própria' : 'Catálogo'); @endphp
-                                <tr>
-                                    <td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a>
-                                        @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif</td>
-                                    <td>
-                                        <span class="status-pill status-pill-normal-case {{ auth()->user()->isAdmin() && $lista->isExterna() ? 'is-info' : ($lista->empresa_id ? 'is-active' : 'is-muted') }}">{{ $tipoFonte }}</span>
-                                    </td>
-                                    <td>
-                                        <form action="{{ route('servidores.listas.detach', [$servidor, $lista]) }}" method="POST">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover esta fonte do endpoint?')">Remover</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-        </div>
-
-        <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Fontes disponíveis para adicionar</h2></div>
-            @if ($listasDisponiveis->isEmpty())
-                <div class="empty-state"><span>Nenhuma fonte disponível no momento.</span></div>
-            @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Fonte</th><th>Tipo</th><th class="table-actions-column"></th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($listasDisponiveis as $lista)
-                                @php $tipoFonte = auth()->user()->isAdmin() ? ($lista->isAnatel() ? 'Catálogo / Importação ANATEL' : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'))) : ($lista->empresa_id ? 'Própria' : 'Catálogo'); @endphp
-                                <tr>
-                                    <td>{{ $lista->nome }}
-                                        @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif</td>
-                                    <td>
-                                        <span class="status-pill status-pill-normal-case {{ auth()->user()->isAdmin() && $lista->isExterna() ? 'is-info' : ($lista->empresa_id ? 'is-active' : 'is-muted') }}">{{ $tipoFonte }}</span>
-                                    </td>
-                                    <td>
-                                        <form action="{{ route('servidores.listas.attach', [$servidor, $lista]) }}" method="POST">
-                                            @csrf
-                                            <button type="submit" class="table-action-link">Adicionar</button>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-        </div>
-
-        @if (auth()->user()->isAdmin())
-            @include('servidores.partials.admin-event-stream')
-        @else
-        <div class="panel details-card-wide">
-            <div class="panel-header">
-                <h2>Log do servidor (últimos 30 dias)</h2>
-                <span class="status-pill is-muted">Sincronizações + listas</span>
-            </div>
-            <p style="color:var(--text-muted);font-size:11px;margin:0 0 10px">
-                Uma linha por evento: quando o Unbound deste servidor buscou a zona (com quantos domínios foram entregues) e quando uma lista vinculada a ele ganhou/perdeu domínios — junto, dá pra ver a causa e o efeito: a lista muda, e a próxima sincronização depois já reflete isso na contagem entregue. "Perdeu" é desativado, não apagado do banco.
-            </p>
-            @if (empty($logServidor))
-                <div class="empty-state"><span>Nenhum evento nos últimos 30 dias — o servidor ainda não sincronizou e nenhuma lista vinculada mudou.</span></div>
-            @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>Data/hora</th><th>Tipo</th><th>Evento</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($logServidor as $evento)
-                                @php
-                                    $pillClass = match($evento['tipo']) {
-                                        'sync' => 'is-info',
-                                        'lista_add' => 'is-active',
-                                        'lista_remove' => 'is-warning',
-                                        default => 'is-muted',
-                                    };
-                                    $pillLabel = match($evento['tipo']) {
-                                        'sync' => 'Sincronização',
-                                        'lista_add' => 'Fonte +',
-                                        'lista_remove' => 'Fonte -',
-                                        default => '-',
-                                    };
-                                @endphp
-                                <tr>
-                                    <td class="table-mono">
-                                        {{ $evento['timestamp']->format($evento['tipo'] === 'sync' ? 'd/m/Y H:i:s' : 'd/m/Y') }}
-                                    </td>
-                                    <td><span class="status-pill {{ $pillClass }}">{{ $pillLabel }}</span></td>
-                                    <td>
-                                        @if ($evento['lista_id'])
-                                            <a href="{{ route('listas.historico', $evento['lista_id']) }}" class="table-primary-link">{{ $evento['detalhe'] }}</a>
-                                        @else
-                                            {{ $evento['detalhe'] }}
-                                            @if ($evento['meta'])
-                                                <span class="table-mono" style="color:var(--text-muted)">— IP {{ $evento['meta'] }}</span>
-                                            @endif
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <p style="color:var(--text-muted);font-size:10px;margin-top:12px">Mostrando os últimos 80 eventos. Detalhe domínio-por-domínio disponível no histórico de cada fonte.</p>
-            @endif
-        </div>
-        @endif
     </div>
 
     <script>
         (function () {
-            var endpointConfigSnippet = @json($configSnippet);
+            var endpointConfigSnippet = @json($isMikrotik ? $mikrotikConfig : $configSnippet);
+            document.querySelectorAll('[data-endpoint-dialog]').forEach(function (button) {
+                button.addEventListener('click', function () { document.getElementById(button.dataset.endpointDialog).showModal(); });
+            });
+            document.querySelectorAll('[data-close-dialog]').forEach(function (button) {
+                button.addEventListener('click', function () { button.closest('dialog').close(); });
+            });
+            document.querySelectorAll('[data-close-disclosure]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    var section = button.closest('.endpoint-disclosure');
+                    section.open = false;
+                    var summary = section.querySelector('summary');
+                    summary.focus({ preventScroll: true });
+                    summary.scrollIntoView({ block: 'nearest' });
+                });
+            });
+            function openSync() {
+                var section = document.getElementById('rpz-manual-sync');
+                if (section) section.open = true;
+            }
+            document.querySelectorAll('[data-open-sync]').forEach(function (button) { button.addEventListener('click', openSync); });
+            if (location.hash === '#rpz-manual-sync') openSync();
             var btn = document.getElementById('copy-config-btn');
             if (btn) {
                 btn.addEventListener('click', function () {

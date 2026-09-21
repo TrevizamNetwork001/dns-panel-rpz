@@ -1,6 +1,12 @@
 @props(['name' => 'server', 'size' => 16])
 <svg {{ $attributes->class(['ui-icon']) }} width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
     @switch($name)
+        @case('link') <path d="m10 13 4-4M8 16l-2 2a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 8l2-2a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0" transform="translate(1 0) scale(.9)"/> @break
+        @case('refresh') <path d="M20 7v5h-5M4 17v-5h5M5.6 7a8 8 0 0 1 13.2-2L20 7M4 17l1.2 2A8 8 0 0 0 18.4 17"/> @break
+        @case('activity') <path d="M2 12h5l3-9 4 18 3-9h5"/> @break
+        @case('chevron') <path d="m8 5 7 7-7 7"/> @break
+        @case('settings') <path d="m9 3-1 3-3 1-2 3 2 2-1 3 2 3 3-1 2 3h3l1-3 3-1 2-3-2-2 1-3-2-3-3 1-2-3Z"/><circle cx="11.5" cy="11.5" r="3"/> @break
+        @case('wrench') <path d="M14 6a5 5 0 0 0-6 6l-5 5a2.1 2.1 0 0 0 3 3l5-5a5 5 0 0 0 7-6l-3 3-3-3 3-3Z"/> @break
         @case('server')
             <rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/>
             @break

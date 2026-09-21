@@ -139,8 +139,8 @@ class ClientServersPresentationTest extends TestCase
 
         $this->actingAs($cliente)->get(route('servidores.show', $servidor))
             ->assertOk()
-            ->assertSee('Lista &quot;Lista histórica&quot; ganhou 1 domínio(s)', false)
-            ->assertDontSee('ganhou 2 domínio(s)');
+            ->assertSee('Lista &quot;Lista histórica&quot; ganhou 1 domínio', false)
+            ->assertDontSee('ganhou 2 domínios');
     }
 
     private function activeLicense(Empresa $empresa, int $maximum): void
