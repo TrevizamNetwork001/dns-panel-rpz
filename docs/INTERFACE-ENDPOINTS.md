@@ -37,8 +37,8 @@ O texto dentro do gerenciamento esclarece que o controle se aplica ao acesso por
 
 ## Listagem administrativa — `/servidores`
 
-- Cabeçalho com **Novo endpoint** e resumo de cadastrados, ativos e inativos no painel, calculado a partir dos dados já fornecidos à view.
-- Tabela com identidade/SVG do servidor e tipo DNS, empresa com link, quantidade de listas, última consulta relativa e data, estado operacional e status cadastral.
+- Cabeçalho com **Novo endpoint** e contagem compacta de cadastrados/ativos.
+- A listagem administrativa segue o mesmo padrão enxuto da visão cliente: nome com empresa em texto secundário, tipo DNS, listas, última consulta, status e ações. Não há mais três cards de resumo nem coluna separada de empresa.
 - IPs pendentes continuam sinalizados. **Ver detalhes** e **Editar** ficam visíveis; o menu secundário mantém remoção confirmada.
 - Sem fontes: **Vincular listas** leva diretamente à edição.
 - Ordenação existente por última consulta e paginação de 20 registros mantidas. Em telas pequenas, as linhas se apresentam como cards com rótulos dos campos.
