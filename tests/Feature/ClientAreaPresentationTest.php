@@ -51,6 +51,7 @@ class ClientAreaPresentationTest extends TestCase
             ->assertSee('há 17 h')
             ->assertSee('Normal')
             ->assertSee('dashboard-grid-cliente', false)
+            ->assertDontSee('<h2>Listas disponíveis</h2>', false)
             ->assertDontSee('Minhas sugestões de domínio')
             ->assertDontSee('+ Sugerir domínio')
             ->assertSee('Listas')
