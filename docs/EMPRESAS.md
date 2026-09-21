@@ -18,6 +18,8 @@ O administrador pode editar a empresa e consultar a tabela de servidores com nom
 
 Os blocos de Fontes e Usuários permanecem disponíveis ao administrador. A seção **Distribuição RPZ empresarial** é recolhível e mantém URL, configuração, IPs autorizados e teste de ACL. Após um teste de ACL, abre automaticamente para apresentar o resultado.
 
+Para vincular ou liberar uma ACL, use **Gerenciar ACL** na linha do servidor. O atalho abre diretamente **Restrição de IP → Gerenciar IPs**, onde o administrador pode adicionar IPv4/IPv6 ou redes CIDR, liberar IPs pendentes e remover regras. Informe o IP de saída do DNS do cliente. A URL empresarial considera os IPs ativos dos servidores ativos da empresa; o teste de ACL na tela da empresa apenas consulta a autorização, não cadastra regras.
+
 O cliente continua vendo somente sua empresa e o resumo da licença. A edição permanece indisponível nesse perfil, com botão desabilitado e texto explicativo. As rotas administrativas continuam protegidas.
 
 ## Implementação

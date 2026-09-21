@@ -2,6 +2,7 @@
 <style>
     .company-servers { margin-bottom: 24px; }
     .company-servers > .panel-header { align-items: center; flex-wrap: wrap; gap: 12px; }
+    .company-servers .admin-compact-actions { flex-wrap: wrap; }
     .company-servers > .panel-header p { margin: 5px 0 0; color: var(--text-soft); font-size: 12px; }
 </style>
 <section class="admin-endpoints-compact company-servers" aria-labelledby="company-servers-title">
@@ -28,7 +29,7 @@
                                 <small>{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }} no painel</small>
                                 @if ($servidor->allowedIps->contains('status', 'pending'))<span class="status-pill is-warning">IP aguardando liberação</span>@endif
                             </div></td>
-                            <td><div class="admin-compact-actions"><a href="{{ route('servidores.show', $servidor) }}" class="button button-secondary">Ver detalhes</a><a href="{{ route('servidores.edit', $servidor) }}" class="button button-secondary admin-compact-edit" aria-label="Editar {{ $servidor->nome }}"><x-ui-icon name="pencil" /></a></div></td>
+                            <td><div class="admin-compact-actions"><a href="{{ route('servidores.show', $servidor) }}" class="button button-secondary">Ver detalhes</a><a href="{{ route('servidores.edit', $servidor) }}" class="button button-secondary admin-compact-edit" aria-label="Editar {{ $servidor->nome }}"><x-ui-icon name="pencil" /></a><a href="{{ route('servidores.show', $servidor) }}#endpoint-ips" class="button button-secondary">Gerenciar ACL</a></div></td>
                         </tr>
                     @endforeach
                 </tbody>

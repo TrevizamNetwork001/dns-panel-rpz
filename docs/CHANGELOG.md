@@ -4,6 +4,10 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 
 ## 21/09/2026
 
+### Acesso ao gerenciamento de ACL
+
+- Adicionado **Gerenciar ACL** na tabela de servidores da empresa. O link abre diretamente o painel de IPs do servidor, via `#endpoint-ips`, para adicionar ou liberar regras. Permissões administrativas e regras de autorização existentes preservadas.
+
 ### Correção da apresentação e revisão da suíte
 
 - **Minha empresa** passa a exibir Nome fantasia e Telefone salvos no cadastro; antes, os dois campos mostravam apenas um traço fixo. Campos vazios continuam exibindo `—`.

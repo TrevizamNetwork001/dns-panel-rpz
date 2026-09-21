@@ -310,6 +310,14 @@ systemctl restart unbound</pre>
 
     <script>
         (function () {
+            function openIpManagement() {
+                var dialog = document.getElementById('endpoint-ips');
+                if (window.location.hash === '#endpoint-ips' && dialog && !dialog.open) {
+                    dialog.showModal();
+                }
+            }
+            openIpManagement();
+            window.addEventListener('hashchange', openIpManagement);
             var endpointConfigSnippet = @json($isMikrotik ? $mikrotikConfig : $configSnippet);
             document.querySelectorAll('[data-endpoint-dialog]').forEach(function (button) {
                 button.addEventListener('click', function () { document.getElementById(button.dataset.endpointDialog).showModal(); });
