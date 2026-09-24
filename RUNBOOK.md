@@ -79,7 +79,7 @@ Caso diagnosticado e mudanças de interface: [registro de 20/09/2026](docs/RELAT
 
 Há uma regressão conhecida no Unbound que pode impedir transferências de RPZ configuradas com `url: "https://..."`. O painel pode registrar a consulta, e `unbound-control auth_zone_transfer ...` pode retornar `ok`, mas o zonefile continua antigo ou contém apenas o cabeçalho. No log pode aparecer `http took too long, dropped` ou timeout da transferência.
 
-**Não é específico do Debian 11.** Já foi visto em Unbound **1.13.1** (Debian 11) e em **1.22** (rodando já em Debian 13) — ou seja, o problema segue o **pacote do Unbound**, não a versão do sistema operacional. Um Debian 13 recém-instalado pode ter vindo com um Unbound ainda afetado. Em **1.26.1** o problema não ocorre (confirmado em produção). Antes de descartar a causa, confira a versão instalada, não só o SO:
+**Não é específico de uma versão do Debian.** Já foi visto em Unbound **1.13.x, 1.17.x e 1.22.x**, em clientes rodando Debian **10, 11, 12 e 13** — ou seja, o problema segue o **pacote do Unbound**, não a versão do sistema operacional; um Debian 13 recém-instalado pode ter vindo com um Unbound ainda afetado. Em **1.26.1** o problema não ocorre (confirmado em produção). O relato original está num tópico/issue do próprio repositório do Unbound (NLnet Labs) descrevendo esse mesmo sintoma com `rpz: url: https://...`. Antes de descartar a causa, confira a versão instalada, não só o SO:
 
 ```bash
 unbound-control status | head -1    # ex.: version: 1.22.0  <- ainda pode estar afetado
@@ -99,14 +99,25 @@ wc -l -c /var/lib/unbound/<zona>.zone
 
 Se o `curl` baixar uma zona grande com HTTP 200, mas o arquivo do Unbound não mudar, a conectividade e o endpoint estão funcionando; o problema está na versão do Unbound do cliente.
 
-**Solução:** atualizar o **pacote Unbound** (não só o SO) para uma versão onde o bug não reproduz — **1.26.1 confirmado sem o problema**. Em Debian 13, `apt update && apt upgrade unbound` costuma resolver, já que o repositório recebe atualizações do pacote depois do lançamento inicial da distro; em Debian 11 pode não haver backport disponível, exigindo migrar o SO. Depois de atualizar:
+**O que quebra exatamente:** o download inicial funciona normalmente (`unbound-control auth_zone_transfer <nome-da-zona>` baixa a zona pela primeira vez, do zero, como se o Unbound estivesse subindo agora). O que não funciona nas versões afetadas é a **atualização periódica automática** — o Unbound deveria, sozinho, verificar o `refresh` do SOA e buscar a zona de novo quando o serial mudasse, mas isso não dispara. Sem intervenção, o zonefile fica congado na primeira versão baixada.
+
+**Solução definitiva:** atualizar o **pacote Unbound** (não só o SO) para uma versão onde o bug não reproduz — **1.26.1 confirmado sem o problema**, com a atualização automática pelo serial funcionando normal (a cada `refresh`, sem precisar de script nem cron). Em Debian 13, `apt update && apt upgrade unbound` costuma resolver, já que o repositório recebe atualizações do pacote depois do lançamento inicial da distro; em Debians mais antigos pode não haver backport disponível, exigindo migrar o SO.
 
 ```bash
 unbound-control status | head -1            # confirma a versão nova
 unbound-control auth_zone_transfer <nome-da-zona>
 ```
 
-Confirme a troca do serial e o crescimento do zonefile antes de considerar a sincronização resolvida. Qualquer cliente com Unbound abaixo de 1.26.1 é candidato a esse problema, independente do Debian estar em 11, 12 ou 13 — verifique sempre `unbound-control status`, não só a versão do SO.
+**Contorno temporário, se não puder atualizar o Unbound na hora:** força a busca manualmente, ou agenda isso via cron/script no próprio cliente, até a atualização definitiva:
+
+```bash
+# cron do cliente Unbound, ex.: a cada hora
+0 * * * * unbound-control auth_zone_transfer <nome-da-zona>
+```
+
+Isso não corrige a causa, só disfarça — o cliente sempre depende desse script rodando; se ele parar (cron falhou, script apagado), o zonefile volta a ficar desatualizado sem nenhum aviso.
+
+Confirme a troca do serial e o crescimento do zonefile antes de considerar a sincronização resolvida. Qualquer cliente com Unbound abaixo de 1.26.1 é candidato a esse problema, independente da versão do Debian — verifique sempre `unbound-control status`, não só a versão do SO.
 
 Referência: [NLnet Labs Unbound issue #429 — `rpz: url:` com HTTPS quebrado como regressão em 1.13.1](https://github.com/NLnetLabs/unbound/issues/429).
 
