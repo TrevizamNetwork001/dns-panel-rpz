@@ -245,6 +245,22 @@ O modo `redirect` existe no código e no formulário do servidor, e o app estát
 
 Por isso a decisão é manter `nxdomain` e não alterar o nginx compartilhado. **Plano para quando houver um IP/VPS só pra isso**: (1) subir a página nessa máquina com um `default_server` próprio nas portas 80/443; (2) criar `bloqueado.trevizamnetwork.com.br` na Cloudflare apontando pro IP, com o proxy **desligado** (nuvem cinza); (3) tornar o destino do CNAME configurável no painel (hoje `RpzZoneBuilder` usa sempre o host do painel); (4) testar com **um** servidor pequeno, acompanhar a carga por alguns dias e voltar pra `nxdomain` se pesar.
 
+## Notificação proativa de problemas detectados (planejado)
+
+Hoje a detecção de versão afetada do Unbound (ver "Servidores e liberação de IP" e o RUNBOOK) é **passiva**: aparece na tela do servidor e um selo na listagem, mas só quem entrar no painel vê. Discutido em 24/09/2026, adiado por decisão consciente — combinado "anotar e ver no futuro". Fica registrado aqui pra não se perder:
+
+- **"Ver todos de uma vez"** — filtro/aba em `/servidores` (admin) tipo "Unbound desatualizado (N)", listando todos os servidores afetados, todas as empresas juntas, com a versão de cada um. Não depende de nenhuma decisão de canal; dá pra fazer isso sozinho, a qualquer momento.
+- **Fluxo de aviso/resolvido** (independe do canal escolhido, é só o gatilho): precisa de um estado persistido por servidor (não só a versão atual), no mesmo padrão já usado em `ServidoresInativosCleaner` (`inatividade_avisada_em`) e no fluxo de IP pendente:
+  - servidor passa a sincronizar numa versão afetada **pela primeira vez** → dispara aviso de "problema", marca como avisado;
+  - continua na mesma versão afetada em sincronizações seguintes → **não repete** o aviso;
+  - atualiza e volta a sincronizar numa versão boa (≥ 1.26.1) → dispara aviso de "resolvido", uma vez, e limpa a marcação;
+  - nunca esteve afetado → nunca dispara nada.
+- **Canal ainda em aberto**, opções discutidas:
+  - **Telegram pro admin** (equipe): mais barato, reaproveita 100% o `TelegramNotifier` já pronto — só falta a lógica de estado acima pra não virar spam a cada sincronização.
+  - **Telegram por cliente**: o bot do painel hoje é um chat único (o de vocês); pra mensagem individual por cliente, o Telegram exige que **o cliente inicie a conversa primeiro** (`/start`, tipicamente via link único `t.me/bot?start=codigo`) — não dá pra mandar mensagem a frio só com um contato salvo. Precisaria de um campo novo (chat_id pessoal por empresa/usuário) e uma tela de vínculo. Se a Trevizam já tem um bot separado (de outro sistema, tipo o `dns-panel-central`) onde os clientes já têm esse vínculo feito, isso reduz bastante o trabalho — a decidir.
+  - **E-mail**: hoje `MAIL_MAILER=log` (não envia de verdade pra ninguém) — precisaria configurar um provedor de envio (SMTP/SES/etc.) antes de cogitar esse canal.
+  - **Sininho no painel** (central de notificações, com contador de não lidas e "marcar como lida"): resolve o aviso pro cliente sem depender de canal externo nenhum, e dá pra generalizar pra outros avisos futuros (não só Unbound). Também discutido em 24/09, adiado do mesmo jeito.
+
 ## Infraestrutura (servidor `paineldns`)
 
 Desde set/2026 a aplicação roda em **Docker** (`docker compose`, ver [`compose.yml`](compose.yml) e [`Dockerfile`](Dockerfile)). Só ficam direto no host: nginx de borda (TLS), Certbot, fail2ban e os timers systemd de healthcheck/renovação de certificado — tudo documentado com mais detalhe em [`deploy/README.md`](deploy/README.md) e no [`RUNBOOK.md`](RUNBOOK.md).
