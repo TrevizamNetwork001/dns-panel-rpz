@@ -75,6 +75,35 @@ O segundo argumento deve corresponder ao `name:` do bloco `rpz:`. O painel dispo
 
 Caso diagnosticado e mudanças de interface: [registro de 20/09/2026](docs/RELATORIO-2026-09-20.md).
 
+### Debian 11 / Unbound 1.13.1 não atualiza RPZ por HTTPS
+
+Há uma regressão conhecida no Unbound **1.13.1** que pode impedir transferências de RPZ configuradas com `url: "https://..."`. O painel pode registrar a consulta, e `unbound-control auth_zone_transfer ...` pode retornar `ok`, mas o zonefile continua antigo ou contém apenas o cabeçalho. No log pode aparecer `http took too long, dropped` ou timeout da transferência.
+
+O diagnóstico deve separar a rede do cliente Unbound:
+
+```bash
+curl -L --connect-timeout 10 --max-time 90 \
+  -o /tmp/rpz-teste.zone \
+  -w '\nHTTP=%{http_code}\nTempo=%{time_total}s\nBytes=%{size_download}\n' \
+  'https://rpz.trevizamnetwork.com.br/rpz/<slug-ou-token>.zone'
+wc -l -c /tmp/rpz-teste.zone
+unbound-control list_auth_zones
+wc -l -c /var/lib/unbound/<zona>.zone
+```
+
+Se o `curl` baixar uma zona grande com HTTP 200, mas o arquivo do Unbound não mudar, a conectividade e o endpoint estão funcionando; o problema está no cliente 1.13.1.
+
+**Solução:** atualizar o cliente para **Debian 13 (trixie)**, que traz o **Unbound 1.26.x**, onde a regressão já está corrigida. Não há fix disponível para o Unbound 1.13.1 do Debian 11 via patch/backport — é uma questão de versão. Depois de migrar o SO:
+
+```bash
+unbound -V | head -1                        # confirma 1.26.x
+unbound-control auth_zone_transfer <nome-da-zona>
+```
+
+Confirme a troca do serial e o crescimento do zonefile antes de considerar a sincronização resolvida. Clientes ainda no Debian 11 continuam sujeitos ao problema até serem atualizados.
+
+Referência: [NLnet Labs Unbound issue #429 — `rpz: url:` com HTTPS quebrado como regressão em 1.13.1](https://github.com/NLnetLabs/unbound/issues/429).
+
 ## Servidor sumiu do painel (removido por inatividade)
 
 A limpeza automática (`servidores:limpar-inativos`, desligada por padrão) remove servidor sem consultar a zona além do prazo configurado. Confirme em `/auditoria` → categoria **Servidores** (`servidor.inatividade_avisada` e `servidor.removido_inatividade` mostram nome, empresa e há quantos dias estava parado). Não há como desfazer pela tela: recadastre o servidor (o token muda, então o `url:` do `unbound.conf` do cliente precisa ser atualizado) ou restaure do backup do banco. Pra impedir que aconteça de novo, desligue a função em `/configuracoes` → **Geral**, ou aumente o prazo. Simulação segura: `docker compose exec app php artisan servidores:limpar-inativos --dry-run`.
