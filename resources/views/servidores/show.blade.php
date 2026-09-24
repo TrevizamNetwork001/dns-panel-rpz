@@ -58,6 +58,16 @@
         </div>
     @endif
 
+    @if (! $isMikrotik && $servidor->unboundVersionAfetada())
+        <div class="alert-error" role="alert">
+            @if (auth()->user()->isAdmin())
+                Este servidor está rodando <strong>Unbound {{ $servidor->unboundVersion() }}</strong>, versão com uma regressão conhecida: a busca inicial da zona funciona, mas a <strong>atualização periódica automática não dispara sozinha</strong> — a lista fica congelada sem avisar até alguém forçar manualmente. Corrige atualizando o pacote Unbound pra <strong>1.26.1 ou mais recente</strong> (ver RUNBOOK, "Unbound não atualiza RPZ por HTTPS").
+            @else
+                O servidor DNS deste endpoint está rodando uma versão do Unbound (<strong>{{ $servidor->unboundVersion() }}</strong>) com uma falha conhecida que impede a atualização automática da lista de bloqueios — ela pode ficar desatualizada sem nenhum aviso. Atualize o Unbound para a versão <strong>1.26.1 ou mais recente</strong>.
+            @endif
+        </div>
+    @endif
+
     @include('servidores.partials.admin-detail-styles')
     <div class="details-grid endpoint-overview admin-endpoint-detail">
         <div class="panel details-card-wide admin-endpoint-status">
@@ -70,6 +80,9 @@
                     <div><x-ui-icon name="activity" size="23" /><span>Estado operacional</span><strong class="status-pill {{ $classeOperacional }}">{{ $estadoOperacional }}</strong></div>
                     <div><x-ui-icon name="clock" size="23" /><span>Última consulta</span><strong>{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</strong></div>
                     <div><x-ui-icon name="server" size="23" /><span>Tipo de DNS</span><strong>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</strong></div>
+                    @if (! $isMikrotik && $servidor->unboundVersion())
+                        <div><x-ui-icon name="activity" size="23" /><span>Versão do Unbound</span><strong class="status-pill {{ $servidor->unboundVersionAfetada() ? 'is-warning' : 'is-active' }}">{{ $servidor->unboundVersion() }}</strong></div>
+                    @endif
                     <div><x-ui-icon name="shield" size="23" /><span>Modo de bloqueio</span><strong>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</strong></div>
                 </div>
         </div>

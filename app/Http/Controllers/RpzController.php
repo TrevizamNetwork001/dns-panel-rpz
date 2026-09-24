@@ -41,7 +41,8 @@ class RpzController extends Controller
             throw new NotFoundHttpException;
         }
 
-        $servidor->forceFill(['last_synced_at' => now()])->saveQuietly();
+        $userAgent = substr((string) $request->userAgent(), 0, 190) ?: null;
+        $servidor->forceFill(['last_synced_at' => now(), 'last_user_agent' => $userAgent])->saveQuietly();
 
         // Consulta enxuta de proposito: com listas grandes (feeds de threat intel
         // chegam a dezenas de milhares de dominios), carregar tudo como models
@@ -52,6 +53,7 @@ class RpzController extends Controller
         ServerSyncLog::create([
             'servidor_id' => $servidor->id,
             'ip_address' => $request->ip(),
+            'user_agent' => $userAgent,
             'dominios_count' => DB::query()->fromSub(clone $dominios, 'rpz_domains')->count(),
             'created_at' => now(),
         ]);
@@ -90,12 +92,14 @@ class RpzController extends Controller
 
         $domains = $builder->companyQuery($empresa->id);
         $count = DB::query()->fromSub(clone $domains, 'rpz_domains')->count();
+        $userAgent = substr((string) $request->userAgent(), 0, 190) ?: null;
 
         foreach ($matchingServers as $servidor) {
-            $servidor->forceFill(['last_synced_at' => now()])->saveQuietly();
+            $servidor->forceFill(['last_synced_at' => now(), 'last_user_agent' => $userAgent])->saveQuietly();
             ServerSyncLog::create([
                 'servidor_id' => $servidor->id,
                 'ip_address' => $ip,
+                'user_agent' => $userAgent,
                 'dominios_count' => $count,
                 'created_at' => now(),
             ]);

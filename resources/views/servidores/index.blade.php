@@ -70,13 +70,21 @@
                                             @if ($servidor->ips_pendentes_count > 0)
                                                 <span class="status-pill is-warning">IP aguardando liberação</span>
                                             @endif
+                                            @if ($servidor->tipo_dns !== 'mikrotik' && $servidor->unboundVersionAfetada())
+                                                <span class="status-pill is-warning" title="Unbound {{ $servidor->unboundVersion() }} não atualiza a zona sozinho — ver detalhes do servidor">Unbound desatualizado</span>
+                                            @endif
                                         </div>
                                     @else
                                         @php
                                             $estadoLabel = $dias === null ? 'Sem sincronização' : ($dias >= 2 ? 'Atenção' : 'Em dia');
                                             $estadoClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active');
                                         @endphp
-                                        <span class="status-pill server-status-pill {{ $estadoClasse }}"><x-ui-icon name="dot" size="14" />{{ $estadoLabel }}</span>
+                                        <div class="endpoint-status-stack">
+                                            <span class="status-pill server-status-pill {{ $estadoClasse }}"><x-ui-icon name="dot" size="14" />{{ $estadoLabel }}</span>
+                                            @if ($servidor->tipo_dns !== 'mikrotik' && $servidor->unboundVersionAfetada())
+                                                <span class="status-pill is-warning" title="Atualize o Unbound para 1.26.1 ou mais recente — ver detalhes do servidor">Precisa atualizar</span>
+                                            @endif
+                                        </div>
                                     @endif
                                 </td>
                                 <td>

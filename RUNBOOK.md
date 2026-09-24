@@ -85,6 +85,12 @@ Há uma regressão conhecida no Unbound que pode impedir transferências de RPZ 
 unbound-control status | head -1    # ex.: version: 1.22.0  <- ainda pode estar afetado
 ```
 
+**O painel já detecta isso sozinho, sem precisar entrar em cada servidor.** O Unbound se identifica no `User-Agent` de toda requisição que ele faz pra buscar a zona (é assim que aparece `"unbound/1.22.0"` no access log do nginx); o painel guarda esse valor a cada sincronização (`servidores.last_user_agent`, `server_sync_logs.user_agent`) e mostra a versão na tela do servidor (`Servidor::unboundVersion()`). Quando a versão é uma das afetadas (`Servidor::unboundVersionAfetada()`, `< 1.26.1`):
+- selo **"Unbound desatualizado"** na listagem de endpoints (admin) e **"Precisa atualizar"** na listagem do cliente;
+- aviso destacado no topo da tela do servidor, técnico pro admin e em linguagem simples pro cliente.
+
+Isso é passivo — não precisa de SSH nem de nada configurado no cliente, só depende de pelo menos uma sincronização já ter acontecido depois do deploy dessa feature (24/09/2026 em diante). Servidor que nunca sincronizou, ou sincronizou só antes disso, aparece sem essa informação até a próxima busca.
+
 O diagnóstico deve separar a rede do cliente Unbound:
 
 ```bash

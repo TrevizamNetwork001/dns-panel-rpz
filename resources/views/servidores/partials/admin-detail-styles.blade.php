@@ -20,7 +20,7 @@
     .endpoint-workspace .endpoint-detail-note { display: block; margin: 6px 0 0; color: var(--text-soft); font-size: 12px; line-height: 1.6; }
     .endpoint-workspace .panel-header .button { min-height: 35px; padding: 0 10px; color: var(--cyan); font-size: 11px; font-weight: 500; flex-shrink: 0; }
     .endpoint-workspace .admin-endpoint-status { padding: 26px 20px; }
-    .endpoint-workspace .endpoint-detail-statuses { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
+    .endpoint-workspace .endpoint-detail-statuses { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; }
     .endpoint-workspace .endpoint-detail-statuses > div { display: grid; grid-template-columns: 25px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 9px 16px; align-items: center; padding: 4px 18px; border-right: 1px solid var(--border-soft); min-width: 0; }
     .endpoint-workspace .endpoint-detail-statuses > div:first-child { padding-left: 0; }
     .endpoint-workspace .endpoint-detail-statuses > div:last-child { border-right: 0; padding-right: 0; }

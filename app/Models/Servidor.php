@@ -70,6 +70,33 @@ class Servidor extends Model
         return (int) $this->last_synced_at->diffInDays(now());
     }
 
+    /**
+     * Versão do Unbound extraída do User-Agent da última sincronização
+     * (ele já se identifica sozinho, ex.: "unbound/1.22.0") — nada
+     * precisa ser instalado ou configurado no cliente pra isso funcionar.
+     */
+    public function unboundVersion(): ?string
+    {
+        if ($this->last_user_agent === null) {
+            return null;
+        }
+
+        return preg_match('/unbound\/(\d+\.\d+(?:\.\d+)?)/i', $this->last_user_agent, $m) === 1 ? $m[1] : null;
+    }
+
+    /**
+     * Versões abaixo de 1.26.1 têm uma regressão conhecida (ver RUNBOOK,
+     * "Unbound não atualiza RPZ por HTTPS"): o download inicial funciona,
+     * mas a atualização periódica automática pelo serial do SOA não
+     * dispara sozinha — o cliente fica com a zona congelada sem avisar.
+     */
+    public function unboundVersionAfetada(): bool
+    {
+        $versao = $this->unboundVersion();
+
+        return $versao !== null && version_compare($versao, '1.26.1', '<');
+    }
+
     public function legacyRpzEndpointUrl(): string
     {
         return url('/rpz/'.$this->token.'.zone');
