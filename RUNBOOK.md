@@ -75,9 +75,15 @@ O segundo argumento deve corresponder ao `name:` do bloco `rpz:`. O painel dispo
 
 Caso diagnosticado e mudanças de interface: [registro de 20/09/2026](docs/RELATORIO-2026-09-20.md).
 
-### Debian 11 / Unbound 1.13.1 não atualiza RPZ por HTTPS
+### Unbound não atualiza RPZ por HTTPS (regressão de versão, não de SO)
 
-Há uma regressão conhecida no Unbound **1.13.1** que pode impedir transferências de RPZ configuradas com `url: "https://..."`. O painel pode registrar a consulta, e `unbound-control auth_zone_transfer ...` pode retornar `ok`, mas o zonefile continua antigo ou contém apenas o cabeçalho. No log pode aparecer `http took too long, dropped` ou timeout da transferência.
+Há uma regressão conhecida no Unbound que pode impedir transferências de RPZ configuradas com `url: "https://..."`. O painel pode registrar a consulta, e `unbound-control auth_zone_transfer ...` pode retornar `ok`, mas o zonefile continua antigo ou contém apenas o cabeçalho. No log pode aparecer `http took too long, dropped` ou timeout da transferência.
+
+**Não é específico do Debian 11.** Já foi visto em Unbound **1.13.1** (Debian 11) e em **1.22** (rodando já em Debian 13) — ou seja, o problema segue o **pacote do Unbound**, não a versão do sistema operacional. Um Debian 13 recém-instalado pode ter vindo com um Unbound ainda afetado. Em **1.26.1** o problema não ocorre (confirmado em produção). Antes de descartar a causa, confira a versão instalada, não só o SO:
+
+```bash
+unbound-control status | head -1    # ex.: version: 1.22.0  <- ainda pode estar afetado
+```
 
 O diagnóstico deve separar a rede do cliente Unbound:
 
@@ -91,16 +97,16 @@ unbound-control list_auth_zones
 wc -l -c /var/lib/unbound/<zona>.zone
 ```
 
-Se o `curl` baixar uma zona grande com HTTP 200, mas o arquivo do Unbound não mudar, a conectividade e o endpoint estão funcionando; o problema está no cliente 1.13.1.
+Se o `curl` baixar uma zona grande com HTTP 200, mas o arquivo do Unbound não mudar, a conectividade e o endpoint estão funcionando; o problema está na versão do Unbound do cliente.
 
-**Solução:** atualizar o cliente para **Debian 13 (trixie)**, que traz o **Unbound 1.26.x**, onde a regressão já está corrigida. Não há fix disponível para o Unbound 1.13.1 do Debian 11 via patch/backport — é uma questão de versão. Depois de migrar o SO:
+**Solução:** atualizar o **pacote Unbound** (não só o SO) para uma versão onde o bug não reproduz — **1.26.1 confirmado sem o problema**. Em Debian 13, `apt update && apt upgrade unbound` costuma resolver, já que o repositório recebe atualizações do pacote depois do lançamento inicial da distro; em Debian 11 pode não haver backport disponível, exigindo migrar o SO. Depois de atualizar:
 
 ```bash
-unbound -V | head -1                        # confirma 1.26.x
+unbound-control status | head -1            # confirma a versão nova
 unbound-control auth_zone_transfer <nome-da-zona>
 ```
 
-Confirme a troca do serial e o crescimento do zonefile antes de considerar a sincronização resolvida. Clientes ainda no Debian 11 continuam sujeitos ao problema até serem atualizados.
+Confirme a troca do serial e o crescimento do zonefile antes de considerar a sincronização resolvida. Qualquer cliente com Unbound abaixo de 1.26.1 é candidato a esse problema, independente do Debian estar em 11, 12 ou 13 — verifique sempre `unbound-control status`, não só a versão do SO.
 
 Referência: [NLnet Labs Unbound issue #429 — `rpz: url:` com HTTPS quebrado como regressão em 1.13.1](https://github.com/NLnetLabs/unbound/issues/429).
 
