@@ -78,13 +78,14 @@
                 <div class="endpoint-detail-statuses">
                     <div><x-ui-icon name="server" size="23" /><span>Status cadastral</span><strong class="status-pill {{ $servidor->status === 'active' ? 'is-active' : 'is-inactive' }}">{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}</strong></div>
                     <div><x-ui-icon name="activity" size="23" /><span>Estado operacional</span><strong class="status-pill {{ $classeOperacional }}">{{ $estadoOperacional }}</strong></div>
-                    <div><x-ui-icon name="clock" size="23" /><span>Última consulta</span><strong>{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</strong></div>
+                    <div><x-ui-icon name="clock" size="23" /><span>Última consulta</span><strong title="{{ $servidor->last_synced_at?->format('d/m/Y H:i:s') ?? 'nunca sincronizou' }}">{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</strong></div>
                     <div><x-ui-icon name="server" size="23" /><span>Tipo de DNS</span><strong>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</strong></div>
                     @if (! $isMikrotik && $servidor->unboundVersion())
-                        <div><x-ui-icon name="activity" size="23" /><span>Versão do Unbound</span><strong class="status-pill {{ $servidor->unboundVersionAfetada() ? 'is-warning' : 'is-active' }}">{{ $servidor->unboundVersion() }}</strong></div>
+                        <div><x-ui-icon name="activity" size="23" /><span>Versão do Unbound</span><strong class="status-pill {{ $servidor->unboundVersionAfetada() ? 'is-warning' : 'is-active' }}" title="detectado em {{ $servidor->last_synced_at?->format('d/m/Y H:i:s') }}">{{ $servidor->unboundVersion() }}</strong></div>
                     @endif
                     <div><x-ui-icon name="shield" size="23" /><span>Modo de bloqueio</span><strong>{{ $isMikrotik ? 'Adlist (0.0.0.0)' : ($servidor->bloqueio_modo === 'redirect' ? 'Página de bloqueio' : 'NXDOMAIN') }}</strong></div>
                 </div>
+                <p class="endpoint-detail-note" style="margin:10px 0 0;text-align:right">dados desta página carregados às {{ now()->format('H:i:s') }} — recarregue (F5) para atualizar</p>
         </div>
 
         <div class="endpoint-left-column">
@@ -101,6 +102,18 @@
         </div>
         <dialog id="endpoint-lists" class="endpoint-drawer" aria-labelledby="endpoint-lists-title">
             <div class="panel-header endpoint-drawer-heading"><div class="endpoint-card-title"><x-ui-icon name="link" size="27" /><div><h2 id="endpoint-lists-title">Listas vinculadas</h2><p class="endpoint-detail-note">{{ $servidor->listas->count() }} listas vinculadas a este servidor</p></div></div><button type="button" class="endpoint-dismiss" data-close-dialog aria-label="Fechar listas"><x-ui-icon name="x" size="20" /></button></div>
+            @if ($listasDisponiveis->isNotEmpty())
+                <form action="{{ route('servidores.listas.attach', [$servidor, '__lista__']) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px" onsubmit="this.action = this.action.replace('__lista__', this.lista_id.value); return this.lista_id.value !== '';">
+                    @csrf
+                    <select name="lista_id" class="form-control" style="flex:1" required>
+                        <option value="" disabled selected>Vincular uma fonte disponível...</option>
+                        @foreach ($listasDisponiveis as $lista)
+                            <option value="{{ $lista->id }}">{{ $lista->nome }}</option>
+                        @endforeach
+                    </select>
+                    <button type="submit" class="button button-secondary"><x-ui-icon name="plus" size="16" />Vincular</button>
+                </form>
+            @endif
             @if ($servidor->listas->isEmpty())
                 <div class="empty-state"><span>Nenhuma fonte vinculada ainda.</span></div>
             @else
