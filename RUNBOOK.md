@@ -79,6 +79,16 @@ Caso diagnosticado e mudanças de interface: [registro de 20/09/2026](docs/RELAT
 
 Há uma regressão conhecida no Unbound que pode impedir transferências de RPZ configuradas com `url: "https://..."`. O painel pode registrar a consulta, e `unbound-control auth_zone_transfer ...` pode retornar `ok`, mas o zonefile continua antigo ou contém apenas o cabeçalho. No log pode aparecer `http took too long, dropped` ou timeout da transferência.
 
+**Atualização (24/09/2026) — a causa não é "nunca atualiza sozinho".** Investigação ao vivo em produção (cliente Uniao Networks) mostrou, pela auditoria do próprio painel (`server_sync_logs`), que um servidor **ainda no Unbound 1.13.1** vinha sincronizando sozinho, de hora em hora, o dia inteiro, sem nenhum cron configurado (`crontab -l` vazio) — batendo certinho com o `refresh: 3600` do SOA. Ou seja: o refresh automático periódico **funciona normalmente** em versões antigas, desde que a rede esteja saudável. A causa real é mais específica: o cliente HTTP interno do Unbound (nas versões afetadas) **não tem timeout nem fallback IPv4/IPv6** na busca da zona. Se uma tentativa de refresh (automática ou forçada) coincide com uma falha de rede — o caso mais visto é **rota IPv6 quebrada até o painel** — a busca fica pendurada indefinidamente, sem erro nenhum no log, e como não solta, **bloqueia também os ciclos de refresh seguintes**, fazendo a zona parecer "travada pra sempre" a partir daquele ponto. Um `systemctl restart unbound` costuma destravar na hora (reseta o estado preso), mesmo sem mexer em nenhuma configuração — foi o que resolveu o caso do cliente SBCNET LTDA nesse mesmo dia. Diagnóstico rápido pra confirmar rota IPv6 quebrada como gatilho:
+
+```bash
+curl -6 -sS -o /dev/null -w 'HTTP=%{http_code}\n' --connect-timeout 8 https://rpz.trevizamnetwork.com.br/   # se travar/HTTP=000...
+curl -4 -sS -o /dev/null -w 'HTTP=%{http_code}\n' --connect-timeout 8 https://rpz.trevizamnetwork.com.br/   # ...mas isso funciona, é IPv6 quebrado no caminho
+unbound-control get_option do-ip6
+```
+
+Isso não muda a solução definitiva (atualizar pra ≥1.26.1, que já tem timeout/fallback correto) nem o contorno via cron abaixo — só corrige o entendimento da causa, importante pra não perder tempo tentando corrigir "o refresh automático" quando na real o problema é uma trava pontual sem timeout.
+
 **Não é específico de uma versão do Debian.** Já foi visto em Unbound **1.13.x, 1.17.x e 1.22.x**, em clientes rodando Debian **10, 11, 12 e 13** — ou seja, o problema segue o **pacote do Unbound**, não a versão do sistema operacional; um Debian 13 recém-instalado pode ter vindo com um Unbound ainda afetado. Em **1.26.1** o problema não ocorre (confirmado em produção). O relato original está num tópico/issue do próprio repositório do Unbound (NLnet Labs) descrevendo esse mesmo sintoma com `rpz: url: https://...`. Antes de descartar a causa, confira a versão instalada, não só o SO:
 
 ```bash
@@ -105,7 +115,7 @@ wc -l -c /var/lib/unbound/<zona>.zone
 
 Se o `curl` baixar uma zona grande com HTTP 200, mas o arquivo do Unbound não mudar, a conectividade e o endpoint estão funcionando; o problema está na versão do Unbound do cliente.
 
-**O que quebra exatamente:** o download inicial funciona normalmente (`unbound-control auth_zone_transfer <nome-da-zona>` baixa a zona pela primeira vez, do zero, como se o Unbound estivesse subindo agora). O que não funciona nas versões afetadas é a **atualização periódica automática** — o Unbound deveria, sozinho, verificar o `refresh` do SOA e buscar a zona de novo quando o serial mudasse, mas isso não dispara. Sem intervenção, o zonefile fica congado na primeira versão baixada.
+**O que quebra exatamente:** o download inicial funciona normalmente (`unbound-control auth_zone_transfer <nome-da-zona>` baixa a zona pela primeira vez, do zero, como se o Unbound estivesse subindo agora), e o refresh automático periódico (via `refresh` do SOA) também funciona normalmente enquanto a rede do cliente até o painel estiver saudável — ver nota de 24/09/2026 acima. O que quebra é uma tentativa específica (automática ou forçada) travar por falta de timeout/fallback numa falha de rede pontual (ex.: IPv6 quebrado); sem esse timeout, a busca nunca solta, e como não solta, os ciclos seguintes de refresh também não acontecem. Sem intervenção (restart, ou forçar de novo), o zonefile fica congelado na última versão baixada com sucesso antes da trava.
 
 **Solução definitiva:** atualizar o **pacote Unbound** (não só o SO) para uma versão onde o bug não reproduz — **1.26.1 confirmado sem o problema**, com a atualização automática pelo serial funcionando normal (a cada `refresh`, sem precisar de script nem cron). Em Debian 13, `apt update && apt upgrade unbound` costuma resolver, já que o repositório recebe atualizações do pacote depois do lançamento inicial da distro; em Debians mais antigos pode não haver backport disponível, exigindo migrar o SO.
 
