@@ -17,28 +17,7 @@
 
     @include('empresas.partials.company-profile')
     @if ($isAdmin)
-    @include('empresas.partials.admin-servers')
     <div class="details-grid">
-        {{-- Listas próprias do cliente são função do painel 2.0: por ora só o admin vê este painel. --}}
-        @if ($isAdmin)
-        <div class="panel details-card-wide">
-            <div class="panel-header"><h2>Fontes</h2></div>
-            @if ($empresa->listas->isEmpty())
-                <div class="empty-state"><span>Nenhuma fonte cadastrada.</span></div>
-            @else
-                <div class="table-responsive">
-                    <table class="data-table">
-                        <tbody>
-                            @foreach ($empresa->listas as $lista)
-                                <tr><td><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td></tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-        </div>
-        @endif
-
         @if (auth()->user()->isAdmin())
         <div class="panel details-card-wide">
             <div class="panel-header">
