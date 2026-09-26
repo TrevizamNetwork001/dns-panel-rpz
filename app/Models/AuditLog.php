@@ -86,6 +86,18 @@ class AuditLog extends Model
         return 'muted';
     }
 
+    /**
+     * Eventos automáticos de altíssima frequência (sync de cliente, healthcheck,
+     * backup bem-sucedido) que dominam a lista visualmente sem serem, na
+     * prática, algo que alguém precisa ler um por um -- ocultados por padrão
+     * na tela de auditoria pra não afogar as ações reais (login, edição,
+     * remoção) no meio deles.
+     */
+    public static function isRotina(string $action): bool
+    {
+        return in_array($action, ['health.ok', 'rpz.endpoint.downloaded', 'backup.r2_uploaded'], true);
+    }
+
     public static function bucketLabel(string $bucket): string
     {
         return match ($bucket) {

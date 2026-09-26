@@ -98,8 +98,13 @@
                     @endforeach
                 </select>
             </div>
+            <label class="field-group" style="margin:0;flex-direction:row;align-items:center;gap:6px;white-space:nowrap">
+                <input type="hidden" name="ocultar_rotina" value="0">
+                <input type="checkbox" name="ocultar_rotina" value="1" @checked($ocultarRotina)>
+                Ocultar rotina (sync, backup, healthcheck)
+            </label>
             <button type="submit" class="button button-primary">Aplicar</button>
-            @if ($query !== '' || $bucketFilter !== 'all' || $categoryFilter !== 'all' || $userFilter !== 'all' || $dataInicio !== '' || $dataFim !== '')
+            @if ($query !== '' || $bucketFilter !== 'all' || $categoryFilter !== 'all' || $userFilter !== 'all' || $dataInicio !== '' || $dataFim !== '' || ! $ocultarRotina)
                 <a href="{{ route('auditoria.index') }}" class="button button-secondary">Limpar</a>
             @endif
         </form>
@@ -134,7 +139,7 @@
                         if ($log->target_type === 'empresa' && $targetName === $empresaNome) $empresaNome = null;
                         $date = $log->created_at->format('d/m/Y H:i:s');
                         $searchText = mb_strtolower(implode(' ', [$log->action, $actionLabel, $actor, $target, $log->ip_address, $date, $severity, $log->description, $empresaNome ?? '']));
-                        $routine = in_array($log->action, ['health.ok', 'rpz.endpoint.downloaded'], true);
+                        $routine = \App\Models\AuditLog::isRotina($log->action);
                     @endphp
                     <li class="audit-event audit-severity-{{ $bucket }}{{ $routine ? ' audit-event-routine' : '' }}" data-audit-search="{{ $searchText }}">
                         <time class="audit-date" datetime="{{ $log->created_at->toIso8601String() }}">{{ $date }}</time>

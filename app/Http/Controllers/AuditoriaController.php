@@ -22,6 +22,7 @@ class AuditoriaController extends Controller
         $userFilter = (string) $request->input('usuario', 'all');
         $dataInicio = (string) $request->input('data_inicio', '');
         $dataFim = (string) $request->input('data_fim', '');
+        $ocultarRotina = $request->input('ocultar_rotina', '1') === '1';
         $page = max(1, (int) $request->input('page', 1));
 
         $builder = AuditLog::with(['user', 'empresa'])->orderByDesc('created_at')->orderByDesc('id');
@@ -60,6 +61,13 @@ class AuditoriaController extends Controller
             });
         }
 
+        // Filtra a rotina ja no banco, antes do limite de janela -- senao os
+        // 1000 registros mais recentes ficam dominados por sync/healthcheck
+        // e sobra pouco evento "de verdade" pra mostrar depois do filtro.
+        if ($ocultarRotina) {
+            $builder->whereNotIn('action', ['health.ok', 'rpz.endpoint.downloaded', 'backup.r2_uploaded']);
+        }
+
         // A "severidade" e uma heuristica calculada em PHP sobre o texto da
         // action (AuditLog::bucket), nao um filtro traduzivel direto pra SQL
         // -- entao filtra/pagina sobre uma janela ja reduzida pelos filtros
@@ -95,7 +103,7 @@ class AuditoriaController extends Controller
 
         return view('auditoria.index', compact(
             'visibleLogs', 'totalFiltered', 'recentCount', 'authFailureCount', 'destructiveCount',
-            'query', 'bucketFilter', 'categoryFilter', 'userFilter', 'dataInicio', 'dataFim', 'users', 'targetNames'
+            'query', 'bucketFilter', 'categoryFilter', 'userFilter', 'dataInicio', 'dataFim', 'ocultarRotina', 'users', 'targetNames'
         ));
     }
 }

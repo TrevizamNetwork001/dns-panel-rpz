@@ -73,9 +73,13 @@
                 // Ultimo resultado real do "php artisan health:check" (roda por timer,
                 // ver RUNBOOK.md) -- cacheado 5 min pra nao consultar a auditoria em
                 // toda carga de pagina (este rodape aparece em todas elas).
+                // Cache::remember() do Laravel nao cacheia valor null (reconsulta
+                // sempre nesse caso) -- guarda string vazia como sentinela pra
+                // "nunca rodou health:check ainda" continuar cacheado tambem.
                 $ultimoHealthAction = \Illuminate\Support\Facades\Cache::remember('sidebar-health-status', 300, function () {
-                    return \App\Models\AuditLog::where('action', 'like', 'health.%')->orderByDesc('id')->value('action');
+                    return \App\Models\AuditLog::where('action', 'like', 'health.%')->orderByDesc('id')->value('action') ?? '';
                 });
+                $ultimoHealthAction = $ultimoHealthAction === '' ? null : $ultimoHealthAction;
                 $ultimoHealth = $ultimoHealthAction !== null;
                 $sistemasOk = $ultimoHealthAction === 'health.ok';
             @endphp

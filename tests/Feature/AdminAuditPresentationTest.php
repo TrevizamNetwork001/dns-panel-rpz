@@ -35,7 +35,7 @@ class AdminAuditPresentationTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($admin)->get(route('auditoria.index'))->assertOk();
+        $response = $this->actingAs($admin)->get(route('auditoria.index', ['ocultar_rotina' => '0']))->assertOk();
         foreach (['Eventos encontrados', 'Eventos recentes (24h)', 'Falhas de autenticação', 'Ações sensíveis', 'Severidade', 'Categoria'] as $text) {
             $response->assertSeeText($text);
         }
@@ -76,7 +76,7 @@ class AdminAuditPresentationTest extends TestCase
             foreach (range(1, $count) as $index) {
                 AuditLog::create([
                     'user_id' => $actors[$index % 3]->id, 'empresa_id' => $empresas[$index % 3]->id,
-                    'action' => 'health.ok', 'description' => 'Evento de teste', 'created_at' => now(),
+                    'action' => 'custom.pagination_test', 'description' => 'Evento de teste', 'created_at' => now(),
                 ]);
             }
         };
@@ -143,7 +143,7 @@ class AdminAuditPresentationTest extends TestCase
         AuditLog::create(['user_id' => $admin->id, 'action' => 'auth.login', 'description' => 'Login', 'created_at' => now()]);
         AuditLog::create(['user_id' => null, 'action' => 'health.ok', 'description' => 'Automático', 'created_at' => now()]);
 
-        $this->actingAs($admin)->get(route('auditoria.index', ['usuario' => 'sistema']))
+        $this->actingAs($admin)->get(route('auditoria.index', ['usuario' => 'sistema', 'ocultar_rotina' => '0']))
             ->assertOk()->assertViewHas('totalFiltered', 1)->assertSeeText('Sistema (automático)');
     }
 
@@ -188,6 +188,29 @@ class AdminAuditPresentationTest extends TestCase
         $this->actingAs($admin)->get(route('auditoria.index'))->assertOk()
             ->assertSeeText('Lista vinculada ao servidor')->assertSeeText('Operador de teste')
             ->assertSeeText('DNS de teste')->assertSeeText('Empresa: Provedor de teste');
+    }
+
+    public function test_routine_events_are_hidden_by_default_and_shown_when_unchecked(): void
+    {
+        $admin = User::factory()->admin()->create();
+        AuditLog::create(['user_id' => $admin->id, 'action' => 'auth.login', 'description' => 'Login', 'created_at' => now()]);
+        AuditLog::create(['user_id' => null, 'action' => 'health.ok', 'description' => 'Automático', 'created_at' => now()]);
+        AuditLog::create(['user_id' => null, 'action' => 'rpz.endpoint.downloaded', 'description' => 'Sync', 'created_at' => now()]);
+        AuditLog::create(['user_id' => null, 'action' => 'backup.r2_uploaded', 'description' => 'Backup', 'created_at' => now()]);
+
+        $default = $this->actingAs($admin)->get(route('auditoria.index'))->assertOk();
+        $default->assertViewHas('totalFiltered', 1)->assertViewHas('ocultarRotina', true)
+            ->assertSeeText('Login realizado')
+            ->assertDontSeeText('Verificação do sistema: tudo normal')
+            ->assertDontSeeText('Servidor consultou a lista RPZ')
+            ->assertDontSeeText('Backup enviado');
+
+        $todos = $this->get(route('auditoria.index', ['ocultar_rotina' => '0']))->assertOk();
+        $todos->assertViewHas('totalFiltered', 4)->assertViewHas('ocultarRotina', false)
+            ->assertSeeText('Login realizado')
+            ->assertSeeText('Verificação do sistema: tudo normal')
+            ->assertSeeText('Servidor consultou a lista RPZ')
+            ->assertSeeText('Backup enviado');
     }
 
 }

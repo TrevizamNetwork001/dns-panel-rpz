@@ -42,6 +42,10 @@ class AdminEndpointStreamTest extends TestCase
         $server = Servidor::factory()->create(['created_at' => now()->subDays(5)]);
         $server->listas()->attach(Lista::factory()->create());
         $this->actingAs($admin);
+        // Aquece o cache do indicador de saude (rodape do layout, 5 min) antes
+        // de medir -- senao a 1a chamada tem 1 query a mais so por causa do
+        // cache frio, o que nao e crescimento real ligado aos dados do teste.
+        $this->get(route('servidores.show', $server))->assertOk();
         DB::enableQueryLog();
         $this->get(route('servidores.show', $server))->assertOk();
         $baseline = count(DB::getQueryLog());
