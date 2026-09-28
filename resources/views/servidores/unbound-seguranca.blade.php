@@ -3,7 +3,11 @@
 @section('title', 'Segurança do Unbound')
 
 @section('content')
-    <nav class="endpoint-breadcrumb" aria-label="Navegação"><a href="{{ route('servidores.index') }}">{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</a><x-ui-icon name="chevron" size="14" /><span>Segurança do Unbound</span></nav>
+    <style>
+        .unbound-seguranca-breadcrumb { display: flex; align-items: center; gap: 12px; color: var(--text-soft); font-size: 12px; margin-bottom: 28px; }
+        .unbound-seguranca-breadcrumb a { color: var(--cyan); }
+    </style>
+    <nav class="unbound-seguranca-breadcrumb" aria-label="Navegação"><a href="{{ route('servidores.index') }}">{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</a><x-ui-icon name="chevron" size="14" /><span>Segurança do Unbound</span></nav>
 
     <div class="page-heading page-heading-compact">
         <div>
