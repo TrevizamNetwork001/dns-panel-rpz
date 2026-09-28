@@ -83,6 +83,10 @@ class AuditLog extends Model
             return 'warning';
         }
 
+        if ($action === 'unbound.release.security') {
+            return 'warning';
+        }
+
         return 'muted';
     }
 
@@ -141,6 +145,7 @@ class AuditLog extends Model
         return match ($prefix) {
             'security' => 'auth',
             'mikrotik', 'rpz' => 'endpoint',
+            'unbound' => 'health',
             default => array_key_exists($prefix, self::categories()) ? $prefix : 'outros',
         };
     }
@@ -157,7 +162,7 @@ class AuditLog extends Model
      */
     public static function prefixesForCategory(string $categoryKey): array
     {
-        $prefixes = ['anatel', 'auth', 'security', 'backup', 'configuracoes', 'empresa', 'licenca', 'lista', 'dominio', 'mikrotik', 'rpz', 'rbl', 'servidor', 'sugestao', 'health', 'user'];
+        $prefixes = ['anatel', 'auth', 'security', 'backup', 'configuracoes', 'empresa', 'licenca', 'lista', 'dominio', 'mikrotik', 'rpz', 'rbl', 'servidor', 'sugestao', 'health', 'unbound', 'user'];
 
         return array_values(array_filter($prefixes, fn ($prefix) => self::category($prefix) === $categoryKey));
     }
@@ -316,6 +321,7 @@ class AuditLog extends Model
             'health.cert_unreadable' => 'Alerta: certificado TLS ilegível',
             'health.cert_expiring' => 'Alerta: certificado TLS perto de expirar',
             'health.site_down' => 'Alerta: site fora do ar',
+            'unbound.release.security' => 'Novo release do Unbound com possível CVE no changelog',
 
             // Usuários
             'user.created' => 'Usuário criado',

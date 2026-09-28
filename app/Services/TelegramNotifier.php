@@ -93,6 +93,14 @@ class TelegramNotifier
             .'Libere em <b>Restrição de IP</b> do servidor: '.e($url));
     }
 
+    public function notifyUnboundReleaseComCve(string $versao, string $url, int $qtdCves): bool
+    {
+        return $this->send("🛡️ <b>Novo release do Unbound com possível CVE</b>\n\n"
+            .'<b>Versão:</b> '.e($versao)."\n"
+            .'<b>Identificadores CVE no changelog:</b> ~'.$qtdCves."\n\n"
+            .'Revise e, se aplicável, atualize a página /unbound-seguranca do painel: '.e($url));
+    }
+
     private function send(string $texto): bool
     {
         $config = $this->config();

@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 Schedule::command('servidores:limpar-inativos')
     ->dailyAt('03:30')->withoutOverlapping(60);
+
+Schedule::command('unbound:check-release')
+    ->weeklyOn(1, '08:00')->withoutOverlapping(60);
