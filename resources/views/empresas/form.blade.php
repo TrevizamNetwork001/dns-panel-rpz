@@ -3,11 +3,16 @@
 @section('title', $empresa->exists ? 'Editar empresa' : 'Nova empresa')
 
 @section('content')
-    <div class="page-heading">
+    @include('empresas.partials.admin-form-styles')
+    <div class="admin-empresa-form">
+    <nav class="empresa-form-breadcrumb" aria-label="Navegação"><a href="{{ route('empresas.index') }}">Empresas</a><x-ui-icon name="chevron" size="14" /><span>{{ $empresa->exists ? $empresa->nome : 'Nova empresa' }}</span></nav>
+    <div class="page-heading page-heading-compact">
         <div>
-            <div class="page-eyebrow">Gestão</div>
+            <div class="page-eyebrow">Gestão de empresas</div>
             <h1>{{ $empresa->exists ? 'Editar empresa' : 'Nova empresa' }}</h1>
+            @if ($empresa->exists)<p>{{ $empresa->nome }}</p>@endif
         </div>
+        @if ($empresa->exists)<a href="{{ route('empresas.show', $empresa) }}" class="button button-secondary"><x-ui-icon name="building" size="17" />Ver empresa</a>@endif
     </div>
 
     <div class="panel form-panel">
@@ -63,5 +68,6 @@
                 <button type="submit" class="button button-primary">Salvar</button>
             </div>
         </form>
+    </div>
     </div>
 @endsection
