@@ -15,13 +15,14 @@
         @if ($empresa->exists)<a href="{{ route('empresas.show', $empresa) }}" class="button button-secondary"><x-ui-icon name="building" size="17" />Ver empresa</a>@endif
     </div>
 
-    <div class="panel form-panel">
-        <form action="{{ $empresa->exists ? route('empresas.update', $empresa) : route('empresas.store') }}" method="POST">
-            @csrf
-            @if ($empresa->exists)
-                @method('PUT')
-            @endif
+    <form action="{{ $empresa->exists ? route('empresas.update', $empresa) : route('empresas.store') }}" method="POST">
+        @csrf
+        @if ($empresa->exists)
+            @method('PUT')
+        @endif
 
+        <div class="panel form-panel" style="margin-bottom:14px">
+            <div class="panel-header"><h2><x-ui-icon name="building" size="23" />Identificação</h2></div>
             <div class="form-grid">
                 <div class="field-group">
                     <label for="nome">Nome</label>
@@ -34,19 +35,13 @@
                 </div>
 
                 <div class="field-group">
-                    <label for="telefone">Telefone</label>
-                    <input class="form-control" type="tel" id="telefone" name="telefone" value="{{ old('telefone', $empresa->telefone) }}" maxlength="32" autocomplete="tel" placeholder="(11) 99999-9999">
-                </div>
-
-                <div class="field-group">
-                    <label for="rpz_slug">Slug RPZ</label>
-                    <input class="form-control" type="text" id="rpz_slug" name="rpz_slug" value="{{ old('rpz_slug', $empresa->rpz_slug) }}" pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?" maxlength="80" placeholder="gerado automaticamente">
-                    <small>Identificador estável da URL; não muda com o nome da empresa.</small>
-                </div>
-
-                <div class="field-group">
                     <label for="documento">Documento (CNPJ)</label>
                     <input class="form-control" type="text" id="documento" name="documento" value="{{ old('documento', $empresa->documento) }}">
+                </div>
+
+                <div class="field-group">
+                    <label for="telefone">Telefone</label>
+                    <input class="form-control" type="tel" id="telefone" name="telefone" value="{{ old('telefone', $empresa->telefone) }}" maxlength="32" autocomplete="tel" placeholder="(11) 99999-9999">
                 </div>
 
                 <div class="field-group">
@@ -62,12 +57,23 @@
                     </select>
                 </div>
             </div>
+        </div>
 
-            <div class="form-actions">
-                <a href="{{ route('empresas.index') }}" class="button button-secondary">Cancelar</a>
-                <button type="submit" class="button button-primary">Salvar</button>
+        <div class="panel form-panel" style="margin-bottom:14px">
+            <div class="panel-header"><h2><x-ui-icon name="settings" size="23" />Configuração RPZ</h2></div>
+            <div class="form-grid">
+                <div class="field-group">
+                    <label for="rpz_slug">Slug RPZ</label>
+                    <input class="form-control" type="text" id="rpz_slug" name="rpz_slug" value="{{ old('rpz_slug', $empresa->rpz_slug) }}" pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?" maxlength="80" placeholder="gerado automaticamente">
+                    <small>Identificador estável da URL; não muda com o nome da empresa.</small>
+                </div>
             </div>
-        </form>
-    </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ route('empresas.index') }}" class="button button-secondary">Cancelar</a>
+            <button type="submit" class="button button-primary">Salvar</button>
+        </div>
+    </form>
     </div>
 @endsection
