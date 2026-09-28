@@ -179,7 +179,7 @@ class ServidorController extends Controller
 
         $servidor->listas()->syncWithoutDetaching([$lista->id]);
 
-        return back()->with('status', "Lista \"{$lista->nome}\" adicionada ao servidor.");
+        return redirect(route('servidores.show', $servidor).'#endpoint-lists')->with('status', "Lista \"{$lista->nome}\" adicionada ao servidor.");
     }
 
     public function detachLista(Servidor $servidor, Lista $lista): RedirectResponse
@@ -188,7 +188,7 @@ class ServidorController extends Controller
 
         $servidor->listas()->detach($lista->id);
 
-        return back()->with('status', "Lista \"{$lista->nome}\" removida do servidor.");
+        return redirect(route('servidores.show', $servidor).'#endpoint-lists')->with('status', "Lista \"{$lista->nome}\" removida do servidor.");
     }
 
     public function unboundSeguranca(): View
@@ -208,7 +208,7 @@ class ServidorController extends Controller
             $servidor->id
         );
 
-        return back()->with('status', $servidor->ip_restriction_enabled
+        return redirect(route('servidores.show', $servidor).'#endpoint-ips')->with('status', $servidor->ip_restriction_enabled
             ? 'Restrição de IP ativada.'
             : 'Restrição de IP desativada — qualquer IP com o token válido pode sincronizar.');
     }
@@ -222,7 +222,7 @@ class ServidorController extends Controller
         $value = trim($data['ip_cidr']);
 
         if (! Servidor::validIpOrCidr($value)) {
-            return back()->withErrors(['ip_cidr' => 'IP ou CIDR inválido.']);
+            return redirect(route('servidores.show', $servidor).'#endpoint-ips')->withErrors(['ip_cidr' => 'IP ou CIDR inválido.']);
         }
 
         $ip = $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
@@ -233,7 +233,7 @@ class ServidorController extends Controller
         AuditLog::record('servidor.ips.added', "IP {$value} adicionado ao servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
         AuditLog::record('rpz.endpoint.acl_updated', 'ACL do endpoint RPZ atualizada', $servidor->empresa_id, 'servidor', $servidor->id);
 
-        return back()->with('status', 'IP adicionado à lista de permitidos.');
+        return redirect(route('servidores.show', $servidor).'#endpoint-ips')->with('status', 'IP adicionado à lista de permitidos.');
     }
 
     /**
@@ -270,7 +270,7 @@ class ServidorController extends Controller
             AuditLog::record('servidor.ips.approved', "IP {$ip->ip_cidr} liberado para o servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
         }
 
-        return back()->with('status', "IP {$ip->ip_cidr} liberado. O Unbound do cliente passa a receber a zona na próxima tentativa.");
+        return redirect(route('servidores.show', $servidor).'#endpoint-ips')->with('status', "IP {$ip->ip_cidr} liberado. O Unbound do cliente passa a receber a zona na próxima tentativa.");
     }
 
     /**
@@ -322,7 +322,7 @@ class ServidorController extends Controller
         AuditLog::record('servidor.ips.removed', "IP {$cidr} removido do servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
         AuditLog::record('rpz.endpoint.acl_updated', 'ACL do endpoint RPZ atualizada', $servidor->empresa_id, 'servidor', $servidor->id);
 
-        return back()->with('status', 'IP removido da lista de permitidos.');
+        return redirect(route('servidores.show', $servidor).'#endpoint-ips')->with('status', 'IP removido da lista de permitidos.');
     }
 
     /**

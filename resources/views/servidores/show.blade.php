@@ -102,6 +102,7 @@
         </div>
         <dialog id="endpoint-lists" class="endpoint-drawer" aria-labelledby="endpoint-lists-title">
             <div class="panel-header endpoint-drawer-heading"><div class="endpoint-card-title"><x-ui-icon name="link" size="27" /><div><h2 id="endpoint-lists-title">Listas vinculadas</h2><p class="endpoint-detail-note">{{ $servidor->listas->count() }} listas vinculadas a este servidor</p></div></div><button type="button" class="endpoint-dismiss" data-close-dialog aria-label="Fechar listas"><x-ui-icon name="x" size="20" /></button></div>
+            @if (session('status'))<div class="alert-success" style="margin:0 0 14px">{{ session('status') }}</div>@endif
             @if ($listasDisponiveis->isNotEmpty())
                 <form action="{{ route('servidores.listas.attach', [$servidor, '__lista__']) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px" onsubmit="this.action = this.action.replace('__lista__', this.lista_id.value); return this.lista_id.value !== '';">
                     @csrf
@@ -165,6 +166,8 @@
                 <div class="endpoint-card-title"><x-ui-icon name="shield" size="27" /><div><h2 id="endpoint-ips-title">Restrição de IP</h2><p class="endpoint-detail-note">{{ $ipsAtivos->count() }} autorizados · {{ $ipsPendentes->count() }} aguardando liberação</p></div></div>
                 <button type="button" class="endpoint-dismiss" data-close-dialog aria-label="Fechar gerenciamento de IPs"><x-ui-icon name="x" size="20" /></button>
             </div>
+            @if (session('status'))<div class="alert-success" style="margin:0 0 14px">{{ session('status') }}</div>@endif
+            @error('ip_cidr')<div class="alert-error" role="alert" style="margin:0 0 14px">{{ $message }}</div>@enderror
 
             <section class="endpoint-ip-access" aria-label="Controle de acesso">
                 <div class="endpoint-ip-access-heading"><x-ui-icon name="lock" size="20" /><div><h3>Controle de acesso</h3><p class="endpoint-detail-note">Método: {{ $usesCompanyEndpoint ? 'ACL por IP' : 'Token legado (fallback)' }}</p></div></div>
@@ -336,20 +339,27 @@ systemctl restart unbound</pre>
 
     <script>
         (function () {
-            function openIpManagement() {
-                var dialog = document.getElementById('endpoint-ips');
-                if (window.location.hash === '#endpoint-ips' && dialog && !dialog.open) {
+            function openDialogFromHash() {
+                var id = window.location.hash.replace('#', '');
+                var dialog = id ? document.getElementById(id) : null;
+                if (dialog && dialog.tagName === 'DIALOG' && !dialog.open) {
                     dialog.showModal();
                 }
             }
-            openIpManagement();
-            window.addEventListener('hashchange', openIpManagement);
+            openDialogFromHash();
+            window.addEventListener('hashchange', openDialogFromHash);
             var endpointConfigSnippet = @json($isMikrotik ? $mikrotikConfig : $configSnippet);
             document.querySelectorAll('[data-endpoint-dialog]').forEach(function (button) {
-                button.addEventListener('click', function () { document.getElementById(button.dataset.endpointDialog).showModal(); });
+                button.addEventListener('click', function () {
+                    document.getElementById(button.dataset.endpointDialog).showModal();
+                    history.replaceState(null, '', '#' + button.dataset.endpointDialog);
+                });
             });
             document.querySelectorAll('[data-close-dialog]').forEach(function (button) {
-                button.addEventListener('click', function () { button.closest('dialog').close(); });
+                button.addEventListener('click', function () {
+                    button.closest('dialog').close();
+                    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+                });
             });
             document.querySelectorAll('[data-close-disclosure]').forEach(function (button) {
                 button.addEventListener('click', function () {
