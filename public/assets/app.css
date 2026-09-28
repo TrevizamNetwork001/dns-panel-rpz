@@ -1290,7 +1290,7 @@ html[data-theme="light"] .theme-switch-thumb {
     border: 1px solid rgba(53, 211, 154, 0.24);
     border-radius: 10px;
     background: rgba(53, 211, 154, 0.08);
-    color: #8cf0cb;
+    color: var(--green);
     font-size: 11px;
 }
 
@@ -1300,7 +1300,7 @@ html[data-theme="light"] .theme-switch-thumb {
     border: 1px solid rgba(240, 106, 122, 0.35);
     border-radius: 12px;
     background: rgba(240, 106, 122, 0.1);
-    color: #fecaca;
+    color: var(--danger);
     font-size: 14px;
 }
 
@@ -1992,8 +1992,8 @@ html[data-theme="light"] {
     --border: #cbd6e2;
     --border-soft: #dce4ec;
     --text: #172235;
-    --text-soft: #52647a;
-    --text-muted: #52647a;
+    --text-soft: #3b4a5e;
+    --text-muted: #4c5d72;
     --cyan: #0786a3;
     --cyan-soft: rgba(7, 134, 163, 0.11);
     --violet: #7256d9;
