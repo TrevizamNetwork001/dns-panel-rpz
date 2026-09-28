@@ -93,11 +93,6 @@ class TelegramNotifier
             .'Libere em <b>Restrição de IP</b> do servidor: '.e($url));
     }
 
-    public function notifyRbl(string $texto): bool
-    {
-        return $this->send($texto);
-    }
-
     private function send(string $texto): bool
     {
         $config = $this->config();

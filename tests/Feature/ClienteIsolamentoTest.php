@@ -176,7 +176,7 @@ class ClienteIsolamentoTest extends TestCase
         $somenteAdmin = [
             ['get', route('empresas.index')], ['get', route('licencas.index')], ['get', route('usuarios.index')],
             ['get', route('auditoria.index')], ['get', route('configuracoes.index')], ['get', route('seguranca.index')],
-            ['get', route('anatel.dashboard')], ['get', route('rbl.index')], ['get', route('listas.create')],
+            ['get', route('anatel.dashboard')], ['get', route('listas.create')],
             ['get', route('listas.edit', $this->catalogo)], ['get', route('listas.dominios.index', $this->listaPrivadaA)],
             ['get', route('anatel.exclusions', Lista::factory()->anatel()->create())], ['get', route('listas.rpz-preview', $this->catalogo)],
             ['post', route('listas.dominios.store', $this->listaPrivadaA)], ['post', route('servidores.ips.store', $this->srvA)],

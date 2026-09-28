@@ -37,9 +37,6 @@
                 <nav class="sidebar-nav">
                     <a href="{{ route('dominios.index') }}" class="sidebar-link @if(request()->routeIs('dominios.*') || request()->routeIs('consulta.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/></svg>Domínios</a>
                     <a href="{{ route('listas.index') }}" class="sidebar-link @if(request()->routeIs('listas.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg>{{ auth()->user()->isAdmin() ? 'Fontes' : 'Listas' }}</a>
-                    @if (auth()->user()->isAdmin())
-                    <a href="{{ route('rbl.index') }}" class="sidebar-link @if(request()->routeIs('rbl.*')) is-active @endif">RBL Checker</a>
-                    @endif
                     <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif"><x-ui-icon name="server" size="18" class="sidebar-nav-icon" />{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</a>
                 </nav>
 
