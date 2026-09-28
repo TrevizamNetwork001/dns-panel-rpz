@@ -45,6 +45,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('servidores', ServidorController::class)->parameters(['servidores' => 'servidor']);
     Route::post('/servidores/{servidor}/listas/{lista}/attach', [ServidorController::class, 'attachLista'])->name('servidores.listas.attach');
     Route::delete('/servidores/{servidor}/listas/{lista}/detach', [ServidorController::class, 'detachLista'])->name('servidores.listas.detach');
+    Route::get('/unbound-seguranca', [ServidorController::class, 'unboundSeguranca'])->name('servidores.unbound-seguranca');
 
     Route::resource('listas', ListaController::class)->only(['index']);
 

@@ -191,6 +191,11 @@ class ServidorController extends Controller
         return back()->with('status', "Lista \"{$lista->nome}\" removida do servidor.");
     }
 
+    public function unboundSeguranca(): View
+    {
+        return view('servidores.unbound-seguranca');
+    }
+
     public function toggleIpRestriction(Servidor $servidor): RedirectResponse
     {
         $servidor->update(['ip_restriction_enabled' => ! $servidor->ip_restriction_enabled]);
