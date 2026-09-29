@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\Servidor;
 use App\Services\ExternalListaSyncer;
+use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,6 +17,8 @@ use Illuminate\View\View;
 
 class ListaController extends Controller
 {
+    public function __construct(private RpzDirtyMarker $rpzDirty) {}
+
     public function index(): View
     {
         $user = Auth::user();
@@ -59,6 +62,7 @@ class ListaController extends Controller
 
         $lista = Lista::create($data);
         $lista->servidores()->sync($servidorIds);
+        $this->rpzDirty->markForList($lista->id);
 
         AuditLog::record('lista.created', "Lista \"{$lista->nome}\" criada", $lista->empresa_id, 'lista', $lista->id);
 
@@ -112,9 +116,13 @@ class ListaController extends Controller
     {
         $data = $this->validated($request);
         $servidorIds = $request->input('servidor_ids', []);
+        $servidorIdsAntes = $lista->servidores()->pluck('servidores.id')->all();
 
         $lista->update($data);
         $lista->servidores()->sync($servidorIds);
+        // Marca tanto os servidores que perderam quanto os que ganharam o
+        // vinculo -- sync() so deixa visivel o conjunto NOVO depois.
+        $this->rpzDirty->markForServers(array_unique(array_merge($servidorIdsAntes, $servidorIds)));
 
         AuditLog::record('lista.updated', "Lista \"{$lista->nome}\" atualizada", $lista->empresa_id, 'lista', $lista->id);
 
@@ -134,6 +142,7 @@ class ListaController extends Controller
 
         AuditLog::record('lista.destroyed', "Lista \"{$lista->nome}\" removida", $lista->empresa_id, 'lista', $lista->id);
 
+        $this->rpzDirty->markForList($lista->id);
         $lista->delete();
 
         return redirect()->route('listas.index')->with('status', 'Lista removida.');

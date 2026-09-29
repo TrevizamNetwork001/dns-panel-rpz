@@ -99,7 +99,10 @@ class AuditLog extends Model
      */
     public static function isRotina(string $action): bool
     {
-        return in_array($action, ['health.ok', 'rpz.endpoint.downloaded', 'backup.r2_uploaded'], true);
+        return in_array($action, [
+            'health.ok', 'rpz.endpoint.downloaded', 'backup.r2_uploaded',
+            'rpz.build_started', 'rpz.build_unchanged', 'rpz.build_validated', 'rpz.build_failed', 'rpz.version_published',
+        ], true);
     }
 
     public static function bucketLabel(string $bucket): string

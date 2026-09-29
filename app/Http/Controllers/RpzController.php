@@ -4,12 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use App\Models\Empresa;
+use App\Models\RpzZone;
+use App\Models\RpzZoneVersion;
 use App\Models\ServerSyncLog;
 use App\Models\Servidor;
 use App\Services\RpzZoneBuilder;
 use App\Services\RpzZoneVersioner;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -46,6 +49,27 @@ class RpzController extends Controller
         $requestId = (string) Str::uuid();
         $userAgent = substr((string) $request->userAgent(), 0, 190) ?: null;
         $servidor->forceFill(['last_synced_at' => now(), 'last_user_agent' => $userAgent])->saveQuietly();
+
+        $zoneKeyEstatico = 'server:'.$servidor->id;
+        $estatico = $this->serveStaticArtifact($zoneKeyEstatico, $requestId);
+        if ($estatico !== null) {
+            ServerSyncLog::create([
+                'servidor_id' => $servidor->id,
+                'ip_address' => $request->ip(),
+                'user_agent' => $userAgent,
+                'dominios_count' => $estatico['version']->domain_count,
+                'request_id' => $requestId,
+                'zone_key' => $zoneKeyEstatico,
+                'revision' => $estatico['version']->revision,
+                'content_hash' => $estatico['version']->content_hash,
+                'rule_count' => $estatico['version']->rule_count,
+                'excluded_count' => $estatico['version']->excluded_count,
+                'duration_ms' => (int) round((microtime(true) - $inicio) * 1000),
+                'created_at' => now(),
+            ]);
+
+            return $estatico['response'];
+        }
 
         $host = $builder->panelHost();
         $target = $builder->target($servidor->bloqueio_modo);
@@ -135,6 +159,33 @@ class RpzController extends Controller
 
         $inicio = microtime(true);
         $requestId = (string) Str::uuid();
+        $userAgent = substr((string) $request->userAgent(), 0, 190) ?: null;
+
+        $zoneKeyEstatico = 'company:'.$empresa->id;
+        $estatico = $this->serveStaticArtifact($zoneKeyEstatico, $requestId);
+        if ($estatico !== null) {
+            foreach ($matchingServers as $servidor) {
+                $servidor->forceFill(['last_synced_at' => now(), 'last_user_agent' => $userAgent])->saveQuietly();
+                ServerSyncLog::create([
+                    'servidor_id' => $servidor->id,
+                    'ip_address' => $ip,
+                    'user_agent' => $userAgent,
+                    'dominios_count' => $estatico['version']->domain_count,
+                    'request_id' => $requestId,
+                    'zone_key' => $zoneKeyEstatico,
+                    'revision' => $estatico['version']->revision,
+                    'content_hash' => $estatico['version']->content_hash,
+                    'rule_count' => $estatico['version']->rule_count,
+                    'excluded_count' => $estatico['version']->excluded_count,
+                    'duration_ms' => (int) round((microtime(true) - $inicio) * 1000),
+                    'created_at' => now(),
+                ]);
+            }
+            AuditLog::record('rpz.endpoint.downloaded', "Endpoint RPZ empresarial solicitado ({$estatico['version']->domain_count} domínios, revision {$estatico['version']->revision}, artefato estático)", $empresa->id, 'empresa', $empresa->id);
+
+            return $estatico['response'];
+        }
+
         $host = $builder->panelHost();
         $target = '.';
         $domains = $builder->companyQuery($empresa->id);
@@ -154,8 +205,6 @@ class RpzController extends Controller
             $canonical['excluded_count'],
             fn () => (int) $builder->computeSerial($domains) % (RpzZoneVersioner::SERIAL_MAX + 1),
         );
-
-        $userAgent = substr((string) $request->userAgent(), 0, 190) ?: null;
 
         foreach ($matchingServers as $servidor) {
             $servidor->forceFill(['last_synced_at' => now(), 'last_user_agent' => $userAgent])->saveQuietly();
@@ -205,5 +254,53 @@ class RpzController extends Controller
             'X-Rpz-Rule-Count' => (string) $canonical['rule_count'],
             'X-Rpz-Content-Hash' => $contentHash,
         ]);
+    }
+
+    /**
+     * Caminho estático (RPZ-BUILD-1): quando habilitado E existe versão
+     * publicada válida pra essa zona, serve o arquivo pronto sem tocar a
+     * tabela dominios. Retorna null em qualquer situação que deva cair no
+     * caminho dinâmico de sempre (flag desligada, zona nunca construída,
+     * arquivo ausente do disco) -- fallback seguro, nunca serve arquivo
+     * parcial nem inventa conteúdo vazio.
+     *
+     * @return array{response: Response, version: RpzZoneVersion}|null
+     */
+    private function serveStaticArtifact(string $zoneKey, string $requestId): ?array
+    {
+        if (! config('rpz.static_artifacts_enabled')) {
+            return null;
+        }
+
+        $zone = RpzZone::where('zone_key', $zoneKey)->with('currentVersion')->first();
+        $version = $zone?->currentVersion;
+        if ($version === null || $version->file_path === null) {
+            return null;
+        }
+
+        $absPath = Storage::disk('local')->path($version->file_path);
+        if (! is_file($absPath)) {
+            return null;
+        }
+
+        $body = file_get_contents($absPath);
+        if ($body === false) {
+            return null;
+        }
+
+        $response = response($body, 200, [
+            'Content-Type' => 'text/dns; charset=utf-8',
+            'X-Rpz-Request-Id' => $requestId,
+            'X-Rpz-Zone-Key' => $zoneKey,
+            'X-Rpz-Serial' => (string) $version->serial,
+            'X-Rpz-Revision' => (string) $version->revision,
+            'X-Rpz-Domain-Count' => (string) $version->domain_count,
+            'X-Rpz-Rule-Count' => (string) $version->rule_count,
+            'X-Rpz-Content-Hash' => $version->content_hash,
+            'X-Rpz-File-Hash' => (string) $version->file_hash,
+            'Content-Length' => (string) strlen($body),
+        ]);
+
+        return ['response' => $response, 'version' => $version];
     }
 }

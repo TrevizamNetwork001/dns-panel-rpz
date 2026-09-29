@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Dominio;
 use App\Models\Lista;
 use App\Services\DomainNormalizer;
+use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DominioController extends Controller
 {
-    public function __construct(private DomainNormalizer $normalizer) {}
+    public function __construct(private DomainNormalizer $normalizer, private RpzDirtyMarker $rpzDirty) {}
 
     public function index(Lista $lista): View
     {
@@ -40,12 +41,14 @@ class DominioController extends Controller
 
         if ($dominio === null) {
             $lista->dominios()->create(['dominio' => $normalized, 'ativo' => true]);
+            $this->rpzDirty->markForList($lista->id);
 
             return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio adicionado.');
         }
 
         if (! $dominio->ativo) {
             $dominio->update(['ativo' => true]);
+            $this->rpzDirty->markForList($lista->id);
 
             return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio já existia nesta fonte e estava inativo — foi reativado.');
         }
@@ -91,6 +94,11 @@ class DominioController extends Controller
             $added++;
         }
 
+        if ($added > 0) {
+            // Uma marcacao so pro lote inteiro, nao uma por dominio.
+            $this->rpzDirty->markForList($lista->id);
+        }
+
         return redirect()->route('listas.dominios.index', $lista)
             ->with('status', "{$added} domínio(s) adicionado(s), {$duplicated} já existia(m), {$invalid} inválido(s).");
     }
@@ -102,6 +110,7 @@ class DominioController extends Controller
         }
 
         $dominio->update(['ativo' => ! $dominio->ativo]);
+        $this->rpzDirty->markForList($dominio->lista_id);
 
         return redirect()->route('listas.dominios.index', $dominio->lista_id)->with('status', 'Status do domínio atualizado.');
     }
@@ -114,6 +123,7 @@ class DominioController extends Controller
 
         $listaId = $dominio->lista_id;
         $dominio->delete();
+        $this->rpzDirty->markForList($listaId);
 
         return redirect()->route('listas.dominios.index', $listaId)->with('status', 'Domínio removido.');
     }

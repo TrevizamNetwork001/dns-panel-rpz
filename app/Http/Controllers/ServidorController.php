@@ -7,6 +7,7 @@ use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\ServerAllowedIp;
 use App\Models\Servidor;
+use App\Services\RpzDirtyMarker;
 use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -65,7 +66,7 @@ class ServidorController extends Controller
         return view('servidores.form', compact('servidor', 'empresas', 'licencaBlocker', 'listasDisponiveis'));
     }
 
-    public function store(Request $request, TelegramNotifier $telegram): RedirectResponse
+    public function store(Request $request, TelegramNotifier $telegram, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $user = Auth::user();
         $data = $this->validated($request, $user, exigirIp: $user->isCliente());
@@ -85,6 +86,7 @@ class ServidorController extends Controller
 
         $servidor = Servidor::create($data);
         $servidor->listas()->sync($listaIds);
+        $rpzDirty->markForServer($servidor->id);
 
         AuditLog::record('servidor.created', "Servidor \"{$servidor->nome}\" criado", $servidor->empresa_id, 'servidor', $servidor->id);
 
@@ -130,7 +132,7 @@ class ServidorController extends Controller
         return view('servidores.form', compact('servidor', 'empresas', 'listasDisponiveis'));
     }
 
-    public function update(Request $request, Servidor $servidor, TelegramNotifier $telegram): RedirectResponse
+    public function update(Request $request, Servidor $servidor, TelegramNotifier $telegram, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
@@ -148,6 +150,9 @@ class ServidorController extends Controller
 
         $servidor->update($data);
         $servidor->listas()->sync($listaIds);
+        // bloqueio_modo/status/vinculos de lista mudaram -- so afeta a zona
+        // deste servidor (server:<id>), a empresa nao muda o conjunto agregado.
+        $rpzDirty->markForServer($servidor->id);
 
         AuditLog::record('servidor.updated', "Servidor \"{$servidor->nome}\" atualizado", $servidor->empresa_id, 'servidor', $servidor->id);
 
@@ -158,18 +163,19 @@ class ServidorController extends Controller
         return redirect()->route('servidores.show', $servidor)->with('status', 'Servidor atualizado com sucesso.');
     }
 
-    public function destroy(Servidor $servidor): RedirectResponse
+    public function destroy(Servidor $servidor, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
         AuditLog::record('servidor.destroyed', "Servidor \"{$servidor->nome}\" removido", $servidor->empresa_id, 'servidor', $servidor->id);
 
+        $rpzDirty->markForServer($servidor->id);
         $servidor->delete();
 
         return redirect()->route('servidores.index')->with('status', 'Servidor removido.');
     }
 
-    public function attachLista(Servidor $servidor, Lista $lista): RedirectResponse
+    public function attachLista(Servidor $servidor, Lista $lista, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
@@ -178,15 +184,17 @@ class ServidorController extends Controller
         }
 
         $servidor->listas()->syncWithoutDetaching([$lista->id]);
+        $rpzDirty->markForServer($servidor->id);
 
         return redirect(route('servidores.show', $servidor).'#endpoint-lists')->with('status', "Lista \"{$lista->nome}\" adicionada ao servidor.");
     }
 
-    public function detachLista(Servidor $servidor, Lista $lista): RedirectResponse
+    public function detachLista(Servidor $servidor, Lista $lista, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
         $servidor->listas()->detach($lista->id);
+        $rpzDirty->markForServer($servidor->id);
 
         return redirect(route('servidores.show', $servidor).'#endpoint-lists')->with('status', "Lista \"{$lista->nome}\" removida do servidor.");
     }

@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Lista;
 use App\Services\AnatelExclusionMatcher;
 use App\Services\DomainNormalizer;
+use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +16,8 @@ use Illuminate\View\View;
 
 class AnatelController extends Controller
 {
+    public function __construct(private RpzDirtyMarker $rpzDirty) {}
+
     public function history(Lista $lista): View
     {
         $this->ensure($lista);
@@ -166,6 +169,10 @@ class AnatelController extends Controller
             }
         });
 
+        if ($count > 0) {
+            $this->rpzDirty->markForList($lista->id);
+        }
+
         return $count;
     }
 
@@ -185,17 +192,21 @@ class AnatelController extends Controller
             }
         });
 
+        if ($count > 0) {
+            $this->rpzDirty->markForList($lista->id);
+        }
+
         return $count;
     }
 
     private function ensure(Lista $lista): void
     {
-        abort_unless($lista->isAnatel(),404);
+        abort_unless($lista->isAnatel(), 404);
     }
 
-    private function ensureOwned(Lista $lista,AnatelExclusion $exclusion): void
+    private function ensureOwned(Lista $lista, AnatelExclusion $exclusion): void
     {
         $this->ensure($lista);
-        abort_unless($exclusion->lista_id === $lista->id,404);
+        abort_unless($exclusion->lista_id === $lista->id, 404);
     }
 }

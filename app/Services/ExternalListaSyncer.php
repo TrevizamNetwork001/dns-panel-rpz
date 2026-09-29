@@ -14,7 +14,7 @@ class ExternalListaSyncer
 
     private const CHUNK_SIZE = 400;
 
-    public function __construct(private DomainNormalizer $normalizer) {}
+    public function __construct(private DomainNormalizer $normalizer, private RpzDirtyMarker $rpzDirty) {}
 
     /**
      * @return array{status: string, total?: int, adicionados?: int, removidos?: int, motivo?: string}
@@ -86,6 +86,10 @@ class ExternalListaSyncer
 
             $lista->forceFill(['last_sync_at' => $agora])->save();
         });
+
+        if ($adicionados > 0 || $paraDesativar !== []) {
+            $this->rpzDirty->markForList($lista->id);
+        }
 
         return [
             'status' => 'ok',
