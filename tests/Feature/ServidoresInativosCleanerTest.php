@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\BuildRpzZone;
 use App\Models\AuditLog;
 use App\Models\Servidor;
 use App\Models\Setting;
@@ -9,6 +10,7 @@ use App\Models\User;
 use App\Services\ServidoresInativosCleaner;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class ServidoresInativosCleanerTest extends TestCase
@@ -79,6 +81,26 @@ class ServidoresInativosCleanerTest extends TestCase
         $this->assertCount(1, $resultado['removidos']);
         $this->assertNull(Servidor::find($servidor->id));
         $this->assertDatabaseHas('audit_logs', ['action' => 'servidor.removido_inatividade', 'target_id' => $servidor->id]);
+    }
+
+    public function test_removing_server_marks_its_rpz_zone_dirty(): void
+    {
+        // Gap encontrado na auditoria pre-cutover (29/09/2026): a limpeza
+        // automatica noturna deletava o servidor sem avisar o versionamento
+        // RPZ -- um artefato estatico publicado ficaria preso apontando pra
+        // um servidor que nao existe mais.
+        Queue::fake();
+        Http::fake();
+        $this->ativar(60, 7);
+        $servidor = $this->servidorParado(120);
+        $servidor->forceFill(['inatividade_avisada_em' => now()->subDays(8)])->saveQuietly();
+
+        app(ServidoresInativosCleaner::class)->run();
+
+        Queue::assertPushed(
+            BuildRpzZone::class,
+            fn ($job) => $job->zoneKey === 'server:'.$servidor->id
+        );
     }
 
     public function test_keeps_server_while_warning_period_is_still_running(): void

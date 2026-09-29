@@ -14,6 +14,7 @@ class AnatelLegacyFeedSyncer
     public function __construct(
         private ExternalListaSyncer $externalSyncer,
         private AnatelExclusionMatcher $exclusionMatcher,
+        private RpzDirtyMarker $rpzDirty,
     ) {}
 
     /**
@@ -99,6 +100,13 @@ class AnatelLegacyFeedSyncer
 
             $lista->forceFill(['last_sync_at' => $agora])->save();
         });
+
+        // $excluidos so conta quantos batem numa regra de exclusao (nao é
+        // necessariamente uma escrita nova); so adicionados/reativados
+        // alteram de fato a tabela dominios.
+        if ($adicionados > 0 || $reativados > 0) {
+            $this->rpzDirty->markForList($lista->id);
+        }
 
         return [
             'status' => 'ok',

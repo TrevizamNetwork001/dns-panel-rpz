@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Lista;
 use App\Models\SugestaoDominio;
+use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,8 @@ use Illuminate\View\View;
 class SugestaoDominioController extends Controller
 {
     private const DOMAIN_REGEX = '/^(?!-)[a-z0-9-]{1,63}(?<!-)(\\.[a-z0-9-]{1,63})*\\.[a-z]{2,63}$/i';
+
+    public function __construct(private RpzDirtyMarker $rpzDirty) {}
 
     public function index(Request $request): View
     {
@@ -99,8 +102,10 @@ class SugestaoDominioController extends Controller
 
         if ($dominio === null) {
             $lista->dominios()->create(['dominio' => $sugestao->dominio, 'ativo' => true]);
+            $this->rpzDirty->markForList($lista->id);
         } elseif (! $dominio->ativo) {
             $dominio->update(['ativo' => true]);
+            $this->rpzDirty->markForList($lista->id);
         }
 
         $sugestao->update([

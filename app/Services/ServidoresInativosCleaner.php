@@ -13,7 +13,7 @@ class ServidoresInativosCleaner
 
     public const AVISO_DIAS_PADRAO = 7;
 
-    public function __construct(private TelegramNotifier $telegram) {}
+    public function __construct(private TelegramNotifier $telegram, private RpzDirtyMarker $rpzDirty) {}
 
     /**
      * @return array{ativo: bool, dias: int, aviso_dias: int}
@@ -91,6 +91,7 @@ class ServidoresInativosCleaner
                 $resultado['removidos'][] = $item;
                 if (! $dryRun) {
                     $this->audit('servidor.removido_inatividade', $servidor, "Servidor \"{$servidor->nome}\" removido: {$item['dias']} dia(s) sem consultar a zona");
+                    $this->rpzDirty->markForServer($servidor->id);
                     $servidor->delete();
                 }
             }

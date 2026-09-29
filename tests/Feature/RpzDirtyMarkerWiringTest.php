@@ -7,7 +7,9 @@ use App\Models\Dominio;
 use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\Servidor;
+use App\Models\SugestaoDominio;
 use App\Models\User;
+use App\Services\AnatelLegacyFeedSyncer;
 use App\Services\ExternalListaSyncer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -135,6 +137,51 @@ class RpzDirtyMarkerWiringTest extends TestCase
         ])->assertRedirect();
 
         Queue::assertPushed(BuildRpzZone::class, fn (BuildRpzZone $job) => $job->zoneKey === 'company:'.$empresa->id);
+        Queue::assertPushed(BuildRpzZone::class, fn (BuildRpzZone $job) => $job->zoneKey === 'server:'.$servidor->id);
+    }
+
+    public function test_aprovar_sugestao_marks_the_target_list_servers(): void
+    {
+        // Gap encontrado na auditoria pre-cutover (29/09/2026): aprovar uma
+        // sugestao de dominio inseria em `dominios` sem passar por nenhum
+        // dirty marker.
+        $servidor = Servidor::factory()->create();
+        $lista = Lista::factory()->create(['empresa_id' => $servidor->empresa_id]);
+        $servidor->listas()->attach($lista);
+        $sugestao = SugestaoDominio::create([
+            'empresa_id' => $servidor->empresa_id,
+            'dominio' => 'sugerido.example',
+            'status' => 'pending',
+            'created_by' => $this->admin()->id,
+            'ip_address' => '203.0.113.9',
+        ]);
+
+        Queue::fake();
+        $this->actingAs($this->admin())->post(route('sugestoes.aprovar', $sugestao), [
+            'lista_id' => $lista->id,
+        ])->assertRedirect();
+
+        Queue::assertPushed(BuildRpzZone::class, fn (BuildRpzZone $job) => $job->zoneKey === 'server:'.$servidor->id);
+    }
+
+    public function test_anatel_legacy_feed_sync_marks_dirty_when_it_writes_domains(): void
+    {
+        // Gap encontrado na auditoria pre-cutover (29/09/2026): esse syncer
+        // roda sozinho a cada 6h via automation-loop e escrevia direto em
+        // `dominios` via DB::table(), sem nenhum dirty marker.
+        Http::fake([
+            '*' => Http::response(
+                implode("\n", array_map(fn ($i) => 'local-zone: "legacy-dominio'.$i.'.example" redirect', range(1, 150))),
+                200,
+            ),
+        ]);
+        $servidor = Servidor::factory()->create();
+        $lista = Lista::factory()->anatel()->create(['empresa_id' => $servidor->empresa_id]);
+        $servidor->listas()->attach($lista);
+
+        Queue::fake();
+        app(AnatelLegacyFeedSyncer::class)->sync($lista);
+
         Queue::assertPushed(BuildRpzZone::class, fn (BuildRpzZone $job) => $job->zoneKey === 'server:'.$servidor->id);
     }
 

@@ -61,4 +61,18 @@ class BuildRpzZonesCommandTest extends TestCase
     {
         $this->artisan('rpz:build')->assertExitCode(1);
     }
+
+    public function test_company_without_active_license_is_skipped_not_a_failure(): void
+    {
+        // Achado no ensaio pre-cutover (29/09/2026): rpz:build --all saia com
+        // exit code 1 so porque uma empresa ativa mas sem licenca valida
+        // (mesmo gate do endpoint dinamico) retornava skipped_inactive -- isso
+        // nao e falha de build, e comportamento esperado.
+        $empresa = Empresa::factory()->create();
+        $empresa->licencas()->delete(); // sem nenhuma licenca ativa
+
+        $this->artisan('rpz:build --all')->assertExitCode(0);
+
+        $this->assertNull(RpzZone::where('zone_key', 'company:'.$empresa->id)->first()?->current_version_id);
+    }
 }

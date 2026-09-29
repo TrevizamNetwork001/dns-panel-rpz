@@ -29,6 +29,42 @@ class RpzStaticEndpointTest extends TestCase
         $this->assertFalse(config('rpz.static_artifacts_enabled'));
     }
 
+    public function test_flag_toggle_false_true_false_reverts_immediately_without_touching_artifacts(): void
+    {
+        // Rollback de software (Fase 12 do cutover): desligar a flag precisa
+        // voltar ao caminho dinamico na hora, sem apagar historico/artefato.
+        $servidor = Servidor::factory()->openAccess()->create();
+        $lista = Lista::factory()->create(['empresa_id' => $servidor->empresa_id]);
+        $servidor->listas()->attach($lista);
+        Dominio::factory()->for($lista)->create(['dominio' => 'toggle.example']);
+
+        // false: dinamico.
+        $r1 = $this->get(route('rpz.show', $servidor->token));
+        $r1->assertOk();
+        $this->assertNull($r1->headers->get('X-Rpz-File-Hash'));
+
+        config(['rpz.static_artifacts_enabled' => true]);
+        app(RpzZoneBuildService::class)->build('server:'.$servidor->id);
+
+        // true: estatico.
+        $r2 = $this->get(route('rpz.show', $servidor->token));
+        $r2->assertOk();
+        $this->assertNotNull($r2->headers->get('X-Rpz-File-Hash'));
+        $zonaAntesDoRollback = RpzZone::where('zone_key', 'server:'.$servidor->id)->first();
+        $this->assertNotNull($zonaAntesDoRollback->current_version_id);
+
+        config(['rpz.static_artifacts_enabled' => false]);
+
+        // false de novo: volta pro dinamico na hora, artefato/historico intactos.
+        $r3 = $this->get(route('rpz.show', $servidor->token));
+        $r3->assertOk();
+        $this->assertNull($r3->headers->get('X-Rpz-File-Hash'));
+        $this->assertStringContainsString('toggle.example', $r3->getContent());
+        $zonaDepoisDoRollback = RpzZone::where('zone_key', 'server:'.$servidor->id)->first();
+        $this->assertNotNull($zonaDepoisDoRollback->current_version_id, 'rollback de flag nao pode apagar o historico/artefato publicado');
+        $this->assertSame($zonaAntesDoRollback->current_version_id, $zonaDepoisDoRollback->current_version_id);
+    }
+
     public function test_static_flag_enabled_serves_published_artifact_without_querying_dominios(): void
     {
         config(['rpz.static_artifacts_enabled' => true]);

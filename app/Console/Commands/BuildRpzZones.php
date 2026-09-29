@@ -69,7 +69,11 @@ class BuildRpzZones extends Command
             match ($status) {
                 'published' => $this->info($linha),
                 'unchanged', 'noop' => $this->line($linha),
-                'skipped_locked', 'stale_discarded' => $this->comment($linha),
+                // skipped_locked/stale_discarded: concorrência normal, nao é erro.
+                // skipped_inactive: servidor/empresa sem status ativo ou sem
+                // licença ativa -- mesmo gate que o endpoint dinâmico já aplica,
+                // não é falha do build.
+                'skipped_locked', 'stale_discarded', 'skipped_inactive' => $this->comment($linha),
                 default => (function () use (&$falhas, $linha): void {
                     $falhas++;
                     $this->error($linha);
