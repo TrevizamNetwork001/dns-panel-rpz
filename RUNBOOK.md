@@ -115,6 +115,16 @@ location = /rpz/<slug-da-empresa>.zone {
 ```
 E no `unbound.conf` do cliente, trocar `url: "https://..."` por `url: "http://..."` no mesmo caminho.
 
+**Efeito colateral grave em versões antigas: a sincronização derruba o DNS por alguns segundos/minutos.** Descoberto em produção (29/09/2026, cliente SPEED FIBER CONNECTION): toda vez que a zona RPZ (~19-20MB, centenas de milhares de domínios) é baixada e aplicada, o Unbound 1.13.1 fica momentaneamente sem responder consultas normais — o monitoramento do próprio cliente (Zabbix) reportava "DNS down" com o incidente batendo, quase ao segundo, com o horário exato de cada sincronização (`server_sync_logs`):
+
+```
+DNS-01 — Zabbix 22:02:42  vs  painel 22:02:31  (11s depois)
+DNS-01 — Zabbix 00:03:14  vs  painel 00:03:03  (11s depois)
+DNS-02 — Zabbix 03:55:43  vs  painel 03:55:31  (12s depois)
+```
+
+Como a sincronização é de hora em hora, isso significa uma mini-queda de DNS **recorrente, todo santo ciclo**, não um evento raro — mesmo que o cliente não reporte (pode não perceber a causa, ou o serviço deles absorver o blip). Já tinha sido observado antes, de forma anedótica, no cliente Fast Net Telecomunicações: o mesmo sintoma acontecia lá com Unbound antigo + RPZ ativo; desativar o RPZ fazia o alarme parar. **Depois de atualizar o Unbound da Fast Net pra 1.26.x, zero alarme desde então** — confirma que atualizar a versão resolve os dois problemas de uma vez (o de não sincronizar sozinho E essa trava momentânea durante a aplicação da zona). Prioridade alta: cliente rodando versão antiga com RPZ realmente sincronizando (seja via HTTPS normal ou pelo contorno HTTP acima) está sofrendo isso a cada hora, mesmo sem saber.
+
 **Não é específico de uma versão do Debian.** Já foi visto em Unbound **1.13.x, 1.17.x e 1.22.x**, em clientes rodando Debian **10, 11, 12 e 13** — ou seja, o problema segue o **pacote do Unbound**, não a versão do sistema operacional; um Debian 13 recém-instalado pode ter vindo com um Unbound ainda afetado. Em **1.26.1** o problema não ocorre (confirmado em produção). O relato original está num tópico/issue do próprio repositório do Unbound (NLnet Labs) descrevendo esse mesmo sintoma com `rpz: url: https://...`. Antes de descartar a causa, confira a versão instalada, não só o SO:
 
 ```bash
