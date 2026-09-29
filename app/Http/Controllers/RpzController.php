@@ -78,10 +78,10 @@ class RpzController extends Controller
         // Eloquent (via with()/pluck()/flatten() em memoria) estoura o
         // memory_limit do PHP-FPM. Aqui so trafega a coluna que interessa.
         $dominios = $builder->serverQuery($servidor->id);
-        $canonical = $builder->buildCanonical($dominios, $host, $target);
-        $contentHash = $canonical['content_hash'];
-
         $zoneKey = $versioner->zoneKey('server', $servidor->id);
+        $refresh = $builder->refreshFor($zoneKey);
+        $canonical = $builder->buildCanonical($dominios, $host, $target, $refresh);
+        $contentHash = $canonical['content_hash'];
         $zona = $versioner->resolveVersion(
             $zoneKey,
             'server',
@@ -114,7 +114,7 @@ class RpzController extends Controller
         ]);
 
         try {
-            $zone = implode('', iterator_to_array($builder->renderZone($canonical, $host, (string) $zona->last_serial, $target), false));
+            $zone = implode('', iterator_to_array($builder->renderZone($canonical, $host, (string) $zona->last_serial, $target, $refresh), false));
         } finally {
             fclose($canonical['stream']);
         }

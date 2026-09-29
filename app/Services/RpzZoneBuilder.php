@@ -28,6 +28,19 @@ class RpzZoneBuilder
         return $mode === 'redirect' ? rtrim($this->panelHost(), '.').'.' : '.';
     }
 
+    /**
+     * Refresh do SOA em segundos. Fixo em 3600s pra toda zona real, exceto
+     * uma unica excecao temporaria: server:15 (DNS-03) e o servidor de
+     * laboratorio do RPZ-UNBOUND-LAB-1 (29/09/2026), isolado com uma unica
+     * lista sintetica (sem conteudo real de bloqueio), usado para testar o
+     * ciclo de refresh do Unbound sem esperar 1h por iteracao. Reverter para
+     * `return 3600;` incondicional ao encerrar o laboratorio.
+     */
+    public function refreshFor(string $zoneKey): int
+    {
+        return $zoneKey === 'server:15' ? 300 : 3600;
+    }
+
     public function listQuery(Lista $lista): Builder
     {
         return DB::table('dominios')
@@ -158,7 +171,7 @@ class RpzZoneBuilder
      *
      * @return array{stream: resource, content_hash: string, domain_count: int, rule_count: int, excluded_count: int}
      */
-    public function buildCanonical(Builder $query, string $zoneHost, string $target): array
+    public function buildCanonical(Builder $query, string $zoneHost, string $target, int $refresh = 3600): array
     {
         // 2MB em RAM antes de comecar a gravar em arquivo temporario real
         // (caminho gerenciado pelo proprio PHP, nao previsivel/controlavel
@@ -180,7 +193,7 @@ class RpzZoneBuilder
         $cabecalhoHash = implode('|', [
             $zoneHost,
             self::TTL,
-            3600,  // refresh
+            $refresh,  // refresh
             600,   // retry
             86400, // expire
             60,    // minimum
@@ -270,13 +283,13 @@ class RpzZoneBuilder
      * @param  array{stream: resource, content_hash: string, domain_count: int, rule_count: int, excluded_count: int}  $canonical
      * @return \Generator<int, string>
      */
-    public function renderZone(array $canonical, string $zoneHost, string $serial, string $target): \Generator
+    public function renderZone(array $canonical, string $zoneHost, string $serial, string $target, int $refresh = 3600): \Generator
     {
         $cabecalho = [
             '$TTL '.self::TTL,
             '@ SOA '.$zoneHost.'. hostmaster.'.$zoneHost.'. (',
             '    '.$serial.'  ; serial',
-            '    3600           ; refresh',
+            '    '.$refresh.'           ; refresh',
             '    600            ; retry',
             '    86400          ; expire',
             '    60 )           ; minimum',

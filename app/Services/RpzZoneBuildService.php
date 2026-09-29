@@ -103,7 +103,8 @@ class RpzZoneBuildService
         AuditLog::record('rpz.build_started', "Build da zona RPZ iniciado ({$zoneKey})", $empresaId, 'rpz_zone', $zone->id);
 
         $host = $this->builder->panelHost();
-        $canonical = $this->builder->buildCanonical($query, $host, $target);
+        $refresh = $this->builder->refreshFor($zoneKey);
+        $canonical = $this->builder->buildCanonical($query, $host, $target, $refresh);
 
         $conteudoJaPublicado = $zone->currentVersion !== null
             && $zone->currentVersion->content_hash === $canonical['content_hash'];
@@ -163,7 +164,7 @@ class RpzZoneBuildService
         $fileHashCtx = hash_init('sha256');
         $bytes = 0;
         $fh = fopen(Storage::disk('local')->path($stagingPath), 'w');
-        foreach ($this->builder->renderZone($canonical, $host, (string) $zoneVersionada->last_serial, $target) as $bloco) {
+        foreach ($this->builder->renderZone($canonical, $host, (string) $zoneVersionada->last_serial, $target, $refresh) as $bloco) {
             fwrite($fh, $bloco);
             hash_update($fileHashCtx, $bloco);
             $bytes += strlen($bloco);
