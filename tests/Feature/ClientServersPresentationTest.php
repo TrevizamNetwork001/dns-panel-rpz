@@ -180,7 +180,7 @@ class ClientServersPresentationTest extends TestCase
         ]);
 
         $this->actingAs($cliente)->get(route('servidores.index'))->assertOk()
-            ->assertSeeInOrder(['<th>Nome</th>', '<th>Tipo</th>', '<th>Listas</th>', '<th>Última sincronização</th>', '<th>Status</th>'], false)
+            ->assertSeeInOrder(['<th>Nome</th>', '<th>Tipo</th>', '<th>Listas</th>', '<th>Última solicitação RPZ</th>', '<th>Status</th>'], false)
             ->assertSee('MikroTik (Adlist)')->assertSee('Em dia')->assertSee('Editar')
             ->assertDontSee('203.0.113.42')->assertDontSee('2001:db8::42');
     }

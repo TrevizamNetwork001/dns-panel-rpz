@@ -124,7 +124,7 @@ class ClientAreaPresentationTest extends TestCase
         $this->actingAs($cliente)->get('/')
             ->assertOk()
             ->assertSee('Atenção')
-            ->assertSee('Sem sincronização');
+            ->assertSee('Sem solicitação RPZ');
     }
 
     public function test_cliente_only_sees_lists_and_servers_from_its_company_scope(): void

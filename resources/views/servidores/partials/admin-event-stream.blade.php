@@ -3,20 +3,20 @@
         <div class="panel-header"><div class="endpoint-card-title"><x-ui-icon name="clock" size="26" /><h2>Histórico recente</h2></div><button type="button" class="button button-secondary" data-endpoint-dialog="endpoint-history">Ver histórico completo</button></div>
     @endif
     @if (empty($logServidor))
-        <div class="empty-state"><span>Nenhum evento nos últimos 30 dias — o servidor ainda não sincronizou e nenhuma lista vinculada mudou.</span></div>
+        <div class="empty-state"><span>Nenhum evento nos últimos 30 dias — o servidor ainda não solicitou a RPZ e nenhuma lista vinculada mudou.</span></div>
     @else
         <ol class="endpoint-event-stream" aria-label="Log do servidor">
             @foreach (($recent ? array_slice($logServidor, 0, 5) : $logServidor) as $evento)
                 @php
                     [$eventClass, $eventLabel] = match ($evento['tipo']) {
-                        'sync' => ['sync', 'Sincronização'],
+                        'sync' => ['sync', 'Requisição RPZ'],
                         'lista_add' => ['add', 'Adição'],
                         'lista_remove' => ['remove', 'Remoção'],
                         default => ['other', 'Evento'],
                     };
                     $eventMessage = preg_replace_callback(
-                        '/(\d+) (domínios entregues|domínio\(s\))$/u',
-                        fn (array $match): string => number_format((int) $match[1], 0, ',', '.').' '.($match[2] === 'domínio(s)' ? ((int) $match[1] === 1 ? 'domínio' : 'domínios') : $match[2]),
+                        '/(\d+) domínio\(s\)$/u',
+                        fn (array $match): string => number_format((int) $match[1], 0, ',', '.').' '.((int) $match[1] === 1 ? 'domínio' : 'domínios'),
                         $evento['detalhe'],
                     );
                 @endphp

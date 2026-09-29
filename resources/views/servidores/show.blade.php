@@ -78,7 +78,7 @@
                 <div class="endpoint-detail-statuses">
                     <div><x-ui-icon name="server" size="23" /><span>Status cadastral</span><strong class="status-pill {{ $servidor->status === 'active' ? 'is-active' : 'is-inactive' }}">{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }}</strong></div>
                     <div><x-ui-icon name="activity" size="23" /><span>Estado operacional</span><strong class="status-pill {{ $classeOperacional }}">{{ $estadoOperacional }}</strong></div>
-                    <div><x-ui-icon name="clock" size="23" /><span>Última consulta</span><strong title="{{ $servidor->last_synced_at?->format('d/m/Y H:i:s') ?? 'nunca sincronizou' }}">{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</strong></div>
+                    <div><x-ui-icon name="clock" size="23" /><span>Última consulta</span><strong title="{{ $servidor->last_synced_at?->format('d/m/Y H:i:s') ?? 'nenhuma solicitação RPZ registrada' }}">{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</strong></div>
                     <div><x-ui-icon name="server" size="23" /><span>Tipo de DNS</span><strong>{{ $isMikrotik ? 'MikroTik RouterOS v7' : 'Unbound' }}</strong></div>
                     @if (! $isMikrotik && $servidor->unboundVersion())
                         <div><x-ui-icon name="activity" size="23" /><span>Versão do Unbound</span><strong class="status-pill {{ $servidor->unboundVersionAfetada() ? 'is-warning' : 'is-active' }}" title="detectado em {{ $servidor->last_synced_at?->format('d/m/Y H:i:s') }}">{{ $servidor->unboundVersion() }}</strong></div>

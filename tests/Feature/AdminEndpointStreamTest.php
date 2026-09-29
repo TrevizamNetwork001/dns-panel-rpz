@@ -25,13 +25,13 @@ class AdminEndpointStreamTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('servidores.show', $server));
         $response->assertOk()->assertSee('endpoint-event-stream')
-            ->assertSee('Adição')->assertSee('Remoção')->assertSee('Sincronização')
+            ->assertSee('Adição')->assertSee('Remoção')->assertSee('Requisição RPZ')
             ->assertSee('Fonte 1007')->assertSee('ganhou 1.007 domínios')->assertSee('perdeu 1.007 domínios')
-            ->assertSee('Servidor sincronizou — 244.493 domínios entregues')
+            ->assertSee('RPZ solicitada — 244.493 domínios')
             ->assertSee('IP 2001:db8::249')->assertDontSee('Fonte +')->assertDontSee('Fonte -');
         $events = collect($response->viewData('logServidor'));
         $this->assertEqualsCanonicalizing(['sync', 'lista_add', 'lista_remove'], $events->pluck('tipo')->all());
-        $this->assertSame('Servidor sincronizou — 244493 domínios entregues', $events->firstWhere('tipo', 'sync')['detalhe']);
+        $this->assertSame('RPZ solicitada — 244493 domínio(s)', $events->firstWhere('tipo', 'sync')['detalhe']);
         $this->assertSame(244493, $sync->fresh()->dominios_count);
         $this->assertSame(1007, $list->dominios()->where('ativo', false)->count());
     }
@@ -66,8 +66,8 @@ class AdminEndpointStreamTest extends TestCase
         $this->assertSame(85, substr_count($response->getContent(), '<li class="endpoint-event '));
         $events = $response->viewData('logServidor');
         $this->assertCount(80, $events);
-        $this->assertSame('Servidor sincronizou — 1 domínios entregues', $events[0]['detalhe']);
-        $this->assertSame('Servidor sincronizou — 80 domínios entregues', $events[79]['detalhe']);
+        $this->assertSame('RPZ solicitada — 1 domínio(s)', $events[0]['detalhe']);
+        $this->assertSame('RPZ solicitada — 80 domínio(s)', $events[79]['detalhe']);
     }
 
     public function test_client_has_recent_history_and_admin_has_no_legacy_panel(): void
@@ -77,7 +77,7 @@ class AdminEndpointStreamTest extends TestCase
         $server->syncLogs()->create(['dominios_count' => 244493, 'created_at' => now()]);
         $this->actingAs($client)->get(route('servidores.show', $server))->assertOk()
             ->assertSee('endpoint-event-stream')
-            ->assertSee('Histórico recente')->assertSee('244.493 domínios entregues')
+            ->assertSee('Histórico recente')->assertSee('244.493 domínios')
             ->assertSee('Cole este bloco no');
         $admin = User::factory()->admin()->create();
         $response = $this->actingAs($admin)->get(route('servidores.show', $server));

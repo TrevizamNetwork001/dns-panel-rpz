@@ -14,6 +14,13 @@ class ServerSyncLog extends Model
         'ip_address',
         'user_agent',
         'dominios_count',
+        'request_id',
+        'zone_key',
+        'revision',
+        'content_hash',
+        'rule_count',
+        'excluded_count',
+        'duration_ms',
         'created_at',
     ];
 

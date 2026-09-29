@@ -33,7 +33,7 @@
                             <th>Nome</th>
                             @if (auth()->user()->isAdmin())<th>Empresa</th>@else<th>Tipo</th>@endif
                             <th>{{ auth()->user()->isAdmin() ? 'Fontes habilitadas' : 'Listas' }}</th>
-                            <th>{{ auth()->user()->isAdmin() ? 'Última consulta' : 'Última sincronização' }}</th>
+                            <th>{{ auth()->user()->isAdmin() ? 'Última consulta' : 'Última solicitação RPZ' }}</th>
                             <th>Status</th>
                             <th class="table-actions-column">{{ auth()->user()->isAdmin() ? '' : 'Ações' }}</th>
                         </tr>
@@ -76,7 +76,7 @@
                                         </div>
                                     @else
                                         @php
-                                            $estadoLabel = $dias === null ? 'Sem sincronização' : ($dias >= 2 ? 'Atenção' : 'Em dia');
+                                            $estadoLabel = $dias === null ? 'Sem solicitação RPZ' : ($dias >= 2 ? 'Atenção' : 'Em dia');
                                             $estadoClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active');
                                         @endphp
                                         <div class="endpoint-status-stack">

@@ -59,8 +59,8 @@ class ServidorListaAtividadeTest extends TestCase
         $response = $this->actingAs($admin)->get(route('servidores.show', $servidor));
 
         $response->assertOk();
-        $response->assertSee('Sincronização');
-        $response->assertSee('42 domínios entregues');
+        $response->assertSee('Requisição RPZ');
+        $response->assertSee('42 domínios');
         $response->assertSee('203.0.113.10');
     }
 

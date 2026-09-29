@@ -92,12 +92,12 @@
     @endphp
     <section class="panel cliente-rpz-health dashboard-grid-cliente" aria-labelledby="cliente-rpz-health-title">
         <div class="cliente-health-heading">
-            <div class="cliente-health-title"><x-ui-icon name="activity" size="31" /><div><h2 id="cliente-rpz-health-title">Saúde da distribuição RPZ</h2><p>Acompanhe as sincronizações, o status dos servidores e a entrega das listas.</p></div></div>
+            <div class="cliente-health-title"><x-ui-icon name="activity" size="31" /><div><h2 id="cliente-rpz-health-title">Saúde da distribuição RPZ</h2><p>Acompanhe as solicitações RPZ, o status dos servidores e a entrega das listas.</p></div></div>
             <span class="status-pill is-muted">Últimos 30 dias</span>
         </div>
         <div class="cliente-health-metrics">
             <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-cyan"><x-ui-icon name="search" size="22" /></span><div><strong>{{ number_format($logsPeriodo->count(), 0, ',', '.') }}</strong><span>buscas no período</span></div><small>últimos 30 dias</small></div>
-            <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-green"><x-ui-icon name="clock" size="22" /></span><div><strong>{{ $ultimaSincronizacao ? \App\Http\Controllers\DashboardController::relativoPt($ultimaSincronizacao) : '—' }}</strong><span>última sincronização</span></div><small>{{ $ultimaSincronizacao?->format('d/m/Y H:i') ?? 'Ainda não executada' }}</small></div>
+            <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-green"><x-ui-icon name="clock" size="22" /></span><div><strong>{{ $ultimaSincronizacao ? \App\Http\Controllers\DashboardController::relativoPt($ultimaSincronizacao) : '—' }}</strong><span>última solicitação RPZ</span></div><small>{{ $ultimaSincronizacao?->format('d/m/Y H:i') ?? 'Ainda não executada' }}</small></div>
             <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-cyan"><x-ui-icon name="refresh" size="22" /></span><div><strong>{{ $intervaloMedioTexto }}</strong><span>intervalo médio entre buscas</span></div><small>{{ $intervaloMedioMinutos === null ? 'Dados insuficientes' : 'com base nas buscas registradas' }}</small></div>
             <div class="cliente-health-metric"><span class="cliente-health-metric-icon is-green"><x-ui-icon name="shield" size="22" /></span><div><strong>{{ $coberturaTexto }}</strong><span>cobertura da licença</span></div><small>{{ $capacidadeLicenca > 0 ? $totalServidores.' de '.$capacidadeLicenca.' servidores' : 'Sem capacidade disponível' }}</small></div>
         </div>
@@ -115,8 +115,8 @@
                     </div>
                     <div class="cliente-status-list">
                         @foreach ($servidores as $servidor)
-                            @php $dias = $servidor->diasSemSincronizar(); $statusLabel = $dias === null ? 'Sem sincronização' : ($dias >= 2 ? 'Atenção' : 'Em dia'); $statusClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active'); @endphp
-                            <a href="{{ route('servidores.show', $servidor) }}" class="cliente-status-item"><span class="cliente-status-dot {{ $statusClasse }}"></span><span><strong>{{ $servidor->nome }}</strong><small>Última sincronização: {{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</small></span><span class="status-pill {{ $statusClasse }}">{{ $statusLabel }}</span></a>
+                            @php $dias = $servidor->diasSemSincronizar(); $statusLabel = $dias === null ? 'Sem solicitação RPZ' : ($dias >= 2 ? 'Atenção' : 'Em dia'); $statusClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active'); @endphp
+                            <a href="{{ route('servidores.show', $servidor) }}" class="cliente-status-item"><span class="cliente-status-dot {{ $statusClasse }}"></span><span><strong>{{ $servidor->nome }}</strong><small>Última solicitação RPZ: {{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</small></span><span class="status-pill {{ $statusClasse }}">{{ $statusLabel }}</span></a>
                         @endforeach
                     </div>
                 @endif

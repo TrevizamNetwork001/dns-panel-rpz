@@ -333,7 +333,7 @@ class ServidorController extends Controller
      *   - "lista": uma lista vinculada a este servidor ganhou/perdeu dominios
      * Junto, da pra ver a causa e o efeito na mesma tabela: a lista muda
      * num dia, e a proxima sincronizacao depois disso ja reflete a mudanca
-     * na contagem de dominios entregues.
+     * na contagem de dominios da proxima requisicao RPZ registrada.
      *
      * @return array<int, array{timestamp: Carbon, tipo: string, detalhe: string, meta: string|null, lista_id: int|null}>
      */
@@ -349,7 +349,10 @@ class ServidorController extends Controller
             $eventos[] = [
                 'timestamp' => $log->created_at,
                 'tipo' => 'sync',
-                'detalhe' => "Servidor sincronizou — {$log->dominios_count} domínios entregues",
+                // "Solicitou" (nao "sincronizou"/"aplicou"): o painel so observa a
+                // requisicao HTTP atendida, nao a aplicacao real no Unbound do
+                // cliente -- ver auditoria RPZ de 29/09/2026, secao 9.
+                'detalhe' => "RPZ solicitada — {$log->dominios_count} domínio(s)",
                 'meta' => $log->ip_address,
                 'lista_id' => null,
             ];
