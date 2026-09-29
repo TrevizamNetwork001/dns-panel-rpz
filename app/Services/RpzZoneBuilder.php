@@ -95,11 +95,31 @@ class RpzZoneBuilder
         ];
     }
 
+    /**
+     * Serial derivado do conteudo real da lista de dominios, nao do horario
+     * atual -- fica igual entre duas buscas quando nada mudou de verdade, o
+     * que deixa o Unbound pular a reaplicacao pesada da zona (que trava
+     * consultas por alguns segundos em versoes antigas, ver RUNBOOK). So
+     * muda quando o conjunto de dominios realmente muda (inclui adicao,
+     * remocao e listas sendo vinculadas/desvinculadas do servidor/empresa,
+     * ja que isso altera quais linhas o cursor abaixo percorre).
+     */
+    public function computeSerial(Builder $query): string
+    {
+        $ctx = hash_init('crc32b');
+        foreach ((clone $query)->cursor() as $row) {
+            hash_update($ctx, (string) $row->dominio);
+            hash_update($ctx, "\n");
+        }
+
+        return (string) hexdec(hash_final($ctx));
+    }
+
     /** @return \Generator<int, string> */
     public function lines(Builder $query, string $target = '.', ?string $serial = null): \Generator
     {
         $host = $this->panelHost();
-        $serial ??= (string) now()->timestamp;
+        $serial ??= $this->computeSerial($query);
 
         yield '$TTL '.self::TTL;
         yield '@ SOA '.$host.'. hostmaster.'.$host.'. (';

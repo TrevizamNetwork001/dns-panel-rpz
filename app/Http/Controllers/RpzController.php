@@ -106,7 +106,7 @@ class RpzController extends Controller
         }
 
         AuditLog::record('rpz.endpoint.downloaded', "Endpoint RPZ empresarial baixado ({$count} domínios)", $empresa->id, 'empresa', $empresa->id);
-        $serial = (string) now()->timestamp;
+        $serial = $builder->computeSerial($domains);
 
         return response()->stream(function () use ($builder, $domains, $serial): void {
             foreach ($builder->lines($domains, '.', $serial) as $line) {

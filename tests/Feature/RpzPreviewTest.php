@@ -153,7 +153,7 @@ ZONE;
         $server = Servidor::factory()->openAccess()->create();
         $server->listas()->attach($this->lista);
         Dominio::factory()->for($this->lista)->create(['dominio' => 'shared.example']);
-        $expected = app(RpzZoneBuilder::class)->build(app(RpzZoneBuilder::class)->serverQuery($server->id), '.', (string) now()->timestamp);
+        $expected = app(RpzZoneBuilder::class)->build(app(RpzZoneBuilder::class)->serverQuery($server->id), '.');
         $this->assertSame($expected, $this->get(route('rpz.show', $server->token))->getContent());
     }
 
