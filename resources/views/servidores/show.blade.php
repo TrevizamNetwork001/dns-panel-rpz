@@ -361,6 +361,14 @@ systemctl restart unbound</pre>
                     if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
                 });
             });
+            document.querySelectorAll('dialog.endpoint-drawer').forEach(function (dialog) {
+                dialog.addEventListener('click', function (event) {
+                    if (event.target === dialog) {
+                        dialog.close();
+                        if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+                    }
+                });
+            });
             document.querySelectorAll('[data-close-disclosure]').forEach(function (button) {
                 button.addEventListener('click', function () {
                     var section = button.closest('.endpoint-disclosure');
