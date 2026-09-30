@@ -65,9 +65,16 @@ class RpzPrimaryResponder
     /**
      * O nome da zona perguntado (qname) e sempre o mesmo texto literal pra
      * todo mundo (ex: rpz.trevizamnetwork.com.br) -- quem diferencia qual
-     * zona logica (server:<id> ou company:<id>) e o IP de origem, igual ja
-     * funciona no endpoint HTTP hoje (Servidor::ipAllowed()). So cobre
+     * zona logica (server:<id> ou company:<id>) e o IP de origem. So cobre
      * server:<id> nesta primeira versao; company:<id> fica pra depois.
+     *
+     * IMPORTANTE: NAO reusa Servidor::ipAllowed() aqui de proposito -- esse
+     * metodo libera qualquer IP quando ip_restriction_enabled=false (regra
+     * pensada pro endpoint HTTP, que tem o token na URL como segredo real).
+     * O primary em UDP nao tem token nenhum -- o IP e a UNICA barreira, tem
+     * que ser sempre um match exato contra allowedIps, sem excecao. Um bug
+     * de auditoria (29/09/2026) achou isso servindo pra IP desconhecido
+     * quando reusava ipAllowed() -- corrigido aqui com match direto.
      */
     private function resolveZoneForIp(string $ip): ?RpzZone
     {
@@ -76,7 +83,8 @@ class RpzPrimaryResponder
             ->whereHas('allowedIps', fn ($q) => $q->where('status', 'active'))
             ->with(['allowedIps' => fn ($q) => $q->where('status', 'active'), 'empresa'])
             ->get()
-            ->first(fn (Servidor $s): bool => $s->ipAllowed($ip));
+            ->first(fn (Servidor $s): bool => $s->allowedIps
+                ->contains(fn ($regra): bool => Servidor::ipMatchesCidr($ip, $regra->ip_cidr)));
 
         if ($servidor === null || ! $servidor->empresa?->possuiLicencaAtiva()) {
             return null;
