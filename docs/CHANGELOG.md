@@ -10,6 +10,9 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 - As descrições acompanham os novos nomes; o evento de consulta não repete o nome do servidor na linha seguinte.
 - “Sincronização concluída” não é usado para avisos: fica reservado a uma confirmação real de recebimento e aplicação da nova versão pelo servidor.
 - Alteração limitada à apresentação do partial Blade do histórico. Tipos internos, banco, auditoria, filtros, ordenação, dados antigos, ícones, cores e comportamento responsivo foram preservados.
+- Formulários administrativos de licença, empresa, fonte e usuário receberam o mesmo padrão visual responsivo dos endpoints. A configuração RPZ deixou de aparecer no formulário de empresa, pois pertence aos servidores.
+- Licenças não podem trocar de empresa durante a edição: a empresa fica somente leitura na interface e `empresa_id` é removido do payload de atualização no backend. O cadastro de servidor agora aplica o limite de licenças ativas e válidas também para administradores.
+- Validação específica: **20 testes / 63 assertions** para empresas, licenças e usuários; testes de limite cliente/administrador aprovados. Publicação incremental do app concluída, views limpas/recompiladas, nginx recarregado e `/login` respondeu HTTP 200.
 
 ## 21/09/2026
 
