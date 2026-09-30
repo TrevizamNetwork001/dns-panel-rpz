@@ -187,6 +187,7 @@ class ServidorIpPendenteTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $empresa = Empresa::factory()->create();
+        $empresa->licencas()->create(['status' => 'active', 'max_servidores' => 1, 'starts_at' => now()->subDay(), 'expires_at' => null]);
 
         $this->actingAs($admin)->post(route('servidores.store'), $this->payload(['empresa_id' => $empresa->id]))
             ->assertSessionHasNoErrors();
@@ -198,6 +199,7 @@ class ServidorIpPendenteTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
         $empresa = Empresa::factory()->create();
+        $empresa->licencas()->create(['status' => 'active', 'max_servidores' => 1, 'starts_at' => now()->subDay(), 'expires_at' => null]);
 
         $this->actingAs($admin)->post(route('servidores.store'), $this->payload([
             'empresa_id' => $empresa->id, 'ip_v4' => '203.0.113.10', 'ip_v6' => '2001:db8::10',

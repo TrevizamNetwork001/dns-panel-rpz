@@ -61,7 +61,7 @@ class ServidorController extends Controller
                 $servidor->empresa_id = $empresaSelecionada->id;
                 $listasDisponiveis = $this->listasParaEmpresa($empresaSelecionada->id);
             }
-            $licencaBlocker = null;
+            $licencaBlocker = $empresaSelecionada ? $this->licencaBlocker($empresaSelecionada) : null;
         }
 
         return view('servidores.form', compact('servidor', 'empresas', 'licencaBlocker', 'listasDisponiveis'));
@@ -79,10 +79,11 @@ class ServidorController extends Controller
 
         if ($user->isCliente()) {
             $data['empresa_id'] = $user->empresa_id;
+        }
 
-            if ($blocker = $this->licencaBlocker($user->empresa)) {
-                return back()->withErrors(['empresa_id' => $blocker])->withInput();
-            }
+        $empresa = Empresa::find($data['empresa_id'] ?? null);
+        if ($blocker = $this->licencaBlocker($empresa)) {
+            return back()->withErrors(['empresa_id' => $blocker])->withInput();
         }
 
         $servidor = Servidor::create($data);

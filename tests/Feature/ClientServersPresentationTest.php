@@ -116,6 +116,21 @@ class ClientServersPresentationTest extends TestCase
         $this->assertSame(1, $empresa->servidores()->count());
     }
 
+    public function test_admin_cannot_create_server_above_selected_company_license_limit(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $admin = User::factory()->admin()->create();
+        $this->activeLicense($empresa, 1);
+        Servidor::factory()->for($empresa)->create();
+
+        $this->actingAs($admin)->post(route('servidores.store'), $this->serverPayload([
+            'empresa_id' => $empresa->id,
+            'nome' => 'Servidor administrativo acima do limite',
+        ]))->assertSessionHasErrors('empresa_id');
+
+        $this->assertSame(1, $empresa->servidores()->count());
+    }
+
     public function test_server_log_does_not_show_list_history_from_before_the_server_was_linked(): void
     {
         $empresa = Empresa::factory()->create();
