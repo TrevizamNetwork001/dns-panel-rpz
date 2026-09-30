@@ -26,7 +26,7 @@
         .admin-license-form select option { background: var(--surface); color: var(--text); }
         .admin-license-form .checkbox-label { cursor: pointer; gap: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-soft); }
         .admin-license-form .checkbox-label input { accent-color: var(--green); }
-        .admin-license-form > form > .form-actions { grid-column: 1 / -1; position: sticky; bottom: 12px; z-index: 5; justify-content: flex-end; flex-wrap: wrap; padding: 16px 20px; margin: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 30px rgb(0 0 0 / 12%); }
+        .admin-license-form > form > .form-actions { grid-column: 1 / -1; justify-content: flex-end; flex-wrap: wrap; padding: 0; margin: 18px 0 0; border: 0; background: transparent; box-shadow: none; }
         .admin-license-form .form-actions .button { min-height: 42px; padding: 0 20px; font-size: 12px; }
         html:not([data-theme="light"]) .admin-license-form { --surface: #061b29; --surface-soft: #0b2130; --border: #234151; --border-soft: #173444; --text-soft: #adc5d9; --cyan: #00cbee; --green: #00dba0; }
         @media (max-width: 700px) {
@@ -36,7 +36,7 @@
             .admin-license-form .form-grid { grid-template-columns: minmax(0, 1fr); }
             .admin-license-form .license-capacity-panel { grid-column: auto; }
             .admin-license-form .form-panel { padding: 18px; }
-            .admin-license-form > form > .form-actions { bottom: 8px; padding: 12px; }
+            .admin-license-form > form > .form-actions { margin-top: 16px; }
         }
     </style>
     <div class="admin-license-form">
