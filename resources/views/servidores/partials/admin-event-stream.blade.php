@@ -3,7 +3,7 @@
         <div class="panel-header"><div class="endpoint-card-title"><x-ui-icon name="clock" size="26" /><h2>Histórico recente</h2></div><button type="button" class="button button-secondary" data-endpoint-dialog="endpoint-history">Ver histórico completo</button></div>
     @endif
     @if (empty($logServidor))
-        <div class="empty-state"><span>Nenhum evento nos últimos 30 dias — o servidor ainda não solicitou a RPZ e nenhuma lista vinculada mudou.</span></div>
+        <div class="empty-state"><span>Nenhum evento nos últimos 30 dias — o servidor ainda não solicitou a RPZ, nenhuma zona foi publicada e nenhuma lista vinculada mudou.</span></div>
     @else
         <ol class="endpoint-event-stream" aria-label="Log do servidor">
             @foreach (($recent ? array_slice($logServidor, 0, 5) : $logServidor) as $evento)
@@ -12,8 +12,12 @@
                         'sync' => ['sync', 'Requisição RPZ'],
                         'lista_add' => ['add', 'Adição'],
                         'lista_remove' => ['remove', 'Remoção'],
+                        'publish' => ['sync', 'Publicado'],
+                        'notify_ok' => ['add', 'Avisado'],
+                        'notify_falhou' => ['remove', 'Aviso falhou'],
                         default => ['other', 'Evento'],
                     };
+                    $comHorario = in_array($evento['tipo'], ['sync', 'publish', 'notify_ok', 'notify_falhou'], true);
                     $eventMessage = preg_replace_callback(
                         '/(\d+) domínio\(s\)$/u',
                         fn (array $match): string => number_format((int) $match[1], 0, ',', '.').' '.((int) $match[1] === 1 ? 'domínio' : 'domínios'),
@@ -21,7 +25,7 @@
                     );
                 @endphp
                 <li class="endpoint-event endpoint-event-{{ $eventClass }}">
-                    <time datetime="{{ $evento['timestamp']->format($evento['tipo'] === 'sync' ? 'c' : 'Y-m-d') }}">{{ $evento['timestamp']->format('d/m/Y') }}@if ($evento['tipo'] === 'sync')<span>{{ $evento['timestamp']->format('H:i:s') }}</span>@endif</time>
+                    <time datetime="{{ $evento['timestamp']->format($comHorario ? 'c' : 'Y-m-d') }}">{{ $evento['timestamp']->format('d/m/Y') }}@if ($comHorario)<span>{{ $evento['timestamp']->format('H:i:s') }}</span>@endif</time>
                     <span class="endpoint-event-type">{{ $eventLabel }}</span>
                     <span class="endpoint-event-message">
                         @if ($evento['lista_id'])

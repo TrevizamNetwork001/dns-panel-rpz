@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\Lista;
+use App\Models\RpzZone;
 use App\Models\ServerAllowedIp;
 use App\Models\Servidor;
 use App\Services\RpzDirtyMarker;
@@ -148,11 +149,13 @@ class ServidorController extends Controller
             $data['empresa_id'] = $user->empresa_id;
         }
 
+        $empresaAnteriorId = $servidor->empresa_id;
         $servidor->update($data);
         $servidor->listas()->sync($listaIds);
-        // bloqueio_modo/status/vinculos de lista mudaram -- so afeta a zona
-        // deste servidor (server:<id>), a empresa nao muda o conjunto agregado.
         $rpzDirty->markForServer($servidor->id);
+        if ($empresaAnteriorId !== $servidor->empresa_id) {
+            $rpzDirty->markCompany($empresaAnteriorId);
+        }
 
         AuditLog::record('servidor.updated', "Servidor \"{$servidor->nome}\" atualizado", $servidor->empresa_id, 'servidor', $servidor->id);
 
@@ -169,8 +172,11 @@ class ServidorController extends Controller
 
         AuditLog::record('servidor.destroyed', "Servidor \"{$servidor->nome}\" removido", $servidor->empresa_id, 'servidor', $servidor->id);
 
-        $rpzDirty->markForServer($servidor->id);
+        $empresaId = $servidor->empresa_id;
+        $servidorId = $servidor->id;
         $servidor->delete();
+        $rpzDirty->markServer($servidorId);
+        $rpzDirty->markCompany($empresaId);
 
         return redirect()->route('servidores.index')->with('status', 'Servidor removido.');
     }
@@ -362,6 +368,36 @@ class ServidorController extends Controller
                 // cliente -- ver auditoria RPZ de 29/09/2026, secao 9.
                 'detalhe' => "RPZ solicitada — {$log->dominios_count} domínio(s)",
                 'meta' => $log->ip_address,
+                'lista_id' => null,
+            ];
+        }
+
+        // "Linha do tempo de entrega": alem de "o que mudou" (lista_add/remove)
+        // e "quando o servidor veio buscar" (sync), mostra tambem "quando o
+        // painel publicou" e "se o aviso (NOTIFY) chegou" -- os tres juntos
+        // respondem "essa mudanca realmente chegou nesse servidor?" sem
+        // precisar ir na Auditoria geral (RPZ-UNBOUND-LAB-1, 30/09/2026).
+        $zonaRpz = RpzZone::where('zone_key', 'server:'.$servidor->id)->first();
+        if ($zonaRpz !== null) {
+            foreach ($zonaRpz->versions()->whereNotNull('published_at')->where('published_at', '>=', $desde)->orderByDesc('id')->limit(50)->get() as $versao) {
+                $eventos[] = [
+                    'timestamp' => $versao->published_at,
+                    'tipo' => 'publish',
+                    'detalhe' => "Zona publicada — revisão {$versao->revision}, serial {$versao->serial}",
+                    'meta' => null,
+                    'lista_id' => null,
+                ];
+            }
+        }
+
+        foreach (AuditLog::where('target_type', 'servidor')->where('target_id', $servidor->id)
+            ->where('action', 'like', 'rpz.notify.%')->where('created_at', '>=', $desde)
+            ->orderByDesc('id')->limit(50)->get() as $log) {
+            $eventos[] = [
+                'timestamp' => $log->created_at,
+                'tipo' => $log->action === 'rpz.notify.acknowledged' ? 'notify_ok' : 'notify_falhou',
+                'detalhe' => $log->description,
+                'meta' => null,
                 'lista_id' => null,
             ];
         }
