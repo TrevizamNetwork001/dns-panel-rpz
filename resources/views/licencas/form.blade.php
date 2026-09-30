@@ -60,12 +60,16 @@
                 <div class="form-grid">
                     <div class="field-group">
                         <label for="empresa_id">Empresa licenciada</label>
-                        <select class="form-control" id="empresa_id" name="empresa_id" required>
-                            <option value="">-- selecione --</option>
-                            @foreach ($empresas as $empresa)
-                                <option value="{{ $empresa->id }}" @selected(old('empresa_id', $licenca->empresa_id) == $empresa->id)>{{ $empresa->nome }}</option>
-                            @endforeach
-                        </select>
+                        @if ($licenca->exists)
+                            <div class="form-control" aria-readonly="true">{{ $licenca->empresa->nome }}</div>
+                        @else
+                            <select class="form-control" id="empresa_id" name="empresa_id" required>
+                                <option value="">-- selecione --</option>
+                                @foreach ($empresas as $empresa)
+                                    <option value="{{ $empresa->id }}" @selected(old('empresa_id', $licenca->empresa_id) == $empresa->id)>{{ $empresa->nome }}</option>
+                                @endforeach
+                            </select>
+                        @endif
                     </div>
                 </div>
             </div>

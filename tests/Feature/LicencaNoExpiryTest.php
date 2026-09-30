@@ -61,6 +61,33 @@ class LicencaNoExpiryTest extends TestCase
         $this->assertSame($date, $licenca->fresh()->expires_at->toDateString());
     }
 
+    public function test_edit_preserves_company_even_when_request_attempts_to_change_it(): void
+    {
+        $licenca = Licenca::factory()->create(['max_servidores' => 5, 'status' => 'active']);
+        $otherCompany = Empresa::factory()->create();
+
+        $this->putLicense($licenca, [
+            'empresa_id' => $otherCompany->id,
+            'max_servidores' => 12,
+            'status' => 'inactive',
+        ])->assertRedirect(route('licencas.index'));
+
+        $updated = $licenca->fresh();
+        $this->assertSame($licenca->empresa_id, $updated->empresa_id);
+        $this->assertSame(12, $updated->max_servidores);
+        $this->assertSame('inactive', $updated->status);
+    }
+
+    public function test_edit_form_shows_company_as_read_only(): void
+    {
+        $licenca = Licenca::factory()->create();
+
+        $this->actingAs($this->admin)->get(route('licencas.edit', $licenca))
+            ->assertOk()
+            ->assertSee($licenca->empresa->nome)
+            ->assertDontSee('name="empresa_id"');
+    }
+
     public function test_validity_rule_handles_no_expiry_inactive_expired_and_future_license(): void
     {
         $empresa = Empresa::factory()->create();
