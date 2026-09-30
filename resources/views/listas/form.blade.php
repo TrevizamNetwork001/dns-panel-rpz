@@ -3,7 +3,26 @@
 @section('title', $lista->exists ? 'Editar fonte' : 'Nova fonte')
 
 @section('content')
-    <div class="page-heading">
+    <style>
+        .admin-list-form { max-width:1120px; margin:0 auto; }
+        .admin-list-form .list-form-breadcrumb { display:flex; align-items:center; gap:12px; margin-bottom:24px; color:var(--text-soft); font-size:12px; }
+        .admin-list-form .list-form-breadcrumb a { color:var(--cyan); }
+        .admin-list-form .page-eyebrow { color:var(--cyan); font-size:11px; letter-spacing:.14em; }
+        .admin-list-form h1 { margin:8px 0; font-size:32px; letter-spacing:-.035em; }
+        .admin-list-form .page-heading p { margin:0; color:var(--text-soft); font-size:13px; }
+        .admin-list-form > .panel { padding:22px; border-radius:13px; box-shadow:none; }
+        .admin-list-form > .panel > form > .form-grid { gap:20px 18px; }
+        .admin-list-form .form-control { min-height:46px; padding:12px 14px; border:1px solid var(--border); border-radius:9px; background:var(--surface-soft); color:var(--text); font-size:13px; }
+        .admin-list-form .form-control:focus { border-color:var(--cyan); box-shadow:0 0 0 3px var(--cyan-soft); }
+        .admin-list-form .list-form-section { padding:18px 0 0; margin-top:20px; border-top:1px solid var(--border-soft); }
+        .admin-list-form .list-form-section-label { display:flex; align-items:center; gap:10px; color:var(--text); font-size:13px; font-weight:600; }
+        .admin-list-form .list-form-section-label svg { color:var(--cyan); }
+        html:not([data-theme="light"]) .admin-list-form { --surface-soft:#0b2130; --border:#234151; --border-soft:#173444; --text-soft:#adc5d9; --cyan:#00cbee; }
+        @media (max-width:600px) { .admin-list-form h1 { font-size:27px; } .admin-list-form .page-heading { align-items:flex-start; } .admin-list-form > .panel { padding:18px; } }
+    </style>
+    <div class="admin-list-form">
+    <nav class="list-form-breadcrumb" aria-label="Navegação"><a href="{{ route('listas.index') }}">Fontes</a><x-ui-icon name="chevron" size="14" /><span>{{ $lista->exists ? 'Editar fonte' : 'Nova fonte' }}</span></nav>
+    <div class="page-heading page-heading-compact">
         <div>
             <div class="page-eyebrow">Gestão</div>
             <h1>{{ $lista->exists ? 'Editar fonte' : 'Nova fonte' }}</h1>
@@ -11,6 +30,7 @@
     </div>
 
     <div class="panel form-panel @if(auth()->user()->isAdmin()) admin-fontes-form @endif">
+        <div class="panel-header"><h2><x-ui-icon name="list" size="23" /> Dados da fonte</h2></div>
         <form action="{{ $lista->exists ? route('listas.update', $lista) : route('listas.store') }}" method="POST">
             @csrf
             @if ($lista->exists)
@@ -124,5 +144,6 @@
                 <button type="submit" class="button button-primary">Salvar</button>
             </div>
         </form>
+    </div>
     </div>
 @endsection
