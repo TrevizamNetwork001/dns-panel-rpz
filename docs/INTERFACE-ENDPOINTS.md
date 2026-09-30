@@ -23,6 +23,7 @@ A imagem fornecida pelo usuário orientou o acabamento. A pasta `referencias/` �
 - O nome do servidor não é repetido nos eventos de consulta, pois o histórico já está dentro da página daquele servidor. Os tipos internos (`sync`, `lista_add`, `lista_remove`, `publish`, `notify_ok` e `notify_falhou`) e seus dados históricos permanecem inalterados; a tradução ocorre somente na apresentação Blade.
 - No cadastro de licença, a empresa pode ser escolhida somente na criação. Na edição, ela aparece como leitura; o backend remove qualquer `empresa_id` enviado na atualização para preservar o vínculo original.
 - O cadastro de endpoints respeita sempre a soma das licenças ativas e válidas da empresa. A verificação é feita no backend para clientes e administradores; ao atingir a capacidade, o novo endpoint é rejeitado e a mensagem informa o limite.
+- O formulário de Licenças usa um painel contínuo com as seções Empresa, Validade e Capacidade/status, divisores discretos, ações no fluxo normal e adaptação para uma coluna em telas menores.
 - Modais usam `showModal()`/`close()`, fechamento por botão e Escape. Em telas grandes, a página reserva espaço à direita enquanto o modal está aberto; em telas menores ele sobrepõe a página. Layout responsivo e variáveis de tema preservados.
 
 ## Restrição de IP — somente admin
