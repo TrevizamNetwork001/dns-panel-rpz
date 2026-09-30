@@ -433,7 +433,11 @@ class ServidorController extends Controller
 
             foreach ($adicionadosPorDiaLista as $row) {
                 $eventos[] = [
-                    'timestamp' => Carbon::parse($row->dia)->endOfDay(),
+                    // Fim do dia pra ordenar depois dos outros eventos daquele
+                    // dia -- mas nunca no futuro: hoje, cravar 23:59:59 faria
+                    // esse resumo diario aparecer ANTES de eventos reais de
+                    // publish/notify/sync que ja aconteceram hoje de manha.
+                    'timestamp' => Carbon::parse($row->dia)->endOfDay()->min(now()),
                     'tipo' => 'lista_add',
                     'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" ganhou {$row->total} domínio(s)",
                     'meta' => null,
@@ -443,7 +447,7 @@ class ServidorController extends Controller
 
             foreach ($removidosPorDiaLista as $row) {
                 $eventos[] = [
-                    'timestamp' => Carbon::parse($row->dia)->endOfDay(),
+                    'timestamp' => Carbon::parse($row->dia)->endOfDay()->min(now()),
                     'tipo' => 'lista_remove',
                     'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" perdeu {$row->total} domínio(s)",
                     'meta' => null,
