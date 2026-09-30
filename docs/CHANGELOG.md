@@ -14,6 +14,8 @@ Histórico das mudanças por data, agrupadas por área. Os commits ficam no bran
 - O formulário de Licenças foi refinado para um painel único contínuo, com Empresa, Validade e Capacidade/status como seções internas, divisores discretos, ações integradas e layout responsivo alinhado à referência visual.
 - Licenças não podem trocar de empresa durante a edição: a empresa fica somente leitura na interface e `empresa_id` é removido do payload de atualização no backend. O cadastro de servidor agora aplica o limite de licenças ativas e válidas também para administradores.
 - Validação específica: **20 testes / 63 assertions** para empresas, licenças e usuários; testes de limite cliente/administrador aprovados. Publicação incremental do app concluída, views limpas/recompiladas, nginx recarregado e `/login` respondeu HTTP 200.
+- Listagens administrativas de Empresas, Licenças, Usuários e Sugestões seguem o mesmo padrão compacto, com tabela responsiva no desktop e cartões no mobile; filtros e ações existentes foram preservados.
+- O filtro visual de validade foi removido da listagem de Licenças, mantendo a consulta e os demais dados sem alteração.
 
 ## 21/09/2026
 
