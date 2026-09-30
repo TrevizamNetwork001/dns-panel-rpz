@@ -65,15 +65,10 @@ class RpzDirtyMarker
         $this->markServersAndTheirCompanies(Servidor::whereIn('id', $ids)->get(['id', 'empresa_id']));
     }
 
-    /**
-     * Um servidor mudou de forma que afeta só a zona dele (bloqueio_modo,
-     * status, vínculos de lista) -- não precisa marcar a empresa, já que o
-     * conjunto de domínios agregado da empresa não muda (só como aqueles
-     * domínios são servidos por ESTE servidor específico).
-     */
+    /** Status e vinculos de um servidor tambem afetam a zona agregada da empresa. */
     public function markForServer(int $servidorId): void
     {
-        $this->markServer($servidorId);
+        $this->markForServers([$servidorId]);
     }
 
     /**
@@ -108,19 +103,29 @@ class RpzDirtyMarker
         }
     }
 
-    /**
-     * Incrementa desired_generation atomicamente (UPDATE ... SET generation =
-     * generation + 1, sem race de leitura-then-escrita) e despacha um job de
-     * build. Se a rpz_zone ainda não existe (zona nunca foi vista), não há o
-     * que incrementar -- o job de build cria a linha no bootstrap.
-     */
+    /** Persist before dispatch, including the very first build, so reconciliation can recover lost jobs. */
     private function bump(string $zoneKey): void
     {
+        [$scope, $id] = explode(':', $zoneKey, 2);
+        $entity = $scope === 'server' ? Servidor::find((int) $id) : Empresa::find((int) $id);
         $zone = RpzZone::where('zone_key', $zoneKey)->first();
-        if ($zone !== null) {
-            DB::table('rpz_zones')->where('id', $zone->id)->increment('desired_generation');
-        }
+        if ($entity === null && $zone === null) {
+            BuildRpzZone::dispatch($zoneKey)->afterCommit();
 
-        BuildRpzZone::dispatch($zoneKey);
+            return;
+        }
+        if ($zone === null) {
+            $zone = RpzZone::firstOrCreate(['zone_key' => $zoneKey], [
+                'scope_type' => $scope,
+                'empresa_id' => $scope === 'company' ? (int) $id : $entity->empresa_id,
+                'servidor_id' => $scope === 'server' ? (int) $id : null,
+                'zone_name' => app(RpzZoneBuilder::class)->panelHost(),
+                'last_serial' => 0,
+                'revision' => 0,
+                'content_hash' => '',
+            ]);
+        }
+        DB::table('rpz_zones')->where('id', $zone->id)->increment('desired_generation');
+        BuildRpzZone::dispatch($zoneKey)->afterCommit();
     }
 }

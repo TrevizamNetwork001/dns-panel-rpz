@@ -39,6 +39,12 @@ return [
     |
     */
     'primary_enabled' => (bool) env('RPZ_PRIMARY_ENABLED', false),
+    // Lista explicita de servidores que podem receber NOTIFY durante o piloto.
+    'notify_server_ids' => array_values(array_filter(array_map('trim', explode(',', (string) env('RPZ_NOTIFY_SERVER_IDS', ''))))),
+    'notify_enabled' => (bool) env('RPZ_NOTIFY_ENABLED', false),
+    'notify_ipv6_enabled' => (bool) env('RPZ_NOTIFY_IPV6_ENABLED', true),
+    'notify_attempts' => (int) env('RPZ_NOTIFY_ATTEMPTS', 3),
+    'notify_timeout' => (float) env('RPZ_NOTIFY_TIMEOUT', 1),
     'primary_port' => (int) env('RPZ_PRIMARY_PORT', 5353),
     'primary_bind' => env('RPZ_PRIMARY_BIND', '0.0.0.0'),
 ];

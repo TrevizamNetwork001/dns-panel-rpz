@@ -164,7 +164,7 @@ class RpzZoneBuildServiceTest extends TestCase
         $this->assertStringContainsString('a.example CNAME '.parse_url(config('app.url'), PHP_URL_HOST).'.', $body);
     }
 
-    public function test_failed_or_discarded_candidate_never_becomes_current_version(): void
+    public function test_unchanged_build_preserves_current_version(): void
     {
         $servidor = $this->servidorComDominio();
         $zoneKey = 'server:'.$servidor->id;
@@ -172,13 +172,6 @@ class RpzZoneBuildServiceTest extends TestCase
         $service->build($zoneKey);
         $publicado = RpzZone::where('zone_key', $zoneKey)->first()->current_version_id;
 
-        // Simula staleness: marca dirty, mas builda direto sem passar pelo
-        // fluxo real -- o teste de stale-discard fica melhor coberto por
-        // inspecionar o contrato via reflexao seria fragil; a garantia real
-        // (nao publicar candidato obsoleto) e validada empiricamente no
-        // teste de concorrencia real (mesmo mecanismo da fase anterior).
-        // Aqui validamos a garantia mais simples: se nada mudou, o
-        // current_version_id nunca se move.
         app(RpzDirtyMarker::class)->markServer($servidor->id);
         $service->build($zoneKey);
         $zona = RpzZone::where('zone_key', $zoneKey)->first();
@@ -195,14 +188,8 @@ class RpzZoneBuildServiceTest extends TestCase
         Queue::assertPushed(BuildRpzZone::class, fn (BuildRpzZone $job) => $job->zoneKey === 'server:'.$servidor->id);
     }
 
-    public function test_second_concurrent_build_call_is_locked_out_cheaply(): void
+    public function test_repeated_build_does_not_duplicate_versions(): void
     {
-        // flock e por processo/arquivo, nao simulavel dentro do mesmo
-        // processo PHPUnit de forma realista (ver teste multi-processo real
-        // documentado no entregavel) -- aqui so confirma que chamar build()
-        // duas vezes em sequencia sobre conteudo ja publicado não duplica nada,
-        // que é o comportamento observável equivalente para quem só olha o
-        // banco depois.
         $servidor = $this->servidorComDominio();
         $zoneKey = 'server:'.$servidor->id;
         $service = app(RpzZoneBuildService::class);

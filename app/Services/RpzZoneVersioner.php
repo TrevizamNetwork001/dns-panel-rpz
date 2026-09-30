@@ -118,7 +118,9 @@ class RpzZoneVersioner
                 }
 
                 $zone->forceFill([
-                    'last_serial' => $this->nextSerial((int) $zone->last_serial),
+                    'last_serial' => $zone->revision === 0 && $zone->content_hash === ''
+                        ? $legacyBootstrapSerial()
+                        : $this->nextSerial((int) $zone->last_serial),
                     'revision' => $zone->revision + 1,
                     'content_hash' => $contentHash,
                     'domain_count' => $domainCount,

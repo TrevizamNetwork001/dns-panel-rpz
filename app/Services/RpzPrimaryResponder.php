@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\RpzZone;
 use App\Models\Servidor;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * "Primary" nativo do RPZ (RPZ-UNBOUND-LAB-1, fase de producao real,
@@ -13,8 +14,7 @@ use App\Models\Servidor;
  * completo so pra checar. Protocolo DNS puro (UDP), nao HTTP -- por isso
  * fica num servico dedicado (RpzPrimaryServe), nao numa rota do painel.
  *
- * So responde SOA pra IPs ja cadastrados/liberados (mesma regra de acesso
- * do endpoint HTTP, Servidor::ipAllowed()) -- nunca vira um refletor aberto
+ * So responde SOA pra IPs cadastrados que identificam exatamente um servidor -- nunca vira um refletor aberto
  * pra IP desconhecido (risco classico de amplificacao DNS).
  */
 class RpzPrimaryResponder
@@ -33,13 +33,20 @@ class RpzPrimaryResponder
      */
     public function respond(string $packet, string $sourceIp): ?string
     {
-        $query = $this->parseQuery($packet);
-        if ($query === null) {
+        if (! config('rpz.static_artifacts_enabled')) {
+            return null;
+        }
+        $query = RpzDnsMessage::question($packet);
+        if ($query === null || ($query['flags'] & 0xFECF) !== 0
+            || $query['qtype'] !== self::TYPE_SOA || $query['qclass'] !== self::CLASS_IN
+            || strcasecmp($query['qname'], rtrim($this->builder->panelHost(), '.')) !== 0) {
             return null;
         }
 
         $zone = $this->resolveZoneForIp($sourceIp);
-        if ($zone === null || $zone->current_version_id === null) {
+        $version = $zone?->currentVersion;
+        if ($version === null || $version->status !== 'published' || $version->rpz_zone_id !== $zone->id || ! $version->file_path
+            || ! Storage::disk('local')->exists($version->file_path)) {
             return null;
         }
 
@@ -51,7 +58,7 @@ class RpzPrimaryResponder
             qname: $query['qname'],
             qtype: $query['qtype'],
             qclass: $query['qclass'],
-            serial: $zone->last_serial,
+            serial: $version->serial,
             refresh: $refresh,
             retry: 600,
             expire: 86400,
@@ -78,120 +85,25 @@ class RpzPrimaryResponder
      */
     private function resolveZoneForIp(string $ip): ?RpzZone
     {
-        $servidor = Servidor::query()
+        $matches = Servidor::query()
             ->where('status', 'active')
+            ->whereHas('empresa', fn ($q) => $q->where('status', 'active'))
             ->whereHas('allowedIps', fn ($q) => $q->where('status', 'active'))
             ->with(['allowedIps' => fn ($q) => $q->where('status', 'active'), 'empresa'])
             ->get()
-            ->first(fn (Servidor $s): bool => $s->allowedIps
+            ->filter(fn (Servidor $s): bool => $s->allowedIps
                 ->contains(fn ($regra): bool => Servidor::ipMatchesCidr($ip, $regra->ip_cidr)));
 
-        if ($servidor === null || ! $servidor->empresa?->possuiLicencaAtiva()) {
+        // Shared NAT / overlapping ACLs cannot identify a server-specific zone.
+        if ($matches->count() !== 1) {
+            return null;
+        }
+        $servidor = $matches->first();
+        if (! $servidor->empresa?->possuiLicencaAtiva()) {
             return null;
         }
 
-        return RpzZone::where('zone_key', 'server:'.$servidor->id)->first();
-    }
-
-    /**
-     * @return array{id:int, qname:string, qtype:int, qclass:int}|null
-     */
-    private function parseQuery(string $packet): ?array
-    {
-        if (strlen($packet) < 12) {
-            return null;
-        }
-
-        $header = unpack('nid/nflags/nqdcount/nancount/nnscount/narcount', substr($packet, 0, 12));
-        if ($header === false || $header['qdcount'] < 1) {
-            return null;
-        }
-
-        $offset = 12;
-        $qname = $this->decodeName($packet, $offset);
-        if ($qname === null || strlen($packet) < $offset + 4) {
-            return null;
-        }
-
-        $qtypeClass = unpack('nqtype/nqclass', substr($packet, $offset, 4));
-        if ($qtypeClass === false) {
-            return null;
-        }
-
-        return [
-            'id' => $header['id'],
-            'qname' => $qname,
-            'qtype' => $qtypeClass['qtype'],
-            'qclass' => $qtypeClass['qclass'],
-        ];
-    }
-
-    /**
-     * Decodifica um nome no formato DNS (labels prefixados por tamanho,
-     * terminados em 0x00). Suporta ponteiro de compressao (0xC0) por
-     * seguranca, embora a pergunta de um probe SOA normalmente nao use.
-     * Limite de saltos pra nunca entrar em loop com um pacote malicioso.
-     */
-    private function decodeName(string $packet, int &$offset): ?string
-    {
-        $labels = [];
-        $saltos = 0;
-        $posOriginal = null;
-
-        while (true) {
-            if ($offset >= strlen($packet) || $saltos > 20) {
-                return null;
-            }
-
-            $len = ord($packet[$offset]);
-
-            if ($len === 0) {
-                $offset++;
-                break;
-            }
-
-            if (($len & 0xC0) === 0xC0) {
-                if ($offset + 1 >= strlen($packet)) {
-                    return null;
-                }
-                $ponteiro = unpack('n', substr($packet, $offset, 2))[1] & 0x3FFF;
-                if ($posOriginal === null) {
-                    $posOriginal = $offset + 2;
-                }
-                $offset = $ponteiro;
-                $saltos++;
-
-                continue;
-            }
-
-            if ($offset + 1 + $len > strlen($packet)) {
-                return null;
-            }
-
-            $labels[] = substr($packet, $offset + 1, $len);
-            $offset += 1 + $len;
-        }
-
-        if ($posOriginal !== null) {
-            $offset = $posOriginal;
-        }
-
-        return implode('.', $labels);
-    }
-
-    private function encodeName(string $domain): string
-    {
-        $domain = rtrim($domain, '.');
-        if ($domain === '') {
-            return "\x00";
-        }
-
-        $encoded = '';
-        foreach (explode('.', $domain) as $label) {
-            $encoded .= chr(strlen($label)).$label;
-        }
-
-        return $encoded."\x00";
+        return RpzZone::where('zone_key', 'server:'.$servidor->id)->with('currentVersion')->first();
     }
 
     private function buildSoaResponse(
@@ -214,10 +126,10 @@ class RpzPrimaryResponder
 
         $header = pack('nnnnnn', $id, $flags, 1, 1, 0, 0);
 
-        $questionName = $this->encodeName($qname);
+        $questionName = RpzDnsMessage::encodeName($qname);
         $question = $questionName.pack('nn', $qtype, $qclass);
 
-        $rdata = $this->encodeName($mname).$this->encodeName($rname)
+        $rdata = RpzDnsMessage::encodeName($mname).RpzDnsMessage::encodeName($rname)
             .pack('NNNNN', $serial, $refresh, $retry, $expire, $minimum);
 
         // Nome da resposta aponta por compressao pro qname logo apos o

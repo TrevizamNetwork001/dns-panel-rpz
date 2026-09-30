@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\BuildRpzZone;
+use App\Jobs\NotifyRpzZone;
 use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\RpzZone;
@@ -10,6 +11,7 @@ use App\Models\RpzZoneVersion;
 use App\Models\Servidor;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 
@@ -31,7 +33,6 @@ class RpzZoneBuildService
     public function __construct(
         private RpzZoneBuilder $builder,
         private RpzZoneVersioner $versioner,
-        private RpzPrimaryNotifier $notifier,
     ) {}
 
     /**
@@ -61,6 +62,12 @@ class RpzZoneBuildService
     private function buildLocked(string $zoneKey): array
     {
         [$scopeType, $scopeId] = $this->parseZoneKey($zoneKey);
+        $exists = $scopeType === 'server' ? Servidor::whereKey($scopeId)->exists() : Empresa::whereKey($scopeId)->exists();
+        if (! $exists) {
+            RpzZone::where('zone_key', $zoneKey)->update(['built_generation' => DB::raw('desired_generation')]);
+
+            return ['status' => 'skipped_inactive', 'zone_key' => $zoneKey];
+        }
 
         $zone = RpzZone::firstOrCreate(
             ['zone_key' => $zoneKey],
@@ -162,25 +169,40 @@ class RpzZoneBuildService
         Storage::disk('local')->makeDirectory("rpz/{$zone->id}/staging");
         Storage::disk('local')->makeDirectory("rpz/{$zone->id}/versions");
 
-        $fileHashCtx = hash_init('sha256');
-        $bytes = 0;
-        $fh = fopen(Storage::disk('local')->path($stagingPath), 'w');
-        foreach ($this->builder->renderZone($canonical, $host, (string) $zoneVersionada->last_serial, $target, $refresh) as $bloco) {
-            fwrite($fh, $bloco);
-            hash_update($fileHashCtx, $bloco);
-            $bytes += strlen($bloco);
-        }
-        fclose($fh);
-        fclose($canonical['stream']);
-        $fileHash = hash_final($fileHashCtx);
-
-        $validacao = $this->validateArtifact(Storage::disk('local')->path($stagingPath), $bytes, $host, (string) $zoneVersionada->last_serial);
-        if (! $validacao['ok']) {
+        $fh = null;
+        try {
+            $fileHashCtx = hash_init('sha256');
+            $bytes = 0;
+            $fh = fopen(Storage::disk('local')->path($stagingPath), 'w');
+            if ($fh === false) {
+                throw new \RuntimeException('Nao foi possivel abrir o arquivo de staging');
+            }
+            foreach ($this->builder->renderZone($canonical, $host, (string) $zoneVersionada->last_serial, $target, $refresh) as $bloco) {
+                RpzStream::writeAll($fh, $bloco);
+                hash_update($fileHashCtx, $bloco);
+                $bytes += strlen($bloco);
+            }
+            if (! fflush($fh)) {
+                throw new \RuntimeException('Falha ao finalizar o arquivo de staging');
+            }
+            fclose($fh);
+            $fh = null;
+            $fileHash = hash_final($fileHashCtx);
+            $validacao = $this->validateArtifact(Storage::disk('local')->path($stagingPath), $bytes, $host, (string) $zoneVersionada->last_serial);
+            if (! $validacao['ok']) {
+                throw new \RuntimeException($validacao['erro']);
+            }
+        } catch (\Throwable $e) {
             Storage::disk('local')->delete($stagingPath);
             $candidato->update(['status' => 'failed']);
-            AuditLog::record('rpz.build_failed', "Falha ao validar artefato RPZ ({$zoneKey}): {$validacao['erro']}", $empresaId, 'rpz_zone', $zone->id);
+            AuditLog::record('rpz.build_failed', "Falha ao gerar/validar artefato RPZ ({$zoneKey}): ".$e->getMessage(), $empresaId, 'rpz_zone', $zone->id);
 
             return ['status' => 'failed', 'zone_key' => $zoneKey];
+        } finally {
+            if (is_resource($fh)) {
+                fclose($fh);
+            }
+            fclose($canonical['stream']);
         }
 
         $candidato->update([
@@ -215,18 +237,35 @@ class RpzZoneBuildService
         }
         chmod($absFinal, 0440); // artefato publicado e imutavel a partir daqui.
 
-        DB::transaction(function () use ($zone, $candidato, $finalPath, $capturedGeneration): void {
+        $published = DB::transaction(function () use ($zone, $candidato, $finalPath, $capturedGeneration): bool {
+            // Compare-and-swap closes the gap between the earlier check and publication.
+            $updated = RpzZone::where('id', $zone->id)
+                ->where('desired_generation', $capturedGeneration)
+                ->where('current_version_id', $zone->current_version_id)
+                ->update([
+                    'current_version_id' => $candidato->id,
+                    'built_generation' => $capturedGeneration,
+                    'generated_at' => now(),
+                ]);
+            if ($updated !== 1) {
+                return false;
+            }
             $anteriorId = $zone->current_version_id;
             $candidato->forceFill(['status' => 'published', 'published_at' => now(), 'file_path' => $finalPath])->save();
             if ($anteriorId !== null) {
                 RpzZoneVersion::where('id', $anteriorId)->update(['status' => 'superseded']);
             }
-            RpzZone::where('id', $zone->id)->update([
-                'current_version_id' => $candidato->id,
-                'built_generation' => $capturedGeneration,
-                'generated_at' => now(),
-            ]);
+
+            return true;
         });
+        if (! $published) {
+            Storage::disk('local')->delete($finalPath);
+            $candidato->update(['status' => 'failed']);
+            AuditLog::record('rpz.build_failed', "Candidato obsoleto no momento da publicacao ({$zoneKey})", $empresaId, 'rpz_zone', $zone->id);
+            BuildRpzZone::dispatch($zoneKey)->afterCommit();
+
+            return ['status' => 'stale_discarded', 'zone_key' => $zoneKey];
+        }
 
         AuditLog::record(
             'rpz.version_published',
@@ -236,13 +275,12 @@ class RpzZoneBuildService
             $zone->id,
         );
 
-        // Melhor esforco: NOTIFY (RFC 1996) acelera a reacao do cliente sem
-        // depender do proximo ciclo natural de refresh (RpzPrimaryNotifier).
         try {
-            $this->notifier->notify($zone->fresh());
+            NotifyRpzZone::dispatch($zoneKey, $candidato->id)->afterCommit();
         } catch (\Throwable $e) {
-            // Nunca falha o build/publish por causa do notify -- o refresh
-            // natural do SOA continua como rede de seguranca.
+            // Published data remains valid; expose failure to schedule the advisory.
+            Log::error('rpz.notify.dispatch_failed', ['zone_key' => $zoneKey, 'error' => $e->getMessage()]);
+            AuditLog::record('rpz.notify.dispatch_failed', "NOTIFY nao agendado ({$zoneKey}): ".$e->getMessage(), $empresaId, 'rpz_zone', $zone->id);
         }
 
         $this->reconcileIfStale($zone->id, $capturedGeneration);
@@ -272,7 +310,8 @@ class RpzZoneBuildService
      */
     private function validateArtifact(string $path, int $bytes, string $zoneHost, string $serial): array
     {
-        if ($bytes <= 0 || ! is_file($path)) {
+        clearstatcache(true, $path);
+        if ($bytes <= 0 || ! is_file($path) || filesize($path) !== $bytes) {
             return ['ok' => false, 'erro' => 'arquivo vazio ou ausente'];
         }
 
@@ -309,8 +348,8 @@ class RpzZoneBuildService
     private function resolveScope(string $scopeType, int $scopeId): ?array
     {
         if ($scopeType === 'server') {
-            $servidor = Servidor::where('id', $scopeId)->where('status', 'active')->first();
-            if ($servidor === null) {
+            $servidor = Servidor::with('empresa')->where('id', $scopeId)->where('status', 'active')->first();
+            if ($servidor === null || $servidor->empresa?->status !== 'active' || ! $servidor->empresa->possuiLicencaAtiva()) {
                 return null;
             }
 

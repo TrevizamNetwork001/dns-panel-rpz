@@ -29,6 +29,9 @@ class BuildRpzZone implements ShouldQueue
 
     public function handle(RpzZoneBuildService $service): void
     {
-        $service->build($this->zoneKey);
+        $result = $service->build($this->zoneKey);
+        if ($result['status'] === 'failed') {
+            throw new \RuntimeException('RPZ build failed: '.$this->zoneKey);
+        }
     }
 }

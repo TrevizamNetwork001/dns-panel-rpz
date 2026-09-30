@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Illuminate\Validation\Rule;
 
 class ListaController extends Controller
 {
@@ -142,8 +143,9 @@ class ListaController extends Controller
 
         AuditLog::record('lista.destroyed', "Lista \"{$lista->nome}\" removida", $lista->empresa_id, 'lista', $lista->id);
 
-        $this->rpzDirty->markForList($lista->id);
+        $serverIds = $lista->servidores()->pluck('servidores.id')->all();
         $lista->delete();
+        $this->rpzDirty->markForServers($serverIds);
 
         return redirect()->route('listas.index')->with('status', 'Lista removida.');
     }
@@ -274,6 +276,7 @@ class ListaController extends Controller
 
     private function validated(Request $request): array
     {
+        $empresaId = $request->input('empresa_id');
         $data = $request->validate([
             'empresa_id' => ['nullable', 'exists:empresas,id'],
             'nome' => ['required', 'string', 'max:255'],
@@ -282,6 +285,16 @@ class ListaController extends Controller
             'origem' => ['nullable', 'in:manual,externa,anatel'],
             'fonte_url' => ['nullable', 'url', 'max:500', 'required_if:origem,externa'],
             'fonte_formato' => ['nullable', 'in:hostfile,plain,unbound_local_zone'],
+            'servidor_ids' => ['nullable', 'array'],
+            'servidor_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('servidores', 'id')->where(function ($query) use ($empresaId) {
+                    if ($empresaId !== null) {
+                        $query->where('empresa_id', $empresaId);
+                    }
+                }),
+            ],
         ]);
 
         $data['empresa_id'] = $data['empresa_id'] ?? null;

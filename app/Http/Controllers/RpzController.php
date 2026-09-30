@@ -283,13 +283,11 @@ class RpzController extends Controller
             return null;
         }
 
-        $body = file_get_contents($absPath);
-        if ($body === false) {
-            return null;
-        }
-
-        $response = response($body, 200, [
+        $response = response()->file($absPath, [
             'Content-Type' => 'text/dns; charset=utf-8',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
             'X-Rpz-Request-Id' => $requestId,
             'X-Rpz-Zone-Key' => $zoneKey,
             'X-Rpz-Serial' => (string) $version->serial,
@@ -298,7 +296,6 @@ class RpzController extends Controller
             'X-Rpz-Rule-Count' => (string) $version->rule_count,
             'X-Rpz-Content-Hash' => $version->content_hash,
             'X-Rpz-File-Hash' => (string) $version->file_hash,
-            'Content-Length' => (string) strlen($body),
         ]);
 
         return ['response' => $response, 'version' => $version];

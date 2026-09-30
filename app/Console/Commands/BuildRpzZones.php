@@ -18,6 +18,7 @@ use Illuminate\Console\Command;
 class BuildRpzZones extends Command
 {
     protected $signature = 'rpz:build
+        {--dirty : Reconcilia apenas zonas com geracao pendente}
         {--all : Constrói todas as zonas com pelo menos um servidor/empresa ativo}
         {--zone= : Constrói uma única zona lógica (ex: server:15 ou company:11)}
         {--dry-run : Só lista o que seria feito, sem gravar nada}
@@ -29,7 +30,7 @@ class BuildRpzZones extends Command
     {
         $zoneKeys = $this->resolveZoneKeys();
         if ($zoneKeys === null) {
-            $this->error('Informe --all ou --zone=server:<id>|company:<id>.');
+            $this->error('Informe --all, --dirty ou --zone=server:<id>|company:<id>.');
 
             return self::FAILURE;
         }
@@ -89,6 +90,10 @@ class BuildRpzZones extends Command
     {
         if ($this->option('zone')) {
             return [(string) $this->option('zone')];
+        }
+
+        if ($this->option('dirty')) {
+            return RpzZone::whereColumn('desired_generation', '>', 'built_generation')->pluck('zone_key')->all();
         }
 
         if (! $this->option('all')) {

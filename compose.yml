@@ -87,8 +87,16 @@ services:
 
   queue:
     <<: *app
+    image: dns-panel-rpz-app:notify-pilot
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.notify-pilot
+    environment:
+      RPZ_NOTIFY_ENABLED: "true"
+      RPZ_NOTIFY_SERVER_IDS: "15"
+      RPZ_NOTIFY_IPV6_ENABLED: "false"
     profiles: [cutover]
-    command: ["php", "artisan", "queue:work", "database", "--sleep=1", "--tries=1", "--timeout=360", "--max-time=3600"]
+    command: ["php", "artisan", "queue:work", "database", "--sleep=1", "--tries=3", "--timeout=360", "--max-time=3600"]
     depends_on:
       init: {condition: service_completed_successfully}
     healthcheck: {disable: true}

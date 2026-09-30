@@ -13,3 +13,6 @@ Schedule::command('servidores:limpar-inativos')
 
 Schedule::command('unbound:check-release')
     ->weeklyOn(1, '08:00')->withoutOverlapping(60);
+
+// Recover durable dirty markers after failed/lost jobs, including first publication.
+Schedule::command('rpz:build --dirty')->everyFiveMinutes()->withoutOverlapping(10);

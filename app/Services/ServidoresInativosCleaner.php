@@ -91,8 +91,11 @@ class ServidoresInativosCleaner
                 $resultado['removidos'][] = $item;
                 if (! $dryRun) {
                     $this->audit('servidor.removido_inatividade', $servidor, "Servidor \"{$servidor->nome}\" removido: {$item['dias']} dia(s) sem consultar a zona");
-                    $this->rpzDirty->markForServer($servidor->id);
+                    $empresaId = $servidor->empresa_id;
+                    $servidorId = $servidor->id;
                     $servidor->delete();
+                    $this->rpzDirty->markServer($servidorId);
+                    $this->rpzDirty->markCompany($empresaId);
                 }
             }
         }

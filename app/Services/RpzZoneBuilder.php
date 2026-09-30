@@ -246,7 +246,7 @@ class RpzZoneBuilder
             }
 
             if ($bufferBytes >= self::RENDER_CHUNK_SIZE) {
-                fwrite($stream, $buffer);
+                RpzStream::writeAll($stream, $buffer);
                 hash_update($hashCtx, $buffer);
                 $buffer = '';
                 $bufferBytes = 0;
@@ -254,7 +254,7 @@ class RpzZoneBuilder
         }
 
         if ($buffer !== '') {
-            fwrite($stream, $buffer);
+            RpzStream::writeAll($stream, $buffer);
             hash_update($hashCtx, $buffer);
         }
 
