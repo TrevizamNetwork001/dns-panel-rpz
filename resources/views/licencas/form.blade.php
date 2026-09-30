@@ -12,12 +12,13 @@
         .admin-license-form .page-eyebrow { color: var(--cyan); font-size: 11px; letter-spacing: .14em; }
         .admin-license-form h1 { margin: 8px 0; font-size: 32px; letter-spacing: -.035em; }
         .admin-license-form .page-heading p { margin: 0; color: var(--text-soft); font-size: 13px; }
-        .admin-license-form > form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
-        .admin-license-form .form-panel { min-width: 0; box-sizing: border-box; padding: 16px 20px; border-radius: 13px; box-shadow: none; }
-        .admin-license-form .license-capacity-panel { grid-column: 1 / -1; }
-        .admin-license-form .panel-header { padding-bottom: 12px; margin-bottom: 14px; border-color: var(--border-soft); }
+        .admin-license-form > form.license-form-shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; align-items: start; padding: 26px 32px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: none; }
+        .admin-license-form .form-panel { min-width: 0; box-sizing: border-box; padding: 0 0 22px; border: 0; border-bottom: 1px solid var(--border-soft); border-radius: 0; background: transparent; box-shadow: none; }
+        .admin-license-form .license-capacity-panel { padding-top: 22px; border-bottom: 0; }
+        .admin-license-form .panel-header { display: block; padding-bottom: 12px; margin-bottom: 14px; border: 0; }
         .admin-license-form .panel-header h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 15px; }
         .admin-license-form .panel-header h2 > svg { color: var(--cyan); flex-shrink: 0; }
+        .admin-license-form .panel-header p { margin: 5px 0 0 35px; color: var(--text-soft); font-size: 12px; }
         .admin-license-form .form-grid { gap: 14px 18px; }
         .admin-license-form .field-group { min-width: 0; }
         .admin-license-form .field-group label { font-size: 12px; font-weight: 550; }
@@ -32,9 +33,8 @@
         @media (max-width: 700px) {
             .admin-license-form .page-heading { align-items: flex-start; flex-direction: column; }
             .admin-license-form h1 { font-size: 27px; }
-            .admin-license-form > form { grid-template-columns: minmax(0, 1fr); }
+            .admin-license-form > form.license-form-shell { padding: 20px 18px 14px; }
             .admin-license-form .form-grid { grid-template-columns: minmax(0, 1fr); }
-            .admin-license-form .license-capacity-panel { grid-column: auto; }
             .admin-license-form .form-panel { padding: 15px 16px; }
             .admin-license-form > form > .form-actions { margin-top: 16px; }
         }
@@ -49,14 +49,14 @@
             </div>
         </div>
 
-        <form action="{{ $licenca->exists ? route('licencas.update', $licenca) : route('licencas.store') }}" method="POST">
+        <form class="license-form-shell" action="{{ $licenca->exists ? route('licencas.update', $licenca) : route('licencas.store') }}" method="POST">
             @csrf
             @if ($licenca->exists)
                 @method('PUT')
             @endif
 
-            <div class="panel form-panel">
-                <div class="panel-header"><h2><x-ui-icon name="building" size="23" /> Empresa</h2></div>
+            <div class="panel form-panel license-company-panel">
+                <div class="panel-header"><h2><x-ui-icon name="building" size="23" /> Empresa</h2><p>Empresa proprietária desta licença.</p></div>
                 <div class="form-grid">
                     <div class="field-group">
                         <label for="empresa_id">Empresa licenciada</label>
@@ -74,8 +74,8 @@
                 </div>
             </div>
 
-            <div class="panel form-panel">
-                <div class="panel-header"><h2><x-ui-icon name="clock" size="23" /> Validade</h2></div>
+            <div class="panel form-panel license-validity-panel">
+                <div class="panel-header"><h2><x-ui-icon name="clock" size="23" /> Validade</h2><p>Defina o período de validade da licença.</p></div>
                 <div class="form-grid">
                     <div class="field-group">
                         <label for="starts_at">Início</label>
@@ -96,7 +96,7 @@
             </div>
 
             <div class="panel form-panel license-capacity-panel">
-                <div class="panel-header"><h2><x-ui-icon name="settings" size="23" /> Capacidade e status</h2></div>
+                <div class="panel-header"><h2><x-ui-icon name="settings" size="23" /> Capacidade e status</h2><p>Configure o limite de endpoints e o status da licença.</p></div>
                 <div class="form-grid">
                     <div class="field-group">
                         <label for="max_servidores">Máximo de Endpoints RPZ</label>
