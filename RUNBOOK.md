@@ -217,7 +217,31 @@ Referência: [NLnet Labs Unbound issue #429 — `rpz: url:` com HTTPS quebrado c
 
 **Estado do deploy (importante):** confirmado em 29/09/2026 que a **produção real ainda não teve nenhuma dessas migrations aplicadas** — o commit `afa131f` (RPZ-SERIAL-1/OBS-1) e o trabalho de RPZ-VERSION-1/BUILD-1 existem no repositório mas não foram implantados no container rodando (`docker compose exec app` na consulta direta ao `/data/database.sqlite` real não mostra `rpz_zones` nem `rpz_zone_versions`). O GET em produção continua servindo pelo caminho dinâmico pré-RPZ-SERIAL-1 até um deploy real acontecer (`docker compose build app` → `backup:run` → cutover → `restart nginx`, seguido de `php artisan rpz:build --all` pra popular o histórico antes de cogitar ligar a flag).
 
-**O que falta pra RPZ-UNBOUND-LAB-1** (testar `primary + url` no Unbound pra evitar reprocessar conteúdo inalterado): artefato estático publicado e testado em produção real por um tempo; múltiplas empresas hoje compartilham o mesmo `name:` textual de zona (`rpz.trevizamnetwork.com.br`) com conteúdos diferentes — um `primary` simples não serve um único serial global pra isso, precisa de endereçamento/nome por zona primeiro.
+## RPZ-UNBOUND-LAB-1 e o "primary" nativo do RPZ (29/09/2026)
+
+**Pergunta original:** o Unbound, sem `primary:` (só `url:`), baixa a zona inteira via HTTPS a cada ciclo de refresh, **mesmo sem nenhuma mudança de conteúdo** — isso causa uma pausa perceptível nas consultas DNS toda vez que a zona é grande. `primary + url` resolveria isso (sondagem SOA leve primeiro, download só se o serial mudou de verdade)?
+
+**Resposta: sim, comprovado com testes reais em laboratório isolado (DNS-03, nunca produção real) e depois com o serviço definitivo em produção.**
+
+**Testes no laboratório** (DNS-03 usado como zona de laboratório: isolado com uma única lista sintética, sem conteúdo real de bloqueio; NSD instalado localmente como `primary` provisório enquanto o serviço definitivo não existia):
+- **Teste 1** (sem mudança de conteúdo): probe SOA natural, sem download, sem pausa — confirmado repetidamente.
+- **Teste 2** (mudança real de conteúdo): download acontece só quando necessário. Achado extra: tentativa de conexão IPv6 falhando e caindo pra IPv4 consumia boa parte da pausa total (~11 de ~14,5s) — não é falha do mecanismo `primary+url`, é problema de rota de rede (ver abaixo).
+- **Teste 3** (ciclos repetidos sem mudança): confirma que a otimização se sustenta, não é um acerto isolado. Achado extra: o `refresh` que rege o timer do próximo probe vem do **SOA da própria zona carregada** (documentado em `man unbound.conf`: *"If only urls are given the SOA refresh timer is used..."*), não do valor servido pelo `primary` no momento — reduzir o refresh só tem efeito pleno a partir do próximo ciclo já agendado, não instantaneamente.
+
+**O "primary" nativo (substituindo o NSD de laboratório):**
+- `App\Services\RpzPrimaryResponder`: interpreta consultas DNS SOA brutas (UDP) e responde o serial real, lido direto de `rpz_zones.last_serial`. Identifica qual zona/servidor está perguntando **pelo IP de origem** (mesma tabela `Servidor::allowedIps` já usada pro endpoint HTTP) — mas com match sempre exato (`Servidor::ipMatchesCidr()` direto), nunca reusando `Servidor::ipAllowed()`, porque esse método libera qualquer IP quando a restrição está desligada (regra correta pro endpoint HTTP, que tem o token na URL como segredo real; errada aqui, onde o IP é a única barreira — um bug real encontrado e corrigido nesta mesma fase, commit `c34123e`). IP não cadastrado recebe silêncio, nunca resposta (evita virar refletor de amplificação DNS).
+- `App\Services\RpzPrimaryNotifier`: envia DNS NOTIFY (RFC 1996) pro IP do servidor assim que uma versão nova é publicada (`RpzZoneBuildService`) — permite manter o `refresh` da zona alto (menos sondagem de rotina) sem perder velocidade de reação a mudanças reais. Melhor esforço; falha nunca derruba o build/publish.
+- `php artisan rpz:primary-serve`: sobe o socket UDP continuamente. Roda como serviço dedicado `rpz-primary` no `compose.yml` (perfil `cutover`), com `cap_add: [NET_BIND_SERVICE]` (necessário pra bind na porta 53, privilegiada, com usuário sem root).
+- Cobre **só `server:<id>`** nesta primeira versão — `company:<id>` (endpoint agregado por empresa) ainda cai fora, fica pra uma iteração futura.
+- Flag `RPZ_PRIMARY_ENABLED` (config `rpz.primary_enabled`, default `false`) liga o serviço só onde for explicitamente configurado no `compose.yml` — não afeta `app`/`queue`/demais containers.
+
+**Estado atual (29/09/2026):** serviço `rpz-primary` rodando em produção real (porta 53/UDP pública, `108.181.224.210`), mas **liberado no firewall da hospedagem só pro IP do DNS-03** — nenhum outro servidor real consegue alcançar ainda. DNS-03 configurado com `primary: 108.181.224.210` + `url:` de sempre, validado com tráfego real de rede (não simulação), incluindo um ciclo natural completo sem nenhum comando manual.
+
+**Pendência bloqueadora:** `primary:` apontando pelo **nome de domínio** (`rpz.trevizamnetwork.com.br`) trava tentando só IPv6 sem cair pra IPv4 (diferente do `url:`, que tem fallback explícito) — contornado usando o **IP literal** por enquanto. Causa raiz identificada: o servidor do painel tem duas rotas padrão de IPv6 conflitantes (`eth1` via RA, `eth2` com o IPv6 público real), e o gateway em `eth2` devolve `Destination unreachable: Address unreachable` pra qualquer destino externo — chamado aberto com a hospedagem (Absam) pra corrigir.
+
+**Plano pra depois do IPv6 corrigido:**
+1. Reinstalar o Unbound do DNS-03 do zero (sem nenhum resquício do laboratório — NSD, scripts manuais) e revalidar os 3 testes numa instalação limpa, usando `primary: rpz.trevizamnetwork.com.br` (nome, sem IP literal).
+2. Só depois disso passar validado, considerar aplicar em servidores de produção reais (DNS-01, DNS-02) — decisão nova, exige autorização explícita separada. Nesse momento também: liberar o firewall da hospedagem mais amplamente (hoje só libera o IP do DNS-03) e decidir se cobre `company:<id>` antes ou depois do rollout.
 
 ## Servidor sumiu do painel (removido por inatividade)
 
