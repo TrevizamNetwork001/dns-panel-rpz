@@ -25,7 +25,7 @@
                     );
                     $eventMessage = match ($evento['tipo']) {
                         'sync' => preg_replace('/^RPZ solicitada/u', 'Zona consultada', $eventMessage),
-                        'publish' => preg_replace('/^Zona publicada/u', 'Zona atualizada', $eventMessage),
+                        'publish' => preg_replace('/^Zona publicada/u', 'Zona atualizada', preg_replace('/\s*,\s*serial\s+\d+/iu', '', $eventMessage)),
                         'notify_ok' => 'Servidor notificado sobre a nova versão',
                         'notify_falhou' => match (true) {
                             str_starts_with($eventMessage, 'Aviso enviado') => 'Servidor notificado sobre a nova versão — sem confirmação',
