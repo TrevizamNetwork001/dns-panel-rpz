@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -22,7 +23,7 @@ class RpzController extends Controller
     /**
      * Gera o zonefile RPZ do servidor identificado pelo token.
      */
-    public function show(Request $request, string $identifier, RpzZoneBuilder $builder, RpzZoneVersioner $versioner): Response|StreamedResponse
+    public function show(Request $request, string $identifier, RpzZoneBuilder $builder, RpzZoneVersioner $versioner): Response|StreamedResponse|BinaryFileResponse
     {
         $empresa = Empresa::where('rpz_slug', $identifier)->where('status', 'active')->first();
         if ($empresa !== null) {
@@ -131,7 +132,7 @@ class RpzController extends Controller
         ]);
     }
 
-    private function showCompany(Request $request, Empresa $empresa, RpzZoneBuilder $builder, RpzZoneVersioner $versioner): Response|StreamedResponse
+    private function showCompany(Request $request, Empresa $empresa, RpzZoneBuilder $builder, RpzZoneVersioner $versioner): Response|StreamedResponse|BinaryFileResponse
     {
         if (! $empresa->possuiLicencaAtiva()) {
             throw new NotFoundHttpException;
