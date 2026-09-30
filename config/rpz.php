@@ -25,4 +25,20 @@ return [
     |
     */
     'static_artifacts_enabled' => (bool) env('RPZ_STATIC_ARTIFACTS_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
+    | "Primary" nativo do RPZ (RPZ-UNBOUND-LAB-1, producao real)
+    |--------------------------------------------------------------------------
+    |
+    | Servico UDP dedicado (rpz:primary-serve) que responde sondagens SOA-only
+    | de servidores Unbound configurados com `primary:` + `url:`, evitando
+    | download desnecessario quando o serial nao mudou. Ver
+    | app/Services/RpzPrimaryResponder.php e app/Console/Commands/RpzPrimaryServe.php.
+    | Desligado por padrao ate o piloto (DNS-03) validar em producao real.
+    |
+    */
+    'primary_enabled' => (bool) env('RPZ_PRIMARY_ENABLED', false),
+    'primary_port' => (int) env('RPZ_PRIMARY_PORT', 5353),
+    'primary_bind' => env('RPZ_PRIMARY_BIND', '0.0.0.0'),
 ];

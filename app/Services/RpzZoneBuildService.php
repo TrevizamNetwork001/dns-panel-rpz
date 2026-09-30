@@ -31,6 +31,7 @@ class RpzZoneBuildService
     public function __construct(
         private RpzZoneBuilder $builder,
         private RpzZoneVersioner $versioner,
+        private RpzPrimaryNotifier $notifier,
     ) {}
 
     /**
@@ -234,6 +235,15 @@ class RpzZoneBuildService
             'rpz_zone',
             $zone->id,
         );
+
+        // Melhor esforco: NOTIFY (RFC 1996) acelera a reacao do cliente sem
+        // depender do proximo ciclo natural de refresh (RpzPrimaryNotifier).
+        try {
+            $this->notifier->notify($zone->fresh());
+        } catch (\Throwable $e) {
+            // Nunca falha o build/publish por causa do notify -- o refresh
+            // natural do SOA continua como rede de seguranca.
+        }
 
         $this->reconcileIfStale($zone->id, $capturedGeneration);
 
