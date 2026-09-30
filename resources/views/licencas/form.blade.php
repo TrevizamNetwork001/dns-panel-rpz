@@ -12,13 +12,13 @@
         .admin-license-form .page-eyebrow { color: var(--cyan); font-size: 11px; letter-spacing: .14em; }
         .admin-license-form h1 { margin: 8px 0; font-size: 32px; letter-spacing: -.035em; }
         .admin-license-form .page-heading p { margin: 0; color: var(--text-soft); font-size: 13px; }
-        .admin-license-form > form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
-        .admin-license-form .form-panel { min-width: 0; height: 100%; box-sizing: border-box; padding: 22px; border-radius: 13px; box-shadow: none; }
+        .admin-license-form > form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+        .admin-license-form .form-panel { min-width: 0; box-sizing: border-box; padding: 16px 20px; border-radius: 13px; box-shadow: none; }
         .admin-license-form .license-capacity-panel { grid-column: 1 / -1; }
-        .admin-license-form .panel-header { padding-bottom: 18px; margin-bottom: 20px; border-color: var(--border-soft); }
+        .admin-license-form .panel-header { padding-bottom: 12px; margin-bottom: 14px; border-color: var(--border-soft); }
         .admin-license-form .panel-header h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 15px; }
         .admin-license-form .panel-header h2 > svg { color: var(--cyan); flex-shrink: 0; }
-        .admin-license-form .form-grid { gap: 20px 18px; }
+        .admin-license-form .form-grid { gap: 14px 18px; }
         .admin-license-form .field-group { min-width: 0; }
         .admin-license-form .field-group label { font-size: 12px; font-weight: 550; }
         .admin-license-form .form-control { min-height: 46px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 9px; color: var(--text); background: var(--surface-soft); font-size: 13px; }
@@ -35,7 +35,7 @@
             .admin-license-form > form { grid-template-columns: minmax(0, 1fr); }
             .admin-license-form .form-grid { grid-template-columns: minmax(0, 1fr); }
             .admin-license-form .license-capacity-panel { grid-column: auto; }
-            .admin-license-form .form-panel { padding: 18px; }
+            .admin-license-form .form-panel { padding: 15px 16px; }
             .admin-license-form > form > .form-actions { margin-top: 16px; }
         }
     </style>
