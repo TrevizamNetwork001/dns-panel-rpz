@@ -35,7 +35,7 @@
                         @endif
                     </span>
                     @if (! $evento['lista_id'] && $evento['meta'])
-                        <span class="endpoint-event-ip endpoint-detail-mono">IP {{ $evento['meta'] }}</span>
+                        <span class="endpoint-event-ip endpoint-detail-mono">{{ $evento['tipo'] === 'sync' ? 'IP '.$evento['meta'] : $evento['meta'] }}</span>
                     @endif
                 </li>
             @endforeach

@@ -390,14 +390,26 @@ class ServidorController extends Controller
             }
         }
 
+        // Traduz pra linguagem simples -- $log->description guarda o texto
+        // tecnico completo (serial/IP/tentativas) soh pra quem for direto na
+        // Auditoria geral investigar; aqui na tela do servidor o publico e
+        // leigo, entao o "o que aconteceu" fica no detalhe e o "porque"
+        // tecnico vira nota pequena (mesmo padrao do IP no evento de sync).
         foreach (AuditLog::where('target_type', 'servidor')->where('target_id', $servidor->id)
             ->where('action', 'like', 'rpz.notify.%')->where('created_at', '>=', $desde)
             ->orderByDesc('id')->limit(50)->get() as $log) {
+            [$detalhe, $nota] = match ($log->action) {
+                'rpz.notify.acknowledged' => ['Servidor avisado da atualização — confirmado', null],
+                'rpz.notify.unconfirmed' => ['Aviso enviado, sem confirmação do servidor — o sistema tenta de novo sozinho no próximo ciclo automático', null],
+                'rpz.notify.rejected' => ['Servidor recusou o aviso automático', 'verifique a liberação de acesso (access-control) no Unbound dele'],
+                'rpz.notify.skipped' => ['Aviso automático não habilitado pra este servidor ainda', null],
+                default => ['Falha ao enviar o aviso automático — o sistema tenta de novo sozinho no próximo ciclo', null],
+            };
             $eventos[] = [
                 'timestamp' => $log->created_at,
                 'tipo' => $log->action === 'rpz.notify.acknowledged' ? 'notify_ok' : 'notify_falhou',
-                'detalhe' => $log->description,
-                'meta' => null,
+                'detalhe' => $detalhe,
+                'meta' => $nota,
                 'lista_id' => null,
             ];
         }
