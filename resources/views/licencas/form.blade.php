@@ -12,8 +12,9 @@
         .admin-license-form .page-eyebrow { color: var(--cyan); font-size: 11px; letter-spacing: .14em; }
         .admin-license-form h1 { margin: 8px 0; font-size: 32px; letter-spacing: -.035em; }
         .admin-license-form .page-heading p { margin: 0; color: var(--text-soft); font-size: 13px; }
-        .admin-license-form > form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
-        .admin-license-form .form-panel { min-width: 0; padding: 22px; border-radius: 13px; box-shadow: none; }
+        .admin-license-form > form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
+        .admin-license-form .form-panel { min-width: 0; height: 100%; box-sizing: border-box; padding: 22px; border-radius: 13px; box-shadow: none; }
+        .admin-license-form .license-capacity-panel { grid-column: 1 / -1; }
         .admin-license-form .panel-header { padding-bottom: 18px; margin-bottom: 20px; border-color: var(--border-soft); }
         .admin-license-form .panel-header h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 15px; }
         .admin-license-form .panel-header h2 > svg { color: var(--cyan); flex-shrink: 0; }
@@ -32,6 +33,8 @@
             .admin-license-form .page-heading { align-items: flex-start; flex-direction: column; }
             .admin-license-form h1 { font-size: 27px; }
             .admin-license-form > form { grid-template-columns: minmax(0, 1fr); }
+            .admin-license-form .form-grid { grid-template-columns: minmax(0, 1fr); }
+            .admin-license-form .license-capacity-panel { grid-column: auto; }
             .admin-license-form .form-panel { padding: 18px; }
             .admin-license-form > form > .form-actions { bottom: 8px; padding: 12px; }
         }
@@ -88,7 +91,7 @@
                 </div>
             </div>
 
-            <div class="panel form-panel">
+            <div class="panel form-panel license-capacity-panel">
                 <div class="panel-header"><h2><x-ui-icon name="settings" size="23" /> Capacidade e status</h2></div>
                 <div class="form-grid">
                     <div class="field-group">
