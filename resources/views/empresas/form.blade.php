@@ -59,17 +59,6 @@
             </div>
         </div>
 
-        <div class="panel form-panel" style="margin-bottom:14px">
-            <div class="panel-header"><h2><x-ui-icon name="settings" size="23" />Configuração RPZ</h2></div>
-            <div class="form-grid">
-                <div class="field-group">
-                    <label for="rpz_slug">Slug RPZ</label>
-                    <input class="form-control" type="text" id="rpz_slug" name="rpz_slug" value="{{ old('rpz_slug', $empresa->rpz_slug) }}" pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?" maxlength="80" placeholder="gerado automaticamente">
-                    <small>Identificador estável da URL; não muda com o nome da empresa.</small>
-                </div>
-            </div>
-        </div>
-
         <div class="form-actions">
             <a href="{{ route('empresas.index') }}" class="button button-secondary">Cancelar</a>
             <button type="submit" class="button button-primary">Salvar</button>

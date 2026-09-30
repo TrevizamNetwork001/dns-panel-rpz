@@ -5,7 +5,7 @@
     .admin-empresa-form .page-eyebrow { color: var(--cyan); font-size: 11px; letter-spacing: .14em; }
     .admin-empresa-form h1 { margin: 8px 0; font-size: 32px; letter-spacing: -.035em; }
     .admin-empresa-form .page-heading p { margin: 0; color: var(--text-soft); font-size: 13px; }
-    .admin-empresa-form > form { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, .65fr); gap: 18px; align-items: start; }
+    .admin-empresa-form > form { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
     .admin-empresa-form .form-panel { min-width: 0; padding: 22px; margin-bottom: 0 !important; border-radius: 13px; box-shadow: none; }
     .admin-empresa-form .panel-header { padding-bottom: 18px; margin-bottom: 20px; border-color: var(--border-soft); }
     .admin-empresa-form .panel-header h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 15px; }
