@@ -411,7 +411,7 @@ class ServidorController extends Controller
                     $join->on('lista_servidor.lista_id', '=', 'dominios.lista_id')
                         ->where('lista_servidor.servidor_id', '=', $servidor->id);
                 })
-                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.created_at) as dia, COUNT(*) as total')
+                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.created_at) as dia, COUNT(*) as total, MAX(dominios.created_at) as ultimo')
                 ->whereIn('dominios.lista_id', $listaIds)
                 ->where('dominios.created_at', '>=', $desde)
                 ->whereColumn('dominios.created_at', '>=', 'lista_servidor.created_at')
@@ -423,7 +423,7 @@ class ServidorController extends Controller
                     $join->on('lista_servidor.lista_id', '=', 'dominios.lista_id')
                         ->where('lista_servidor.servidor_id', '=', $servidor->id);
                 })
-                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.updated_at) as dia, COUNT(*) as total')
+                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.updated_at) as dia, COUNT(*) as total, MAX(dominios.updated_at) as ultimo')
                 ->whereIn('dominios.lista_id', $listaIds)
                 ->where('dominios.ativo', false)
                 ->where('dominios.updated_at', '>=', $desde)
@@ -433,11 +433,11 @@ class ServidorController extends Controller
 
             foreach ($adicionadosPorDiaLista as $row) {
                 $eventos[] = [
-                    // Fim do dia pra ordenar depois dos outros eventos daquele
-                    // dia -- mas nunca no futuro: hoje, cravar 23:59:59 faria
-                    // esse resumo diario aparecer ANTES de eventos reais de
-                    // publish/notify/sync que ja aconteceram hoje de manha.
-                    'timestamp' => Carbon::parse($row->dia)->endOfDay()->min(now()),
+                    // Horario real do ultimo dominio do lote (nao um horario
+                    // artificial tipo "fim do dia" ou "agora") -- assim a
+                    // ordenacao com eventos reais (sync/publish/notify) do
+                    // mesmo dia fica correta e estavel entre carregamentos.
+                    'timestamp' => Carbon::parse($row->ultimo),
                     'tipo' => 'lista_add',
                     'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" ganhou {$row->total} domínio(s)",
                     'meta' => null,
@@ -447,7 +447,7 @@ class ServidorController extends Controller
 
             foreach ($removidosPorDiaLista as $row) {
                 $eventos[] = [
-                    'timestamp' => Carbon::parse($row->dia)->endOfDay()->min(now()),
+                    'timestamp' => Carbon::parse($row->ultimo),
                     'tipo' => 'lista_remove',
                     'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" perdeu {$row->total} domínio(s)",
                     'meta' => null,
