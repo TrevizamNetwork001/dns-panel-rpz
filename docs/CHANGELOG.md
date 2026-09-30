@@ -2,6 +2,15 @@
 
 Histórico das mudanças por data, agrupadas por área. Os commits ficam no branch `feat/dockerize-rpz` (PR nº 1 para o `master`). Este arquivo começa em 17/09/2026; o que veio antes está no histórico do git.
 
+## 30/09/2026
+
+### Histórico de servidores
+
+- Padronizados os nomes exibidos no histórico: **Zona consultada**, **Domínios adicionados**, **Domínios removidos**, **Zona atualizada**, **Servidor notificado** e **Notificação falhou**.
+- As descrições acompanham os novos nomes; o evento de consulta não repete o nome do servidor na linha seguinte.
+- “Sincronização concluída” não é usado para avisos: fica reservado a uma confirmação real de recebimento e aplicação da nova versão pelo servidor.
+- Alteração limitada à apresentação do partial Blade do histórico. Tipos internos, banco, auditoria, filtros, ordenação, dados antigos, ícones, cores e comportamento responsivo foram preservados.
+
 ## 21/09/2026
 
 ### Acesso ao gerenciamento de ACL

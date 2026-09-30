@@ -9,12 +9,12 @@
             @foreach (($recent ? array_slice($logServidor, 0, 5) : $logServidor) as $evento)
                 @php
                     [$eventClass, $eventLabel] = match ($evento['tipo']) {
-                        'sync' => ['sync', 'Requisição RPZ'],
-                        'lista_add' => ['add', 'Adição'],
-                        'lista_remove' => ['remove', 'Remoção'],
-                        'publish' => ['sync', 'Publicado'],
-                        'notify_ok' => ['add', 'Avisado'],
-                        'notify_falhou' => ['remove', 'Aviso falhou'],
+                        'sync' => ['sync', 'Zona consultada'],
+                        'lista_add' => ['add', 'Domínios adicionados'],
+                        'lista_remove' => ['remove', 'Domínios removidos'],
+                        'publish' => ['sync', 'Zona atualizada'],
+                        'notify_ok' => ['add', 'Servidor notificado'],
+                        'notify_falhou' => ['remove', 'Notificação falhou'],
                         default => ['other', 'Evento'],
                     };
                     $comHorario = in_array($evento['tipo'], ['sync', 'publish', 'notify_ok', 'notify_falhou'], true);
@@ -23,6 +23,13 @@
                         fn (array $match): string => number_format((int) $match[1], 0, ',', '.').' '.((int) $match[1] === 1 ? 'domínio' : 'domínios'),
                         $evento['detalhe'],
                     );
+                    $eventMessage = match ($evento['tipo']) {
+                        'sync' => preg_replace('/^RPZ solicitada/u', 'Zona consultada', $eventMessage),
+                        'publish' => preg_replace('/^Zona publicada/u', 'Zona atualizada', $eventMessage),
+                        'notify_ok' => preg_replace('/^Servidor avisado/u', 'Servidor notificado', $eventMessage),
+                        'notify_falhou' => preg_replace('/^Aviso/u', 'Notificação', $eventMessage),
+                        default => $eventMessage,
+                    };
                 @endphp
                 <li class="endpoint-event endpoint-event-{{ $eventClass }}">
                     <time datetime="{{ $evento['timestamp']->format($comHorario ? 'c' : 'Y-m-d') }}">{{ $evento['timestamp']->format('d/m/Y') }}@if ($comHorario)<span>{{ $evento['timestamp']->format('H:i:s') }}</span>@endif</time>
@@ -34,7 +41,7 @@
                             {{ $eventMessage }}
                         @endif
                     </span>
-                    @if (! $evento['lista_id'] && $evento['meta'])
+                    @if (! $evento['lista_id'] && $evento['meta'] && $evento['tipo'] !== 'sync')
                         <span class="endpoint-event-ip">{{ $evento['meta'] }}</span>
                     @endif
                 </li>

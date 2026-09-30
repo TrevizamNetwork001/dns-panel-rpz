@@ -1,6 +1,6 @@
 # Interface de endpoints e servidores
 
-Atualizado em 21/09/2026. Consolida a reorganização dos detalhes de servidores (admin e cliente), o gerenciamento de IPs e a modernização da listagem/cadastro/edição do admin.
+Atualizado em 30/09/2026. Consolida a reorganização dos detalhes de servidores (admin e cliente), o gerenciamento de IPs, a modernização da listagem/cadastro/edição do admin e a nomenclatura do histórico.
 
 ## Escopo e limites
 
@@ -18,7 +18,9 @@ A imagem fornecida pelo usuário orientou o acabamento. A pasta `referencias/` �
 - **Configuração técnica** contém configuração do DNS e, no Unbound, **Solução de problemas**. São seções `<details>` fechadas inicialmente. Cada seção tem **× Fechar** ao final; recolher devolve foco ao título e o traz para a área visível.
 - **Sincronizar agora** abre as instruções de `unbound-control auth_zone_transfer`; o usuário precisa executar o comando no DNS do cliente. O nome do botão não representa uma nova capacidade de execução remota. O link `#rpz-manual-sync` continua abrindo a seção.
 - **Histórico recente**: no máximo 5 eventos. **Ver histórico completo** abre os mesmos dados já carregados, limitados pelo backend a até 80 eventos dos últimos 30 dias. Não há busca adicional nem arquivo ilimitado. O escopo por servidor, a ordem e os cortes temporais por vínculo continuam iguais.
-- Eventos: ciano para sincronização, verde para adição, laranja para remoção. Contagens formatadas em português; mensagens de lista mantêm o link para o histórico da fonte. Remoções representam desativação de regras.
+- Eventos: ciano para consulta/atualização de zona, verde para adição/notificação bem-sucedida, laranja para remoção/falha de notificação. Os nomes exibidos são **Zona consultada**, **Domínios adicionados**, **Domínios removidos**, **Zona atualizada**, **Servidor notificado** e **Notificação falhou**. Contagens formatadas em português; mensagens de lista mantêm o link para o histórico da fonte. Remoções representam desativação de regras.
+- A consulta registra que o painel atendeu uma requisição RPZ; não afirma que o servidor aplicou a zona. O rótulo **Sincronização concluída** não é usado neste histórico: ele só seria apropriado após confirmação real de recebimento e aplicação, que não é produzida por estes eventos.
+- O nome do servidor não é repetido nos eventos de consulta, pois o histórico já está dentro da página daquele servidor. Os tipos internos (`sync`, `lista_add`, `lista_remove`, `publish`, `notify_ok` e `notify_falhou`) e seus dados históricos permanecem inalterados; a tradução ocorre somente na apresentação Blade.
 - Modais usam `showModal()`/`close()`, fechamento por botão e Escape. Em telas grandes, a página reserva espaço à direita enquanto o modal está aberto; em telas menores ele sobrepõe a página. Layout responsivo e variáveis de tema preservados.
 
 ## Restrição de IP — somente admin
