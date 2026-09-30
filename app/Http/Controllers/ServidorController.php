@@ -367,7 +367,10 @@ class ServidorController extends Controller
                 // requisicao HTTP atendida, nao a aplicacao real no Unbound do
                 // cliente -- ver auditoria RPZ de 29/09/2026, secao 9.
                 'detalhe' => "RPZ solicitada — {$log->dominios_count} domínio(s)",
-                'meta' => $log->ip_address,
+                // Nome do servidor, nao o IP tecnico -- ja estamos na pagina
+                // deste servidor especifico, entao o IP e redundante e menos
+                // legivel pro publico leigo desta tela.
+                'meta' => $servidor->nome,
                 'lista_id' => null,
             ];
         }
