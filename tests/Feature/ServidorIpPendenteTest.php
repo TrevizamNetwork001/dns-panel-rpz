@@ -206,7 +206,11 @@ class ServidorIpPendenteTest extends TestCase
         ]))->assertRedirect()->assertSessionHas('status');
 
         $servidor = $empresa->servidores()->first();
-        $this->assertSame(['203.0.113.10' => 'active', '2001:db8::10' => 'active'], $servidor->allowedIps()->pluck('status', 'ip_cidr')->all());
+        // Ordem por id (insercao), nao a ordem natural de leitura do SQLite --
+        // o indice unico da migration 2026_09_30_000001 muda o plano de
+        // consulta pra ordenar por ip_cidr, nao por rowid, quebrando qualquer
+        // suposicao implicita de ordem aqui.
+        $this->assertSame(['203.0.113.10' => 'active', '2001:db8::10' => 'active'], $servidor->allowedIps()->orderBy('id')->pluck('status', 'ip_cidr')->all());
         $this->assertTrue($servidor->ipAllowed('203.0.113.10'));
         $this->assertSame(2, \App\Models\AuditLog::where('action', 'servidor.ips.added')->where('target_id', $servidor->id)->count());
         $this->assertSame(0, \App\Models\AuditLog::where('action', 'servidor.ip_pendente')->count());

@@ -59,9 +59,8 @@ class ServidorListaAtividadeTest extends TestCase
         $response = $this->actingAs($admin)->get(route('servidores.show', $servidor));
 
         $response->assertOk();
-        $response->assertSee('Requisição RPZ');
+        $response->assertSee('Zona consultada');
         $response->assertSee('42 domínios');
-        $response->assertSee('203.0.113.10');
     }
 
     public function test_does_not_show_activity_from_a_lista_not_linked_to_this_servidor(): void

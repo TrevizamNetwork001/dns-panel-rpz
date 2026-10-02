@@ -164,7 +164,9 @@ class RpzZoneVersioningTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('servidores.show', $servidor));
         $response->assertOk()
-            ->assertSee('RPZ solicitada')
+            // Rotulo atual da view e "Zona consultada" (24eefd6); o dado cru
+            // no controller continua "RPZ solicitada", so a exibicao mudou.
+            ->assertSee('Zona consultada')
             ->assertDontSee('Servidor sincronizou')
             ->assertDontSee('domínios entregues');
     }

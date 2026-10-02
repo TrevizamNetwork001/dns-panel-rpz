@@ -24,11 +24,14 @@ class AdminEndpointStreamTest extends TestCase
         $sync = $server->syncLogs()->create(['dominios_count' => 244493, 'ip_address' => '2001:db8::249', 'created_at' => now()]);
 
         $response = $this->actingAs($admin)->get(route('servidores.show', $server));
+        // Rotulos/mensagens atuais (24eefd6/2710250): "Zona consultada" /
+        // "Domínios adicionados" / "Domínios removidos", sem IP nem nome do
+        // servidor no evento de sync (redundante, ja estamos na pagina dele).
         $response->assertOk()->assertSee('endpoint-event-stream')
-            ->assertSee('Adição')->assertSee('Remoção')->assertSee('Requisição RPZ')
+            ->assertSee('Domínios adicionados')->assertSee('Domínios removidos')->assertSee('Zona consultada')
             ->assertSee('Fonte 1007')->assertSee('ganhou 1.007 domínios')->assertSee('perdeu 1.007 domínios')
-            ->assertSee('RPZ solicitada — 244.493 domínios')
-            ->assertSee('IP 2001:db8::249')->assertDontSee('Fonte +')->assertDontSee('Fonte -');
+            ->assertSee('Zona consultada — 244.493 domínios')
+            ->assertDontSee('Fonte +')->assertDontSee('Fonte -');
         $events = collect($response->viewData('logServidor'));
         $this->assertEqualsCanonicalizing(['sync', 'lista_add', 'lista_remove'], $events->pluck('tipo')->all());
         $this->assertSame('RPZ solicitada — 244493 domínio(s)', $events->firstWhere('tipo', 'sync')['detalhe']);

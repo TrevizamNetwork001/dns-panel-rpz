@@ -81,7 +81,11 @@ class RpzStaticEndpointTest extends TestCase
         DB::disableQueryLog();
 
         $response->assertOk();
-        $this->assertStringContainsString('estatico.example CNAME .', $response->getContent());
+        // serveStaticArtifact() usa response()->file() (BinaryFileResponse),
+        // que transmite via readfile() e nunca preenche $content --
+        // getContent() do Symfony retorna false por design nesse caso. Le o
+        // arquivo real em vez de inspecionar o corpo da resposta.
+        $this->assertStringContainsString('estatico.example CNAME .', file_get_contents($response->baseResponse->getFile()->getPathname()));
         $this->assertFalse(collect($queries)->contains(fn ($q) => str_contains(strtolower($q['query']), 'from "dominios"') || str_contains(strtolower($q['query']), 'from `dominios`')));
         $response->assertHeader('X-Rpz-File-Hash');
     }
@@ -116,7 +120,9 @@ class RpzStaticEndpointTest extends TestCase
 
         $response = $this->get(route('rpz.show', $empresa->rpz_slug));
         $response->assertOk();
-        $this->assertStringContainsString('empresa.example CNAME .', $response->getContent());
+        // Mesmo motivo da outra ocorrencia acima: BinaryFileResponse nao
+        // preenche getContent().
+        $this->assertStringContainsString('empresa.example CNAME .', file_get_contents($response->baseResponse->getFile()->getPathname()));
 
         $this->assertSame(2, ServerSyncLog::whereIn('servidor_id', [$servidorA->id, $servidorB->id])->count());
     }
