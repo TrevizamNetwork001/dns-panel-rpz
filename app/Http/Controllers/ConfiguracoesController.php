@@ -28,6 +28,7 @@ class ConfiguracoesController extends Controller
         return view('configuracoes.index', [
             'telegram' => $telegram->config(),
             'r2' => $r2->config(),
+            'r2Usage' => $r2->cachedUsage(),
             'limpeza' => $limpeza->config() + ['candidatos' => $limpeza->inativosQuery()->count()],
             'ultimoBackup' => $ultimoBackup,
             'geral' => [
@@ -128,17 +129,25 @@ class ConfiguracoesController extends Controller
         $erro = $r2->sendTest();
 
         return back()->with($erro === null ? 'status' : 'error', $erro === null
-            ? 'Conexão com o R2 funcionando — arquivo de teste enviado.'
+            ? 'Comunicação com o R2 OK — escrita, leitura e exclusão confirmadas. Arquivo de teste removido.'
             : $erro);
+    }
+
+    public function r2Storage(R2BackupUploader $r2): RedirectResponse
+    {
+        $usage = $r2->storageUsage();
+
+        return redirect()->to(route('configuracoes.index', ['aba' => 'backup']))
+            ->with($usage['erro'] === null ? 'r2_usage' : 'error', $usage['erro'] ?? $usage);
     }
 
     public function runBackupNow(): RedirectResponse
     {
-        Artisan::call('backup:run');
+        $code = Artisan::call('backup:run');
         $saida = trim(Artisan::output());
 
         AuditLog::record('backup.manual_triggered', 'Backup manual disparado pela tela de Configurações');
 
-        return back()->with('status', 'Backup executado. '.$saida);
+        return back()->with($code === 0 ? 'status' : 'error', ($code === 0 ? 'Backup executado. ' : 'Backup falhou. ').$saida);
     }
 }

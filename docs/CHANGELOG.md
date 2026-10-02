@@ -2,6 +2,19 @@
 
 Histórico das mudanças por data, agrupadas por área. Os commits ficam no branch `feat/dockerize-rpz` (PR nº 1 para o `master`). Este arquivo começa em 17/09/2026; o que veio antes está no histórico do git.
 
+## 02/10/2026
+
+### Backups SQLite e Cloudflare R2
+
+- Backup automático semanal em `.bak.gz`, com snapshot SQLite, compressão verificada e publicação do arquivo por renomeação. Temporários são removidos ao encerrar o script; retenção local de 14 dias.
+- O serviço verifica a cada hora se decorreram sete dias desde o último sucesso. Execução manual permanece disponível e reinicia esse prazo. Trava compartilhada impede execuções simultâneas; o loop continua após falhas.
+- Após envio confirmado ao R2, dez ou mais backups são reduzidos aos cinco mais recentes. A retenção por idade também preserva cinco. Os `.bak` antigos e `.bak.gz` novos participam da regra, sem recompressão retroativa.
+- Consulta administrativa do espaço via API, com quantidade de objetos, tamanho total do bucket, horário da consulta e margem estimada até 10 GB. Aviso na tela a partir de 8 GB; a rotina de backup também registra o alerta na auditoria. A estimativa não inclui outros buckets nem calcula cobrança em GB-mês.
+- Teste de comunicação confirma escrita, leitura e exclusão antes de informar sucesso. Remove o objeto temporário exclusivo e o arquivo fixo `backups/teste-conexao.txt` deixado pela versão anterior. Erros de execução manual passam a ser exibidos como falhas.
+- Publicação nos serviços `app` e `backup`, com limpeza de caches de rotas/views e reinício do nginx. Sem migrações. Imagem anterior preservada para reversão; detalhes operacionais e restauração gzip no RUNBOOK.
+- Limpeza em produção autorizada: 32 arquivos / 2.563.538.944 bytes antes do novo backup; novo gzip de 25.691.513 bytes; remoção de 28 backups antigos; cinco arquivos / 409.257.337 bytes ao final.
+- Validação: **19 testes / 45 asserções**; compressão e restauração de SQLite; comunicação real com R2 sem resíduo de teste; SHA-256 remoto igual ao local; integridade do backup real retornou `ok`; tela renderizada e `/login` com HTTP 200.
+
 ## 30/09/2026
 
 ### Histórico de servidores

@@ -167,7 +167,7 @@ services:
     profiles: [cutover]
     command: ["/usr/local/bin/rpz-automation", "backup"]
     environment:
-      AUTOMATION_INTERVAL: "86400"
+      AUTOMATION_INTERVAL: "3600" # Verifica a cada hora se o backup semanal venceu
       BACKUP_DIR: /backups
       BACKUP_KEEP_DAYS: "14"
     volumes:

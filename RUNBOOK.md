@@ -304,11 +304,16 @@ Ofícios com muitas páginas (170+) podem levar 1-2min pra extrair — se passar
    ```bash
    docker compose exec app sh -c 'sqlite3 /data/database.sqlite ".backup /data/pre-incidente-$(date +%Y%m%d-%H%M%S).bak"'
    ```
-2. Ver backups automáticos (diário, retém 14 dias em `/backups`, ver serviço `backup` no `compose.yml` / [`docker/backup.sh`](docker/backup.sh)):
+2. Ver backups automáticos (semanal, retém 14 dias em `/backups`, ver serviço `backup` no `compose.yml` / [`docker/backup.sh`](docker/backup.sh)):
    ```bash
    docker compose exec backup ls -la /backups
    ```
-3. Restaurar um backup:
+3. Para `.bak.gz`, descompacte primeiro em um arquivo separado e confirme a integridade (substitua a data/hora pelo arquivo escolhido):
+   ```bash
+   docker compose exec app sh -c 'gzip -dc /backups/database.sqlite.auto-AAAAMMDD-HHMMSS.bak.gz > /backups/database.sqlite.auto-AAAAMMDD-HHMMSS.bak'
+   docker compose exec app sqlite3 /backups/database.sqlite.auto-AAAAMMDD-HHMMSS.bak 'PRAGMA integrity_check;'
+   ```
+   Prossiga somente se retornar `ok`. Backups antigos `.bak` já estão descompactados. Restaurar o arquivo validado:
    ```bash
    docker compose stop app queue scheduler external-sync backup   # evita escrita durante a restauracao
    docker run --rm -v dns-panel-rpz-data:/data -v dns-panel-rpz-backups:/backups alpine \
@@ -324,8 +329,8 @@ Ofícios com muitas páginas (170+) podem levar 1-2min pra extrair — se passar
 
 Se o servidor inteiro se perdeu (não é só o banco — disco morto, VPS apagada) e o backup externo pro Cloudflare R2 estava ativo (`/configuracoes` → aba Backup), o backup mais recente está lá fora, independente do que aconteceu aqui.
 
-1. No servidor novo, depois de reinstalado o painel (ver `README.md`), baixe o backup mais recente do bucket. Mais simples com o `rclone` ou o AWS CLI configurado pro endpoint R2 (`https://<account_id>.r2.cloudflarestorage.com`, região `auto`), ou direto pela UI do R2 no dashboard da Cloudflare (Armazenamento de objetos → bucket → baixar o `.bak` mais recente em `backups/`).
-2. Copie o arquivo baixado pro volume `dns-panel-rpz-data` como `database.sqlite`:
+1. No servidor novo, depois de reinstalado o painel (ver `README.md`), baixe o backup mais recente do bucket. Mais simples com o `rclone` ou o AWS CLI configurado pro endpoint R2 (`https://<account_id>.r2.cloudflarestorage.com`, região `auto`), ou direto pela UI do R2 no dashboard da Cloudflare (Armazenamento de objetos → bucket → baixar o `.bak.gz` mais recente em `backups/`; os `.bak` antigos também são válidos).
+2. Se o arquivo for `.bak.gz`, descompacte primeiro: `gzip -dk database.sqlite.auto-AAAAMMDD-HHMMSS.bak.gz`. Confira `sqlite3 database.sqlite.auto-AAAAMMDD-HHMMSS.bak 'PRAGMA integrity_check;'` em um ambiente com SQLite; prossiga somente com `ok`. Copie o arquivo descompactado pro volume `dns-panel-rpz-data` como `database.sqlite`:
    ```bash
    docker compose stop app queue scheduler external-sync backup
    docker run --rm -v dns-panel-rpz-data:/data -v "$(pwd)":/restore alpine \
@@ -333,7 +338,7 @@ Se o servidor inteiro se perdeu (não é só o banco — disco morto, VPS apagad
    docker compose start app queue scheduler external-sync backup
    ```
 3. Confira integridade e se os dados batem com o esperado antes de liberar o painel pros clientes: `docker compose exec app sqlite3 /data/database.sqlite "PRAGMA integrity_check;"`.
-4. Reconfigure as credenciais do R2 em `/configuracoes` → Backup assim que possível — elas não vêm no backup do banco (o Access Key/Secret ficam salvos na tabela `settings` **desse mesmo banco**, então se o banco restaurado já tinha isso configurado, já volta funcionando sozinho).
+4. Preserve a `APP_KEY` original: as credenciais do R2 salvas em `settings` vêm no banco, mas dependem dessa chave para descriptografia. Valores configurados apenas no ambiente precisam ser restaurados separadamente. Confira a comunicação em `/configuracoes` → Backup → Testar conexão.
 
 ## Disco cheio / quase cheio
 
@@ -430,3 +435,15 @@ Depois de qualquer reversão de código: `docker compose exec app php artisan mi
 | Histórico de ações do sistema | `/auditoria` no painel |
 | Ameaças de segurança (SSH banido pelo fail2ban, saúde do servidor) | `/seguranca` no painel |
 | CI (roda testes a cada push) | GitHub Actions, repo `TrevizamNetwork001/dns-panel-rpz` |
+
+## Backup semanal comprimido (02/10/2026)
+
+O serviço `backup` consulta a cada hora o último sucesso registrado e executa somente após sete dias. `php artisan backup:run` força um backup manual; `--scheduled` respeita o prazo. O arquivo gerado é `.bak.gz`, com gzip validado antes do envio. A retenção local continua em 14 dias.
+
+No R2, um envio confirmado dispara a limpeza: dez ou mais backups são reduzidos aos cinco mais recentes. A retenção por idade também preserva cinco. Arquivos `.bak` antigos continuam válidos e contam na regra. Outros arquivos não são removidos. A consulta na aba Backup informa uso de todo o bucket e a margem estimada até 10 GB, com aviso a partir de 8 GB; não inclui outros buckets nem calcula faturamento mensal.
+
+O teste de conexão escreve, lê, exclui e verifica a exclusão de um objeto temporário. Remove também o antigo `backups/teste-conexao.txt`.
+
+Deploy desta mudança aplicado somente a `app` e `backup`, com reinício do nginx. Imagem anterior preservada como `dns-panel-rpz-app:before-backup-weekly-20261002`; nova imagem `dns-panel-rpz-app:backup-weekly-20261002` (também `:local`). Não há migrações.
+
+Validação: 19 testes / 45 asserções; restauração de SQLite de teste; teste R2 real com remoção do temporário; checksum SHA-256 remoto igual ao local; integridade do SQLite real descompactado retornou `ok`; renderização da tela; app/nginx saudáveis e `/login` com HTTP 200. Primeiro gzip: 25.691.513 bytes. Limpeza autorizada removeu 28 backups, preservando cinco; uso final consultado: 409.257.337 bytes.

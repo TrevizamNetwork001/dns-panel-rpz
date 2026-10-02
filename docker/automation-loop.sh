@@ -4,11 +4,11 @@ set -eu
 interval=${AUTOMATION_INTERVAL:-21600}
 case "${1:-}" in
   external-sync) command="php artisan external:sync --no-interaction" ;;
-  backup) command="php artisan backup:run --no-interaction" ;;
+  backup) command="php artisan backup:run --scheduled --no-interaction" ;;
   *) echo "Automacao invalida" >&2; exit 64 ;;
 esac
 
 while :; do
     sleep "$interval" & wait $!
-    $command
+    $command || echo "Automacao falhou; nova tentativa no próximo intervalo." >&2
 done

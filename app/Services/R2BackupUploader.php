@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use League\Flysystem\FilesystemException;
@@ -96,18 +97,17 @@ class R2BackupUploader
             $disk = $this->disk();
             $removidos = 0;
 
+            $backups = [];
             foreach ($disk->listContents('backups') as $item) {
-                if ($item->isDir()) {
-                    continue;
+                if ($item->isFile() && preg_match('/^database\.sqlite\.auto-\d{8}-\d{6}\.bak(?:\.gz)?$/', basename($item->path()))) {
+                    $backups[] = $item;
                 }
-
-                $nome = basename($item->path());
-
-                if (! str_starts_with($nome, 'database.sqlite.auto-') || ! str_ends_with($nome, '.bak')) {
-                    continue;
-                }
-
-                if ($item->lastModified() !== null && $item->lastModified() < $limite) {
+            }
+            usort($backups, fn ($a, $b) => strcmp($b->path(), $a->path()));
+            $reduceToFive = count($backups) >= 10;
+            // Preserva sempre os cinco mais recentes, inclusive na retenção por idade.
+            foreach (array_slice($backups, 5) as $item) {
+                if ($reduceToFive || ($item->lastModified() !== null && $item->lastModified() < $limite)) {
                     $disk->delete($item->path());
                     $removidos++;
                 }
@@ -121,16 +121,87 @@ class R2BackupUploader
         }
     }
 
-    public function sendTest(): ?string
+    public function storageUsage(): array
     {
-        $tmp = tempnam(sys_get_temp_dir(), 'r2-teste-');
-        file_put_contents($tmp, 'teste de conexao do DNS Panel RPZ em '.now()->toDateTimeString());
+        if (! $this->isConfigured()) {
+            return ['erro' => 'R2 não está configurado ou está inativo.'];
+        }
 
         try {
-            return $this->upload($tmp, 'teste-conexao.txt');
-        } finally {
-            @unlink($tmp);
+            $bytes = 0;
+            $objects = 0;
+            // Flysystem pagina a listagem S3; soma todo o bucket, não apenas backups/.
+            foreach ($this->disk()->listContents('', true) as $item) {
+                if ($item->isFile()) {
+                    if ($item->fileSize() === null) {
+                        throw new \RuntimeException('Tamanho indisponível.');
+                    }
+                    $bytes += $item->fileSize();
+                    $objects++;
+                }
+            }
+
+            $usage = [
+                'erro' => null,
+                'bytes' => $bytes,
+                'objects' => $objects,
+                'warning' => $bytes >= 8_000_000_000,
+                'free_tier_remaining_bytes' => max(0, 10_000_000_000 - $bytes),
+                'checked_at' => now()->toIso8601String(),
+            ];
+            Cache::put($this->usageCacheKey(), $usage, now()->addDays(8));
+
+            return $usage;
+        } catch (\Throwable $e) {
+            return ['erro' => 'Não foi possível consultar o espaço do R2. Confira a conexão e a permissão de listar objetos do bucket.'];
         }
+    }
+
+    public function cachedUsage(): ?array
+    {
+        return Cache::get($this->usageCacheKey());
+    }
+
+    private function usageCacheKey(): string
+    {
+        $config = $this->config();
+
+        return 'r2_usage:'.hash('sha256', $config['account_id'].'/'.$config['bucket']);
+    }
+
+    public function sendTest(): ?string
+    {
+        if (! $this->isConfigured()) {
+            return 'R2 não está configurado.';
+        }
+
+        $path = 'backups/teste-conexao-'.bin2hex(random_bytes(12)).'.txt';
+        $content = 'teste R2 '.bin2hex(random_bytes(16));
+        $error = null;
+        try {
+            $disk = $this->disk();
+            $disk->put($path, $content);
+            if ($disk->get($path) !== $content) {
+                $error = 'Falha ao verificar a leitura do arquivo de teste no R2.';
+            }
+        } catch (\Throwable $e) {
+            $error = 'Falha na comunicação com o R2. Confira as credenciais e permissões de escrita e leitura.';
+        } finally {
+            if (isset($disk)) {
+                try {
+                    $disk->delete($path);
+                    // Remove também o arquivo fixo deixado pela versão anterior.
+                    $disk->delete('backups/teste-conexao.txt');
+                    if ($disk->exists($path) || $disk->exists('backups/teste-conexao.txt')) {
+                        $error = 'O arquivo de teste não foi removido do R2. Confira a permissão de exclusão.';
+                    }
+                } catch (\Throwable $e) {
+                    $error = 'Não foi possível confirmar a remoção do arquivo de teste no R2.';
+                }
+            }
+        }
+
+        return $error;
     }
 
     private function disk()
@@ -145,6 +216,8 @@ class R2BackupUploader
             'bucket' => $config['bucket'],
             'endpoint' => "https://{$config['account_id']}.r2.cloudflarestorage.com",
             'use_path_style_endpoint' => true,
+            'throw' => true,
+            'http' => ['connect_timeout' => 5, 'timeout' => 30],
         ]);
     }
 }

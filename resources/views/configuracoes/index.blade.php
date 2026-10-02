@@ -151,10 +151,10 @@
         <div id="settings-panel-backup" role="tabpanel" aria-labelledby="settings-tab-backup" data-settings-panel="backup" hidden>
             <section class="settings-section">
                 <div class="settings-heading">
-                    <div><h2>Backup externo (Cloudflare R2)</h2><p>Cópia do backup diário do SQLite fora do servidor</p></div>
+                    <div><h2>Backup externo (Cloudflare R2)</h2><p>Backup semanal do SQLite comprimido em .bak.gz</p></div>
                     <span class="settings-status {{ $r2['ativo'] ? 'is-enabled' : '' }}">{{ $r2['ativo'] ? 'Ativo' : 'Inativo' }}</span>
                 </div>
-                <p class="settings-copy">O backup local diário (retém 14 dias) continua rodando normalmente. Com isso ativo, cada backup também é enviado pra um bucket R2 — protege contra perda do servidor inteiro, não só corrupção do arquivo local.</p>
+                <p class="settings-copy">O backup automático roda uma vez por semana, com compressão gzip e retenção local de 14 dias. Com isso ativo, cada arquivo .bak.gz também é enviado pra um bucket R2 — protege contra perda do servidor inteiro, não só corrupção do arquivo local.</p>
 
                 <form id="settings-r2-save" class="settings-form" action="{{ route('configuracoes.r2.update') }}" method="POST">
                     @csrf
@@ -189,7 +189,7 @@
                         <div class="field-group">
                             <label for="keep_days">Retenção no R2 (dias)</label>
                             <input type="number" class="form-control settings-mono" id="keep_days" name="keep_days" value="{{ $r2['keep_days'] }}" min="1" max="365">
-                            <small class="settings-note">Backups mais antigos que isso são removidos automaticamente do bucket a cada rodada. Padrão: 30 dias.</small>
+                            <small class="settings-note">Após cada envio confirmado, ao atingir 10 backups, mantém os 5 mais recentes. A retenção por dias também preserva pelo menos os 5 mais recentes. Padrão: 30 dias.</small>
                         </div>
                     </div>
                 </form>
@@ -203,6 +203,23 @@
                         @csrf
                         <button type="submit" class="button button-secondary" onclick="return confirm('Rodar o backup agora? Pode levar alguns segundos.')">Fazer backup agora</button>
                     </form>
+                </div>
+                <div class="settings-help">
+                    <h3>Espaço no R2</h3>
+                    <form action="{{ route('configuracoes.r2.storage') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="button button-secondary">Consultar espaço via API</button>
+                    </form>
+                    @if ($r2Usage)
+                        @php($usage = $r2Usage)
+                        @if ($usage['warning'])
+                            <p role="alert" class="alert alert-warning"><strong>Atenção: o bucket atingiu 80% ou mais da referência de 10 GB.</strong> Confira o consumo antes dos próximos backups.</p>
+                        @endif
+                        <p><strong>Usado no bucket:</strong> {{ number_format($usage['bytes'] / 1000000000, 3, ',', '.') }} GB · {{ $usage['objects'] }} arquivos.</p>
+                        <p><strong>Margem estimada até 10 GB:</strong> {{ number_format($usage['free_tier_remaining_bytes'] / 1000000000, 3, ',', '.') }} GB.</p>
+                        <p class="settings-note">Consultado em {{ \Carbon\Carbon::parse($usage['checked_at'])->timezone(config('app.timezone'))->format('d/m/Y H:i') }}.</p>
+                    @endif
+                    <p class="settings-note">O R2 não tem capacidade fixa. A franquia Standard é de 10 GB-mês por conta. A estimativa considera apenas este bucket, sem outros buckets nem a média de uso do mês; não representa saldo de cobrança.</p>
                 </div>
                 <details class="settings-help">
                     <summary>Como gerar o Access Key / Secret no Cloudflare</summary>

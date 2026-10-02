@@ -28,6 +28,7 @@ class ConfiguracoesR2Test extends TestCase
 
         $this->actingAs($cliente)->put(route('configuracoes.r2.update'), ['ativo' => '1'])->assertStatus(403);
         $this->actingAs($cliente)->post(route('configuracoes.r2.test'))->assertStatus(403);
+        $this->actingAs($cliente)->post(route('configuracoes.r2.storage'))->assertStatus(403);
         $this->actingAs($cliente)->post(route('configuracoes.backup.run'))->assertStatus(403);
     }
 
