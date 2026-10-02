@@ -9,7 +9,7 @@ use RuntimeException;
 
 class AnatelImporter
 {
-    public function __construct(private DomainNormalizer $normalizer, private AnatelExclusionMatcher $matcher) {}
+    public function __construct(private DomainNormalizer $normalizer, private AnatelExclusionMatcher $matcher, private RpzDirtyMarker $rpzDirty) {}
 
     public function apply(Lista $lista, AnatelImport $import, array $payload): void
     {
@@ -87,6 +87,9 @@ class AnatelImporter
                 }
             }
         });
+        if ($new > 0 || $reactivated > 0 || $unblocked > 0) {
+            $this->rpzDirty->markForList($lista->id);
+        }
         $import->update(['pages' => (int) ($file['pages'] ?? 0), 'candidates_count' => $candidates, 'valid_count' => count($domains), 'invalid_count' => $invalid + (int) ($file['invalid'] ?? 0), 'new_count' => $new, 'existing_count' => $existing, 'reactivated_count' => $reactivated, 'excluded_count' => count($excluded), 'unblocked_count' => $unblocked, 'status' => 'completed', 'error' => null, 'finished_at' => now()]);
     }
 

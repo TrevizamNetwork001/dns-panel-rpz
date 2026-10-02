@@ -14,11 +14,6 @@ use App\Http\Controllers\LicencaController;
 use App\Http\Controllers\ListaController;
 use App\Http\Controllers\MikrotikHostsController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\RblController;
-use App\Http\Controllers\RblDelistController;
-use App\Http\Controllers\RblMonitoringController;
-use App\Http\Controllers\RblTargetController;
-use App\Http\Controllers\RblTargetGroupController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\RpzController;
 use App\Http\Controllers\RpzPreviewController;
@@ -50,6 +45,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('servidores', ServidorController::class)->parameters(['servidores' => 'servidor']);
     Route::post('/servidores/{servidor}/listas/{lista}/attach', [ServidorController::class, 'attachLista'])->name('servidores.listas.attach');
     Route::delete('/servidores/{servidor}/listas/{lista}/detach', [ServidorController::class, 'detachLista'])->name('servidores.listas.detach');
+    Route::get('/unbound-seguranca', [ServidorController::class, 'unboundSeguranca'])->name('servidores.unbound-seguranca');
 
     Route::resource('listas', ListaController::class)->only(['index']);
 
@@ -64,30 +60,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/dominios', [ConsultaController::class, 'pagina'])->name('dominios.index');
 
     Route::middleware('admin')->group(function () {
-        Route::prefix('rbl')->name('rbl.')->group(function () {
-            Route::get('/', [RblController::class, 'index'])->name('index');
-            Route::resource('groups', RblTargetGroupController::class)->only(['index', 'create', 'store', 'show', 'edit', 'update']);
-            Route::patch('/groups/{group}/toggle', [RblTargetGroupController::class, 'toggle'])->name('groups.toggle');
-            Route::get('/targets/{target}/edit', [RblTargetController::class, 'edit'])->name('targets.edit');
-            Route::patch('/targets/{target}', [RblTargetController::class, 'update'])->name('targets.update');
-            Route::get('/events', [RblMonitoringController::class, 'events'])->name('events');
-            Route::get('/events/{event}', [RblMonitoringController::class, 'showEvent'])->name('events.show');
-            Route::get('/events/{event}/report', [RblMonitoringController::class, 'eventReport'])->name('events.report');
-            Route::patch('/events/{event}/investigation', [RblMonitoringController::class, 'updateInvestigation'])->name('events.investigation.update');
-            Route::post('/events/{event}/delist', [RblDelistController::class, 'store'])->name('events.delist.store');
-            Route::patch('/events/{event}/delist/{delistRequest}', [RblDelistController::class, 'update'])->name('events.delist.update');
-            Route::get('/reports', [RblMonitoringController::class, 'reports'])->name('reports');
-            Route::post('/lists', [RblController::class, 'storeList'])->name('lists.store');
-            Route::patch('/lists/{list}/toggle', [RblController::class, 'toggleList'])->name('lists.toggle');
-            Route::patch('/lists/{list}/guidance', [RblController::class, 'updateListGuidance'])->name('lists.guidance.update');
-            Route::get('/targets/create', [RblTargetController::class, 'create'])->name('targets.create');
-            Route::post('/targets', [RblTargetController::class, 'store'])->name('targets.store');
-            Route::get('/targets/{target}', [RblTargetController::class, 'show'])->name('targets.show');
-            Route::get('/targets/{target}/checks', [RblTargetController::class, 'show'])->name('targets.checks');
-            Route::post('/targets/{target}/check', [RblTargetController::class, 'check'])->middleware('throttle:6,1')->name('targets.check');
-            Route::patch('/targets/{target}/toggle', [RblTargetController::class, 'toggle'])->name('targets.toggle');
-        });
-
         Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');
         Route::post('/anatel/imports', [AnatelDashboardController::class, 'store'])->name('anatel.dashboard.store');
         Route::get('/anatel/imports/{import}/status', [AnatelDashboardController::class, 'status'])->name('anatel.dashboard.status');
@@ -112,6 +84,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/listas/{lista}/anatel/imports/{import}/new.txt', [AnatelImportController::class, 'downloadNew'])->name('anatel.imports.new');
         Route::get('/listas/{lista}/anatel/exclusions', [AnatelController::class, 'exclusions'])->name('anatel.exclusions');
         Route::post('/listas/{lista}/anatel/exclusions', [AnatelController::class, 'storeExclusion'])->name('anatel.exclusions.store');
+        Route::put('/listas/{lista}/anatel/exclusions/{exclusion}', [AnatelController::class, 'updateExclusion'])->name('anatel.exclusions.update');
         Route::patch('/listas/{lista}/anatel/exclusions/{exclusion}', [AnatelController::class, 'toggleExclusion'])->name('anatel.exclusions.toggle');
         Route::delete('/listas/{lista}/anatel/exclusions/{exclusion}', [AnatelController::class, 'destroyExclusion'])->name('anatel.exclusions.destroy');
         Route::post('/listas/{lista}/anatel/exclusions/legacy', [AnatelController::class, 'importLegacy'])->name('anatel.exclusions.legacy');
@@ -128,6 +101,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/servidores/{servidor}/ip-restriction/toggle', [ServidorController::class, 'toggleIpRestriction'])->name('servidores.ip-restriction.toggle');
         Route::post('/servidores/{servidor}/ips', [ServidorController::class, 'addAllowedIp'])->name('servidores.ips.store');
         Route::delete('/servidores/{servidor}/ips/{ip}', [ServidorController::class, 'removeAllowedIp'])->name('servidores.ips.destroy');
+        Route::patch('/servidores/{servidor}/ips/{ip}/liberar', [ServidorController::class, 'approveAllowedIp'])->name('servidores.ips.approve');
 
         Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria.index');
         Route::get('/seguranca', [SegurancaController::class, 'index'])->name('seguranca.index');
@@ -138,6 +112,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes.index');
         Route::put('/configuracoes/telegram', [ConfiguracoesController::class, 'updateTelegram'])->name('configuracoes.telegram.update');
         Route::post('/configuracoes/telegram/testar', [ConfiguracoesController::class, 'testTelegram'])->name('configuracoes.telegram.test');
+        Route::put('/configuracoes/limpeza-servidores', [ConfiguracoesController::class, 'updateLimpezaServidores'])->name('configuracoes.limpeza-servidores.update');
+        Route::put('/configuracoes/r2', [ConfiguracoesController::class, 'updateR2'])->name('configuracoes.r2.update');
+        Route::post('/configuracoes/r2/espaco', [ConfiguracoesController::class, 'r2Storage'])->middleware('throttle:6,1')->name('configuracoes.r2.storage');
+        Route::post('/configuracoes/r2/testar', [ConfiguracoesController::class, 'testR2'])->name('configuracoes.r2.test');
+        Route::post('/configuracoes/backup/executar', [ConfiguracoesController::class, 'runBackupNow'])->name('configuracoes.backup.run');
     });
 
     Route::get('/empresas/{empresa}', [EmpresaController::class, 'show'])->name('empresas.show');

@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Dominio;
 use App\Models\Lista;
 use App\Services\DomainNormalizer;
+use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DominioController extends Controller
 {
-    public function __construct(private DomainNormalizer $normalizer) {}
+    public function __construct(private DomainNormalizer $normalizer, private RpzDirtyMarker $rpzDirty) {}
 
     public function index(Lista $lista): View
     {
@@ -22,8 +23,8 @@ class DominioController extends Controller
 
     public function store(Request $request, Lista $lista): RedirectResponse
     {
-        if ($lista->isManaged()) {
-            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+        if ($lista->isExterna()) {
+            return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($lista)]);
         }
 
         $data = $request->validate([
@@ -40,12 +41,14 @@ class DominioController extends Controller
 
         if ($dominio === null) {
             $lista->dominios()->create(['dominio' => $normalized, 'ativo' => true]);
+            $this->rpzDirty->markForList($lista->id);
 
             return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio adicionado.');
         }
 
         if (! $dominio->ativo) {
             $dominio->update(['ativo' => true]);
+            $this->rpzDirty->markForList($lista->id);
 
             return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio já existia nesta fonte e estava inativo — foi reativado.');
         }
@@ -55,8 +58,8 @@ class DominioController extends Controller
 
     public function bulkStore(Request $request, Lista $lista): RedirectResponse
     {
-        if ($lista->isManaged()) {
-            return back()->withErrors(['dominios' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+        if ($lista->isExterna()) {
+            return back()->withErrors(['dominios' => $this->mensagemListaGerenciada($lista)]);
         }
 
         $data = $request->validate([
@@ -91,30 +94,55 @@ class DominioController extends Controller
             $added++;
         }
 
+        if ($added > 0) {
+            // Uma marcacao so pro lote inteiro, nao uma por dominio.
+            $this->rpzDirty->markForList($lista->id);
+        }
+
         return redirect()->route('listas.dominios.index', $lista)
             ->with('status', "{$added} domínio(s) adicionado(s), {$duplicated} já existia(m), {$invalid} inválido(s).");
     }
 
     public function toggle(Dominio $dominio): RedirectResponse
     {
-        if ($dominio->lista->isManaged()) {
-            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+        if ($dominio->lista->isExterna()) {
+            return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($dominio->lista)]);
         }
 
         $dominio->update(['ativo' => ! $dominio->ativo]);
+        $this->rpzDirty->markForList($dominio->lista_id);
 
         return redirect()->route('listas.dominios.index', $dominio->lista_id)->with('status', 'Status do domínio atualizado.');
     }
 
     public function destroy(Dominio $dominio): RedirectResponse
     {
-        if ($dominio->lista->isManaged()) {
-            return back()->withErrors(['dominio' => 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.']);
+        if ($dominio->lista->isExterna()) {
+            return back()->withErrors(['dominio' => $this->mensagemListaGerenciada($dominio->lista)]);
         }
 
         $listaId = $dominio->lista_id;
         $dominio->delete();
+        $this->rpzDirty->markForList($listaId);
 
         return redirect()->route('listas.dominios.index', $listaId)->with('status', 'Domínio removido.');
+    }
+
+    /**
+     * Mensagem de bloqueio pra listas externas (feed sincronizado que
+     * sobrescreve a lista a cada execução), apontando pra lista manual
+     * irmã quando ela existir. Não se aplica a listas ANATEL: a
+     * importação de PDF só adiciona/reativa domínios, nunca apaga, então
+     * cadastro manual direto na lista ANATEL é seguro e permitido.
+     */
+    private function mensagemListaGerenciada(Lista $lista): string
+    {
+        $sibling = $lista->manualSibling();
+
+        if ($sibling === null) {
+            return 'Esta lista é sincronizada automaticamente de uma fonte externa e não pode ser editada manualmente.';
+        }
+
+        return "Esta lista é sincronizada automaticamente e não pode ser editada manualmente. Cadastre domínios em \"{$sibling->nome}\".";
     }
 }

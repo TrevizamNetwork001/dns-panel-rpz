@@ -138,6 +138,21 @@ class AnatelIntegrationTest extends TestCase
         $this->actingAs($this->admin)->post(route('anatel.exclusions.store', $this->lista), ['type' => 'regex', 'value' => '['])->assertSessionHasErrors('value');
     }
 
+    public function test_editing_exclusion_value_reactivates_old_match_and_deactivates_new_match(): void
+    {
+        $antigo = Dominio::factory()->for($this->lista)->create(['dominio' => 'antigo.example']);
+        $novo = Dominio::factory()->for($this->lista)->create(['dominio' => 'novo.example']);
+        $this->actingAs($this->admin)->post(route('anatel.exclusions.store', $this->lista), ['type' => 'exact', 'value' => 'antigo.example']);
+        $this->assertFalse($antigo->fresh()->ativo);
+
+        $exclusion = $this->lista->anatelExclusions()->first();
+        $this->actingAs($this->admin)->put(route('anatel.exclusions.update', [$this->lista, $exclusion]), ['type' => 'exact', 'value' => 'novo.example'])->assertRedirect();
+
+        $this->assertTrue($antigo->fresh()->ativo);
+        $this->assertFalse($novo->fresh()->ativo);
+        $this->assertSame('novo.example', $exclusion->fresh()->value);
+    }
+
     public function test_disabling_exclusion_reactivates_historical_domain_with_audit(): void
     {
         $domain = Dominio::factory()->for($this->lista)->create(['dominio' => 'reativa.example']);
@@ -166,10 +181,13 @@ class AnatelIntegrationTest extends TestCase
         $this->actingAs($client)->post(route('anatel.imports.store', $this->lista), ['pdfs' => [$this->pdf()]])->assertForbidden();
     }
 
-    public function test_anatel_domains_cannot_be_edited_manually(): void
+    public function test_admin_can_add_anatel_domains_manually(): void
     {
-        $this->actingAs($this->admin)->post(route('listas.dominios.store', $this->lista), ['dominio' => 'manual.example'])->assertSessionHasErrors('dominio');
-        $this->assertDatabaseMissing('dominios', ['dominio' => 'manual.example']);
+        // A importação de PDF só adiciona/reativa domínios, nunca apaga —
+        // então cadastro manual direto na lista ANATEL é seguro (ex.: PDFs
+        // em formato imagem, que não dá pra extrair automaticamente).
+        $this->actingAs($this->admin)->post(route('listas.dominios.store', $this->lista), ['dominio' => 'manual.example'])->assertRedirect();
+        $this->assertDatabaseHas('dominios', ['dominio' => 'manual.example', 'lista_id' => $this->lista->id, 'ativo' => true]);
     }
 
     public function test_legacy_exclude_import_classifies_exact_regex_and_duplicates(): void
@@ -185,7 +203,7 @@ class AnatelIntegrationTest extends TestCase
 
     public function test_rpz_uses_only_active_anatel_domains(): void
     {
-        $server = Servidor::factory()->create();
+        $server = Servidor::factory()->openAccess()->create();
         $server->listas()->attach($this->lista);
         Dominio::factory()->for($this->lista)->create(['dominio' => 'ativo.example']);
         Dominio::factory()->for($this->lista)->inativo()->create(['dominio' => 'inativo.example']);
@@ -246,6 +264,23 @@ class AnatelIntegrationTest extends TestCase
         }$this->actingAs($this->admin)->post(route('anatel.batch.publish', $this->lista))->assertRedirect();
         $this->assertSame(3, $this->lista->dominios()->where('ativo', true)->count());
         $this->assertDatabaseHas('audit_logs', ['action' => 'anatel.batch.published']);
+    }
+
+    public function test_batch_preview_shows_counts_and_filters_by_result(): void
+    {
+        Dominio::factory()->for($this->lista)->create(['dominio' => 'existente.example']);
+
+        $import = AnatelImport::create(['lista_id' => $this->lista->id, 'user_id' => $this->admin->id, 'original_filename' => 'lote.pdf', 'storage_path' => 'lote.pdf', 'sha256' => str_repeat('9', 64), 'size_bytes' => 100, 'status' => 'processing']);
+        $this->app->make(AnatelImporter::class)->prepare($this->lista, $import, [
+            'files' => [['pages' => 1, 'candidates' => 2]],
+            'domains' => ['existente.example', 'novo.example'],
+        ]);
+
+        $todos = $this->actingAs($this->admin)->get(route('anatel.batch', $this->lista));
+        $todos->assertOk()->assertSee('Novos (1)')->assertSee('Existentes (1)')->assertSee('existente.example')->assertSee('novo.example');
+
+        $soNovos = $this->actingAs($this->admin)->get(route('anatel.batch', [$this->lista, 'result' => 'new']));
+        $soNovos->assertOk()->assertSee('novo.example')->assertDontSee('existente.example');
     }
 
     public function test_rejecting_batch_does_not_change_list(): void

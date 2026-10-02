@@ -8,7 +8,6 @@ use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\ServerSyncLog;
 use App\Models\Servidor;
-use App\Models\SugestaoDominio;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -163,7 +162,7 @@ class DashboardController extends Controller
             $action === 'user.destroyed' => ['titulo' => 'Usuário removido', 'icone' => 'usuario', 'cor' => 'danger'],
             $action === 'user.password_reset' => ['titulo' => 'Senha redefinida', 'icone' => 'usuario', 'cor' => 'violet'],
             $action === 'user.updated' => ['titulo' => 'Usuário atualizado', 'icone' => 'usuario', 'cor' => 'violet'],
-            default => ['titulo' => 'Auditoria', 'icone' => 'sistema', 'cor' => 'muted'],
+            default => ['titulo' => AuditLog::actionLabel($action), 'icone' => 'sistema', 'cor' => 'muted'],
         };
     }
 
@@ -233,6 +232,34 @@ class DashboardController extends Controller
             ->values();
     }
 
+    /**
+     * Quantas vezes os servidores informados buscaram a zona em cada um dos
+     * últimos $dias dias (dias sem consulta entram com 0, pro gráfico não
+     * "pular" datas).
+     *
+     * @param  \Illuminate\Support\Collection<int, int>  $servidorIds
+     * @return list<array{data: Carbon, total: int}>
+     */
+    private function atualizacoesPorDia($servidorIds, int $dias = 30): array
+    {
+        $inicio = now()->subDays($dias - 1)->startOfDay();
+
+        $porDia = $servidorIds->isEmpty() ? collect() : ServerSyncLog::query()
+            ->whereIn('servidor_id', $servidorIds)
+            ->where('created_at', '>=', $inicio)
+            ->selectRaw('date(created_at) as dia, count(*) as total')
+            ->groupBy('dia')
+            ->pluck('total', 'dia');
+
+        $pontos = [];
+        for ($i = 0; $i < $dias; $i++) {
+            $data = $inicio->copy()->addDays($i);
+            $pontos[] = ['data' => $data, 'total' => (int) ($porDia[$data->toDateString()] ?? 0)];
+        }
+
+        return $pontos;
+    }
+
     private function clienteDashboard($user): View
     {
         $empresa = $user->empresa;
@@ -252,20 +279,6 @@ class DashboardController extends Controller
             $q->whereIn('servidores.id', $servidorIds);
         })->count();
 
-        $listas = $empresa
-            ? Lista::where(function ($q) use ($empresa) {
-                $q->whereNull('empresa_id')->orWhere('empresa_id', $empresa->id);
-            })
-                ->withCount([
-                    'dominios',
-                    'dominios as dominios_ativos_count' => function ($query) {
-                        $query->where('ativo', true);
-                    },
-                ])
-                ->orderByDesc('dominios_count')
-                ->get()
-            : collect();
-
         $servidores = $empresa
             ? $empresa->servidores()->orderByRaw('last_synced_at IS NULL, last_synced_at DESC')->get()
             : collect();
@@ -278,25 +291,43 @@ class DashboardController extends Controller
             ? null
             : ($licencas->first()?->unavailableSummary() ?? 'Sem licença ativa');
 
-        $sugestoesRecentes = $empresa
-            ? SugestaoDominio::where('empresa_id', $empresa->id)
-                ->with('lista')
-                ->orderByDesc('updated_at')
-                ->take(5)
-                ->get()
-            : collect();
+        $graficoAtualizacoes = $this->atualizacoesPorDia($servidorIds);
+
+        $periodoInicio = now()->subDays(29)->startOfDay();
+        $logsPeriodo = $servidorIds->isEmpty() ? collect() : ServerSyncLog::query()
+            ->whereIn('servidor_id', $servidorIds)
+            ->where('created_at', '>=', $periodoInicio)
+            ->orderBy('created_at')
+            ->get(['created_at']);
+        $ultimaSincronizacao = $logsPeriodo->last()?->created_at;
+        if ($ultimaSincronizacao === null && ! $servidorIds->isEmpty()) {
+            $ultimaSincronizacao = ServerSyncLog::whereIn('servidor_id', $servidorIds)->max('created_at');
+            $ultimaSincronizacao = $ultimaSincronizacao ? Carbon::parse($ultimaSincronizacao) : null;
+        }
+        $intervalos = $logsPeriodo->pluck('created_at')->sliding(2)->map(fn ($par) => $par->values())->map(fn ($par) => $par[0]->diffInMinutes($par[1]))->filter(fn ($minutos) => $minutos > 0);
+        $intervaloMedioMinutos = $intervalos->isNotEmpty() ? (int) round($intervalos->average()) : null;
+        $coberturaLicenca = $capacidadeLicenca > 0 ? min(100, (int) round(($totalServidores / $capacidadeLicenca) * 100)) : null;
+        $statusServidores = [
+            'normal' => $servidores->filter(fn ($servidor) => $servidor->last_synced_at !== null && $servidor->diasSemSincronizar() < 2)->count(),
+            'atencao' => $servidores->filter(fn ($servidor) => $servidor->last_synced_at !== null && $servidor->diasSemSincronizar() >= 2)->count(),
+            'sem_consulta' => $servidores->whereNull('last_synced_at')->count(),
+        ];
 
         return view('dashboard.cliente', compact(
+            'graficoAtualizacoes',
             'empresa',
             'totalServidores',
             'totalListas',
             'totalDominios',
             'totalDominiosAtivos',
-            'listas',
             'servidores',
             'capacidadeLicenca',
             'estadoLicenca',
-            'sugestoesRecentes',
+            'logsPeriodo',
+            'ultimaSincronizacao',
+            'intervaloMedioMinutos',
+            'coberturaLicenca',
+            'statusServidores',
         ));
     }
 }

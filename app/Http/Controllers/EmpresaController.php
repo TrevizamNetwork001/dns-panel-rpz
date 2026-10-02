@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\Servidor;
+use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,6 +14,8 @@ use Illuminate\View\View;
 
 class EmpresaController extends Controller
 {
+    public function __construct(private RpzDirtyMarker $rpzDirty) {}
+
     public function index(): View
     {
         $empresasAtivas = Empresa::where('status', 'active')->count();
@@ -63,6 +66,7 @@ class EmpresaController extends Controller
         $data = $this->validated($request);
 
         $empresa->update($data);
+        $this->rpzDirty->markForCompany($empresa->id);
 
         AuditLog::record('empresa.updated', "Empresa \"{$empresa->nome}\" atualizada", $empresa->id, 'empresa', $empresa->id);
         if ($oldSlug !== $empresa->rpz_slug) {
@@ -90,6 +94,7 @@ class EmpresaController extends Controller
     {
         AuditLog::record('empresa.destroyed', "Empresa \"{$empresa->nome}\" removida", null, 'empresa', $empresa->id);
 
+        $this->rpzDirty->markForCompany($empresa->id);
         $empresa->delete();
 
         return redirect()->route('empresas.index')->with('status', 'Empresa removida.');
@@ -101,6 +106,8 @@ class EmpresaController extends Controller
 
         return $request->validate([
             'nome' => ['required', 'string', 'max:255'],
+            'nome_fantasia' => ['nullable', 'string', 'max:255'],
+            'telefone' => ['nullable', 'string', 'max:32'],
             'rpz_slug' => [
                 'nullable',
                 'string',

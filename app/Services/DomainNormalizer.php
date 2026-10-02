@@ -19,6 +19,10 @@ class DomainNormalizer
         if ($value === '' || $value === 'localhost' || filter_var($value, FILTER_VALIDATE_IP)) {
             return null;
         }
+        // "www." é redundante pro RPZ: o zonefile já gera *.dominio (wildcard) pra cada
+        // dominio bloqueado, entao www.exemplo.com ja cai no bloqueio de exemplo.com.
+        // Sem isso, PDFs/feeds que citam as duas formas duplicam entrada na lista.
+        $value = preg_replace('/^www\./', '', $value);
         if (function_exists('idn_to_ascii') && preg_match('/[^\x20-\x7e]/', $value)) {
             $ascii = idn_to_ascii($value, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46);
             if ($ascii === false) {

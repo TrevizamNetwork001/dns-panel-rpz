@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Services\Rbl\RblAlertService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -12,7 +11,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->scoped(RblAlertService::class);
+        //
     }
 
     /**

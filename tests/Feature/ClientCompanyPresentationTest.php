@@ -19,9 +19,11 @@ class ClientCompanyPresentationTest extends TestCase
     {
         $this->travelTo(now()->setDate(2026, 8, 27)->startOfDay());
         $empresa = Empresa::factory()->create([
-            'nome' => 'speednet',
+            'nome' => 'provedor exemplo',
             'documento' => '86999450000190',
             'email_contato' => 'contato@teste.cn.nrt',
+            'nome_fantasia' => 'Marca exemplo',
+            'telefone' => '+55 (11) 99999-9999',
             'status' => 'active',
         ]);
         $empresa->licencas()->delete();
@@ -44,9 +46,11 @@ class ClientCompanyPresentationTest extends TestCase
             ->assertSee('contato@teste.cn.nrt')
             ->assertSee('Ativa')
             ->assertSee('Servidores')
-            ->assertSee('dns01')
+            ->assertDontSee('dns01')
+            ->assertSee('Marca exemplo')
+            ->assertSee('+55 (11) 99999-9999')
             ->assertSee('Listas')
-            ->assertSee('malware')
+            ->assertDontSee('malware')
             ->assertSee('Licença')
             ->assertSee('20/08/2026')
             ->assertSee('05/09/2026')
@@ -54,7 +58,9 @@ class ClientCompanyPresentationTest extends TestCase
             ->assertSee('1 de 2 servidores utilizados')
             ->assertDontSee('Endpoints RPZ')
             ->assertDontSee('Fontes')
-            ->assertDontSee('Editar');
+            ->assertSee('disabled aria-describedby="company-edit-help"', false)
+            ->assertSee('Edição disponível para administradores.')
+            ->assertDontSee('href="'.route('empresas.edit', $empresa).'"', false);
     }
 
     public function test_client_company_preserves_non_cnpj_document_and_singular_server_usage(): void
@@ -70,7 +76,7 @@ class ClientCompanyPresentationTest extends TestCase
             ->assertSee('1 de 1 servidor utilizado');
     }
 
-    public function test_client_company_empty_state_refers_only_to_company_owned_lists(): void
+    public function test_client_company_page_does_not_show_own_lists_panel_yet(): void
     {
         $empresa = Empresa::factory()->create();
         $cliente = User::factory()->cliente($empresa)->create();
@@ -78,8 +84,9 @@ class ClientCompanyPresentationTest extends TestCase
 
         $this->actingAs($cliente)->get(route('empresas.show', $empresa))
             ->assertOk()
-            ->assertSee('Nenhuma lista própria cadastrada.')
-            ->assertDontSee('Nenhuma lista cadastrada.');
+            ->assertDontSee('Nenhuma lista própria cadastrada.')
+            ->assertDontSee('Nenhuma lista cadastrada.')
+            ->assertDontSee('Catálogo global');
     }
 
     public function test_client_company_explains_invalid_license_without_impossible_usage(): void
@@ -108,8 +115,9 @@ class ClientCompanyPresentationTest extends TestCase
 
         $this->actingAs($cliente)->get(route('empresas.show', $empresa))
             ->assertOk()
-            ->assertSee('Servidor próprio')
-            ->assertSee('Lista própria')
+            ->assertDontSee('Servidor próprio')
+            ->assertSee('1 de 5 servidores utilizados')
+            ->assertDontSee('Lista própria')
             ->assertDontSee('Servidor alheio')
             ->assertDontSee('Lista alheia');
 

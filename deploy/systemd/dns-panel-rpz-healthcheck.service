@@ -1,7 +1,11 @@
 [Unit]
-Description=Healthcheck do DNS Panel RPZ (disco, certificado TLS, site no ar)
+Description=Healthcheck do DNS Panel RPZ em container
+Requires=docker.service
+Wants=network-online.target
+After=docker.service network-online.target nginx.service
+ConditionPathExists=/etc/nginx/tls/rpz.trevizamnetwork.com.br/cert.pem
 
 [Service]
 Type=oneshot
-User=root
-ExecStart=/opt/dns-panel-rpz/scripts/health-check.sh
+ExecStart=/usr/local/sbin/dns-panel-rpz-healthcheck-docker
+TimeoutStartSec=180

@@ -46,7 +46,7 @@
                     <tbody>
                         @foreach ($listas as $lista)
                             @php
-                                $tipo = $lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo');
+                                $tipo = $lista->isExterna() && auth()->user()->isAdmin() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo');
                                 $tipoClasse = match ($tipo) {
                                     'Externa' => 'is-info',
                                     'Própria' => 'is-active',
@@ -57,6 +57,7 @@
                             <tr>
                                 <td @class(['admin-fontes-name' => auth()->user()->isAdmin()])>
                                     <a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a>
+                                    @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif
                                 </td>
                                 <td><span class="status-pill {{ $tipoClasse }}">{{ $tipo }}</span></td>
                                 @if (auth()->user()->isAdmin())
@@ -104,5 +105,5 @@
         @endif
     </div>
 
-    {{ $listas->links() }}
+    {{ $listas->links('pagination.compact') }}
 @endsection

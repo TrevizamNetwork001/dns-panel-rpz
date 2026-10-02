@@ -12,7 +12,7 @@ class TelegramNotifier
     {
         return [
             'ativo' => Setting::get('telegram_ativo', '1') === '1',
-            'bot_token' => Setting::get('telegram_bot_token') ?: config('services.telegram.bot_token'),
+            'bot_token' => Setting::getEncrypted('telegram_bot_token') ?: config('services.telegram.bot_token'),
             'chat_id' => Setting::get('telegram_chat_id') ?: config('services.telegram.cadastros_chat_id'),
             'thread_id' => Setting::get('telegram_thread_id') ?: config('services.telegram.cadastros_thread_id'),
         ];
@@ -51,9 +51,54 @@ class TelegramNotifier
         return $this->send("🚨 <b>Alerta de saúde do DNS Panel RPZ</b>\n\n".implode("\n", $itens));
     }
 
-    public function notifyRbl(string $texto): bool
+    public function notifyHealthRecovered(): bool
     {
-        return $this->send($texto);
+        return $this->send('✅ <b>DNS Panel RPZ recuperado</b>'."\n\n".'O healthcheck voltou a passar: disco, certificado e site OK.');
+    }
+
+    /**
+     * @param  list<array{servidor: string, empresa: string, dias: int}>  $avisados
+     * @param  list<array{servidor: string, empresa: string, dias: int}>  $removidos
+     */
+    public function notifyServidoresInativos(array $avisados, array $removidos, int $avisoDias): bool
+    {
+        $linhas = ['⚠️ <b>Servidores sem consultar a zona RPZ</b>'];
+
+        if ($avisados !== []) {
+            $linhas[] = "\n<b>Serão removidos em {$avisoDias} dia(s) se não voltarem a consultar:</b>";
+            foreach ($avisados as $item) {
+                $linhas[] = '• '.e($item['empresa']).' / '.e($item['servidor'])." — {$item['dias']} dia(s) sem consulta";
+            }
+        }
+
+        if ($removidos !== []) {
+            $linhas[] = "\n<b>Removidos por inatividade:</b>";
+            foreach ($removidos as $item) {
+                $linhas[] = '• '.e($item['empresa']).' / '.e($item['servidor'])." — {$item['dias']} dia(s) sem consulta";
+            }
+        }
+
+        return $this->send(implode("\n", $linhas));
+    }
+
+    /**
+     * @param  list<string>  $ips
+     */
+    public function notifyIpAguardandoLiberacao(string $empresa, string $servidor, array $ips, string $url): bool
+    {
+        return $this->send("🔐 <b>IP aguardando liberação</b>\n\n"
+            .'<b>Empresa:</b> '.e($empresa)."\n"
+            .'<b>Servidor:</b> '.e($servidor)."\n"
+            .'<b>IP(s):</b> '.e(implode(', ', $ips))."\n\n"
+            .'Libere em <b>Restrição de IP</b> do servidor: '.e($url));
+    }
+
+    public function notifyUnboundReleaseComCve(string $versao, string $url, int $qtdCves): bool
+    {
+        return $this->send("🛡️ <b>Novo release do Unbound com possível CVE</b>\n\n"
+            .'<b>Versão:</b> '.e($versao)."\n"
+            .'<b>Identificadores CVE no changelog:</b> ~'.$qtdCves."\n\n"
+            .'Revise e, se aplicável, atualize a página /unbound-seguranca do painel: '.e($url));
     }
 
     private function send(string $texto): bool

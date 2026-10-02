@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Empresa;
 use App\Models\Lista;
+use App\Models\RpzZone;
 use App\Models\ServerAllowedIp;
 use App\Models\Servidor;
+use App\Services\RpzDirtyMarker;
+use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -21,7 +24,13 @@ class ServidorController extends Controller
     {
         $user = Auth::user();
 
-        $query = Servidor::with(['empresa', 'listas'])->orderByDesc('id');
+        $query = Servidor::with(['empresa', 'listas'])
+            ->withCount(['allowedIps as ips_pendentes_count' => fn ($ips) => $ips->where('status', 'pending')]);
+
+        if ($user->isAdmin()) {
+            $query->orderByRaw('last_synced_at IS NULL ASC')->orderByDesc('last_synced_at');
+        }
+        $query->orderByDesc('id');
 
         if ($user->isCliente()) {
             $query->where('empresa_id', $user->empresa_id);
@@ -47,16 +56,21 @@ class ServidorController extends Controller
             }
         } else {
             $empresas = Empresa::orderBy('nome')->get();
-            $licencaBlocker = null;
+            $empresaSelecionada = $empresas->firstWhere('id', request('empresa_id'));
+            if ($empresaSelecionada) {
+                $servidor->empresa_id = $empresaSelecionada->id;
+                $listasDisponiveis = $this->listasParaEmpresa($empresaSelecionada->id);
+            }
+            $licencaBlocker = $empresaSelecionada ? $this->licencaBlocker($empresaSelecionada) : null;
         }
 
         return view('servidores.form', compact('servidor', 'empresas', 'licencaBlocker', 'listasDisponiveis'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TelegramNotifier $telegram, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $user = Auth::user();
-        $data = $this->validated($request, $user);
+        $data = $this->validated($request, $user, exigirIp: $user->isCliente());
         if ($data['tipo_dns'] === 'mikrotik') {
             $data['bloqueio_modo'] = 'nxdomain';
         }
@@ -65,18 +79,28 @@ class ServidorController extends Controller
 
         if ($user->isCliente()) {
             $data['empresa_id'] = $user->empresa_id;
+        }
 
-            if ($blocker = $this->licencaBlocker($user->empresa)) {
-                return back()->withErrors(['empresa_id' => $blocker])->withInput();
-            }
+        $empresa = Empresa::find($data['empresa_id'] ?? null);
+        if ($blocker = $this->licencaBlocker($empresa)) {
+            return back()->withErrors(['empresa_id' => $blocker])->withInput();
         }
 
         $servidor = Servidor::create($data);
         $servidor->listas()->sync($listaIds);
+        $rpzDirty->markForServer($servidor->id);
 
         AuditLog::record('servidor.created', "Servidor \"{$servidor->nome}\" criado", $servidor->empresa_id, 'servidor', $servidor->id);
 
-        return redirect()->route('servidores.show', $servidor)->with('status', 'Servidor criado com sucesso.');
+        $pendentes = $user->isCliente() ? $this->registrarIpsPendentes($servidor, $telegram) : [];
+
+        $liberados = $user->isAdmin() ? $this->liberarIpsInformados($servidor) : [];
+
+        return redirect()->route('servidores.show', $servidor)->with('status', match (true) {
+            $pendentes !== [] => 'Servidor criado. O IP informado aguarda liberação pelo suporte — assim que for liberado, o seu Unbound passa a receber a lista.',
+            $liberados !== [] => 'Servidor criado e IP liberado: '.implode(', ', $liberados).'.',
+            default => 'Servidor criado com sucesso.',
+        });
     }
 
     public function show(Servidor $servidor): View
@@ -110,7 +134,7 @@ class ServidorController extends Controller
         return view('servidores.form', compact('servidor', 'empresas', 'listasDisponiveis'));
     }
 
-    public function update(Request $request, Servidor $servidor): RedirectResponse
+    public function update(Request $request, Servidor $servidor, TelegramNotifier $telegram, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
@@ -126,26 +150,39 @@ class ServidorController extends Controller
             $data['empresa_id'] = $user->empresa_id;
         }
 
+        $empresaAnteriorId = $servidor->empresa_id;
         $servidor->update($data);
         $servidor->listas()->sync($listaIds);
+        $rpzDirty->markForServer($servidor->id);
+        if ($empresaAnteriorId !== $servidor->empresa_id) {
+            $rpzDirty->markCompany($empresaAnteriorId);
+        }
 
         AuditLog::record('servidor.updated', "Servidor \"{$servidor->nome}\" atualizado", $servidor->empresa_id, 'servidor', $servidor->id);
+
+        if ($user->isCliente()) {
+            $this->registrarIpsPendentes($servidor, $telegram);
+        }
 
         return redirect()->route('servidores.show', $servidor)->with('status', 'Servidor atualizado com sucesso.');
     }
 
-    public function destroy(Servidor $servidor): RedirectResponse
+    public function destroy(Servidor $servidor, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
         AuditLog::record('servidor.destroyed', "Servidor \"{$servidor->nome}\" removido", $servidor->empresa_id, 'servidor', $servidor->id);
 
+        $empresaId = $servidor->empresa_id;
+        $servidorId = $servidor->id;
         $servidor->delete();
+        $rpzDirty->markServer($servidorId);
+        $rpzDirty->markCompany($empresaId);
 
         return redirect()->route('servidores.index')->with('status', 'Servidor removido.');
     }
 
-    public function attachLista(Servidor $servidor, Lista $lista): RedirectResponse
+    public function attachLista(Servidor $servidor, Lista $lista, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
@@ -154,17 +191,24 @@ class ServidorController extends Controller
         }
 
         $servidor->listas()->syncWithoutDetaching([$lista->id]);
+        $rpzDirty->markForServer($servidor->id);
 
-        return back()->with('status', "Lista \"{$lista->nome}\" adicionada ao servidor.");
+        return redirect(route('servidores.show', $servidor).'#endpoint-lists')->with('status', "Lista \"{$lista->nome}\" adicionada ao servidor.");
     }
 
-    public function detachLista(Servidor $servidor, Lista $lista): RedirectResponse
+    public function detachLista(Servidor $servidor, Lista $lista, RpzDirtyMarker $rpzDirty): RedirectResponse
     {
         $this->authorizeAccess($servidor);
 
         $servidor->listas()->detach($lista->id);
+        $rpzDirty->markForServer($servidor->id);
 
-        return back()->with('status', "Lista \"{$lista->nome}\" removida do servidor.");
+        return redirect(route('servidores.show', $servidor).'#endpoint-lists')->with('status', "Lista \"{$lista->nome}\" removida do servidor.");
+    }
+
+    public function unboundSeguranca(): View
+    {
+        return view('servidores.unbound-seguranca');
     }
 
     public function toggleIpRestriction(Servidor $servidor): RedirectResponse
@@ -179,7 +223,7 @@ class ServidorController extends Controller
             $servidor->id
         );
 
-        return back()->with('status', $servidor->ip_restriction_enabled
+        return redirect(route('servidores.show', $servidor).'#endpoint-ips')->with('status', $servidor->ip_restriction_enabled
             ? 'Restrição de IP ativada.'
             : 'Restrição de IP desativada — qualquer IP com o token válido pode sincronizar.');
     }
@@ -193,15 +237,92 @@ class ServidorController extends Controller
         $value = trim($data['ip_cidr']);
 
         if (! Servidor::validIpOrCidr($value)) {
-            return back()->withErrors(['ip_cidr' => 'IP ou CIDR inválido.']);
+            return redirect(route('servidores.show', $servidor).'#endpoint-ips')->withErrors(['ip_cidr' => 'IP ou CIDR inválido.']);
         }
 
-        $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
+        $ip = $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $value], ['status' => 'active']);
+        if ($ip->status !== 'active') {
+            $ip->update(['status' => 'active']);
+        }
 
         AuditLog::record('servidor.ips.added', "IP {$value} adicionado ao servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
         AuditLog::record('rpz.endpoint.acl_updated', 'ACL do endpoint RPZ atualizada', $servidor->empresa_id, 'servidor', $servidor->id);
 
-        return back()->with('status', 'IP adicionado à lista de permitidos.');
+        return redirect(route('servidores.show', $servidor).'#endpoint-ips')->with('status', 'IP adicionado à lista de permitidos.');
+    }
+
+    /**
+     * Admin que cadastra o servidor já libera o IP informado (ACL ativa),
+     * sem precisar voltar na tela pra adicionar. Só na criação: na edição
+     * IPv4/IPv6 continuam informativos, pra editar um nome não liberar IP
+     * que estava de fora de propósito.
+     *
+     * @return list<string> IPs liberados
+     */
+    private function liberarIpsInformados(Servidor $servidor): array
+    {
+        $liberados = [];
+
+        foreach (array_unique(array_filter([trim((string) $servidor->ip_v4), trim((string) $servidor->ip_v6)])) as $ip) {
+            $registro = $servidor->allowedIps()->firstOrCreate(['ip_cidr' => $ip], ['status' => 'active']);
+            if ($registro->wasRecentlyCreated) {
+                $liberados[] = $ip;
+                AuditLog::record('servidor.ips.added', "IP {$ip} adicionado ao servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
+            }
+        }
+
+        return $liberados;
+    }
+
+    public function approveAllowedIp(Servidor $servidor, ServerAllowedIp $ip): RedirectResponse
+    {
+        if ($ip->servidor_id !== $servidor->id) {
+            abort(404);
+        }
+
+        if ($ip->status !== 'active') {
+            $ip->update(['status' => 'active']);
+            AuditLog::record('servidor.ips.approved', "IP {$ip->ip_cidr} liberado para o servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
+        }
+
+        return redirect(route('servidores.show', $servidor).'#endpoint-ips')->with('status', "IP {$ip->ip_cidr} liberado. O Unbound do cliente passa a receber a zona na próxima tentativa.");
+    }
+
+    /**
+     * IPv4/IPv6 informados pelo cliente viram pedidos de liberação
+     * (status "pending"): só o admin ativa. Pendentes que não batem mais com
+     * o formulário são descartados; IPs já ativos nunca são tocados.
+     *
+     * @return list<string> IPs recém-registrados como pendentes
+     */
+    private function registrarIpsPendentes(Servidor $servidor, TelegramNotifier $telegram): array
+    {
+        $desejados = collect([$servidor->ip_v4, $servidor->ip_v6])
+            ->map(fn ($ip) => is_string($ip) ? trim($ip) : '')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $servidor->allowedIps()->where('status', 'pending')->whereNotIn('ip_cidr', $desejados)->delete();
+
+        $existentes = $servidor->allowedIps()->pluck('ip_cidr');
+        $novos = $desejados->reject(fn ($ip) => $existentes->contains($ip))->values();
+
+        foreach ($novos as $ip) {
+            $servidor->allowedIps()->create(['ip_cidr' => $ip, 'status' => 'pending']);
+            AuditLog::record('servidor.ip_pendente', "IP {$ip} informado para o servidor \"{$servidor->nome}\", aguardando liberação", $servidor->empresa_id, 'servidor', $servidor->id);
+        }
+
+        if ($novos->isNotEmpty()) {
+            $telegram->notifyIpAguardandoLiberacao(
+                $servidor->empresa->nome ?? '-',
+                $servidor->nome,
+                $novos->all(),
+                route('servidores.show', $servidor),
+            );
+        }
+
+        return $novos->all();
     }
 
     public function removeAllowedIp(Servidor $servidor, ServerAllowedIp $ip): RedirectResponse
@@ -216,7 +337,7 @@ class ServidorController extends Controller
         AuditLog::record('servidor.ips.removed', "IP {$cidr} removido do servidor \"{$servidor->nome}\"", $servidor->empresa_id, 'servidor', $servidor->id);
         AuditLog::record('rpz.endpoint.acl_updated', 'ACL do endpoint RPZ atualizada', $servidor->empresa_id, 'servidor', $servidor->id);
 
-        return back()->with('status', 'IP removido da lista de permitidos.');
+        return redirect(route('servidores.show', $servidor).'#endpoint-ips')->with('status', 'IP removido da lista de permitidos.');
     }
 
     /**
@@ -227,7 +348,7 @@ class ServidorController extends Controller
      *   - "lista": uma lista vinculada a este servidor ganhou/perdeu dominios
      * Junto, da pra ver a causa e o efeito na mesma tabela: a lista muda
      * num dia, e a proxima sincronizacao depois disso ja reflete a mudanca
-     * na contagem de dominios entregues.
+     * na contagem de dominios da proxima requisicao RPZ registrada.
      *
      * @return array<int, array{timestamp: Carbon, tipo: string, detalhe: string, meta: string|null, lista_id: int|null}>
      */
@@ -243,8 +364,56 @@ class ServidorController extends Controller
             $eventos[] = [
                 'timestamp' => $log->created_at,
                 'tipo' => 'sync',
-                'detalhe' => "Servidor sincronizou — {$log->dominios_count} domínios entregues",
-                'meta' => $log->ip_address,
+                // "Solicitou" (nao "sincronizou"/"aplicou"): o painel so observa a
+                // requisicao HTTP atendida, nao a aplicacao real no Unbound do
+                // cliente -- ver auditoria RPZ de 29/09/2026, secao 9.
+                'detalhe' => "RPZ solicitada — {$log->dominios_count} domínio(s)",
+                // Nome do servidor, nao o IP tecnico -- ja estamos na pagina
+                // deste servidor especifico, entao o IP e redundante e menos
+                // legivel pro publico leigo desta tela.
+                'meta' => $servidor->nome,
+                'lista_id' => null,
+            ];
+        }
+
+        // "Linha do tempo de entrega": alem de "o que mudou" (lista_add/remove)
+        // e "quando o servidor veio buscar" (sync), mostra tambem "quando o
+        // painel publicou" e "se o aviso (NOTIFY) chegou" -- os tres juntos
+        // respondem "essa mudanca realmente chegou nesse servidor?" sem
+        // precisar ir na Auditoria geral (RPZ-UNBOUND-LAB-1, 30/09/2026).
+        $zonaRpz = RpzZone::where('zone_key', 'server:'.$servidor->id)->first();
+        if ($zonaRpz !== null) {
+            foreach ($zonaRpz->versions()->whereNotNull('published_at')->where('published_at', '>=', $desde)->orderByDesc('id')->limit(50)->get() as $versao) {
+                $eventos[] = [
+                    'timestamp' => $versao->published_at,
+                    'tipo' => 'publish',
+                    'detalhe' => "Zona publicada — revisão {$versao->revision}, serial {$versao->serial}",
+                    'meta' => null,
+                    'lista_id' => null,
+                ];
+            }
+        }
+
+        // Traduz pra linguagem simples -- $log->description guarda o texto
+        // tecnico completo (serial/IP/tentativas) soh pra quem for direto na
+        // Auditoria geral investigar; aqui na tela do servidor o publico e
+        // leigo, entao o "o que aconteceu" fica no detalhe e o "porque"
+        // tecnico vira nota pequena (mesmo padrao do IP no evento de sync).
+        foreach (AuditLog::where('target_type', 'servidor')->where('target_id', $servidor->id)
+            ->where('action', 'like', 'rpz.notify.%')->where('created_at', '>=', $desde)
+            ->orderByDesc('id')->limit(50)->get() as $log) {
+            [$detalhe, $nota] = match ($log->action) {
+                'rpz.notify.acknowledged' => ['Servidor avisado da atualização — confirmado', null],
+                'rpz.notify.unconfirmed' => ['Aviso enviado, sem confirmação do servidor — o sistema tenta de novo sozinho no próximo ciclo automático', null],
+                'rpz.notify.rejected' => ['Servidor recusou o aviso automático', 'verifique a liberação de acesso (access-control) no Unbound dele'],
+                'rpz.notify.skipped' => ['Aviso automático não habilitado pra este servidor ainda', null],
+                default => ['Falha ao enviar o aviso automático — o sistema tenta de novo sozinho no próximo ciclo', null],
+            };
+            $eventos[] = [
+                'timestamp' => $log->created_at,
+                'tipo' => $log->action === 'rpz.notify.acknowledged' ? 'notify_ok' : 'notify_falhou',
+                'detalhe' => $detalhe,
+                'meta' => $nota,
                 'lista_id' => null,
             ];
         }
@@ -258,7 +427,7 @@ class ServidorController extends Controller
                     $join->on('lista_servidor.lista_id', '=', 'dominios.lista_id')
                         ->where('lista_servidor.servidor_id', '=', $servidor->id);
                 })
-                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.created_at) as dia, COUNT(*) as total')
+                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.created_at) as dia, COUNT(*) as total, MAX(dominios.created_at) as ultimo')
                 ->whereIn('dominios.lista_id', $listaIds)
                 ->where('dominios.created_at', '>=', $desde)
                 ->whereColumn('dominios.created_at', '>=', 'lista_servidor.created_at')
@@ -270,7 +439,7 @@ class ServidorController extends Controller
                     $join->on('lista_servidor.lista_id', '=', 'dominios.lista_id')
                         ->where('lista_servidor.servidor_id', '=', $servidor->id);
                 })
-                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.updated_at) as dia, COUNT(*) as total')
+                ->selectRaw('dominios.lista_id as lista_id, DATE(dominios.updated_at) as dia, COUNT(*) as total, MAX(dominios.updated_at) as ultimo')
                 ->whereIn('dominios.lista_id', $listaIds)
                 ->where('dominios.ativo', false)
                 ->where('dominios.updated_at', '>=', $desde)
@@ -280,7 +449,11 @@ class ServidorController extends Controller
 
             foreach ($adicionadosPorDiaLista as $row) {
                 $eventos[] = [
-                    'timestamp' => Carbon::parse($row->dia)->endOfDay(),
+                    // Horario real do ultimo dominio do lote (nao um horario
+                    // artificial tipo "fim do dia" ou "agora") -- assim a
+                    // ordenacao com eventos reais (sync/publish/notify) do
+                    // mesmo dia fica correta e estavel entre carregamentos.
+                    'timestamp' => Carbon::parse($row->ultimo),
                     'tipo' => 'lista_add',
                     'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" ganhou {$row->total} domínio(s)",
                     'meta' => null,
@@ -290,7 +463,7 @@ class ServidorController extends Controller
 
             foreach ($removidosPorDiaLista as $row) {
                 $eventos[] = [
-                    'timestamp' => Carbon::parse($row->dia)->endOfDay(),
+                    'timestamp' => Carbon::parse($row->ultimo),
                     'tipo' => 'lista_remove',
                     'detalhe' => "Lista \"{$listas[$row->lista_id]->nome}\" perdeu {$row->total} domínio(s)",
                     'meta' => null,
@@ -344,7 +517,7 @@ class ServidorController extends Controller
         return null;
     }
 
-    private function validated(Request $request, $user): array
+    private function validated(Request $request, $user, bool $exigirIp = false): array
     {
         $empresaId = $user->isAdmin() ? $request->input('empresa_id') : $user->empresa_id;
 
@@ -353,7 +526,7 @@ class ServidorController extends Controller
             'status' => ['required', 'in:active,inactive'],
             'tipo_dns' => ['required', 'in:unbound,mikrotik,bind9,outro'],
             'bloqueio_modo' => ['required', 'in:nxdomain,redirect'],
-            'ip_v4' => ['nullable', 'ip'],
+            'ip_v4' => $exigirIp ? ['required_without:ip_v6', 'nullable', 'ip'] : ['nullable', 'ip'],
             'ip_v6' => ['nullable', 'ip'],
             'lista_ids' => ['nullable', 'array'],
             'lista_ids.*' => [
@@ -372,6 +545,8 @@ class ServidorController extends Controller
             $rules['empresa_id'] = ['required', 'exists:empresas,id'];
         }
 
-        return $request->validate($rules);
+        return $request->validate($rules, [
+            'ip_v4.required_without' => 'Informe o IP de saída do seu servidor DNS (IPv4 ou IPv6).',
+        ]);
     }
 }

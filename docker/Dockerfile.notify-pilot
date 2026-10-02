@@ -1,0 +1,8 @@
+FROM composer:2.8 AS composer_binary
+FROM dns-panel-rpz-app:local
+COPY --from=composer_binary /usr/bin/composer /usr/local/bin/composer
+COPY --chown=www-data:www-data app /var/www/html/app
+COPY --chown=www-data:www-data config /var/www/html/config
+COPY --chown=www-data:www-data routes /var/www/html/routes
+COPY --chown=www-data:www-data composer.json /var/www/html/composer.json
+RUN COMPOSER_HOME=/tmp/composer composer dump-autoload --no-dev --no-interaction --classmap-authoritative --no-scripts

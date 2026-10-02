@@ -13,7 +13,7 @@
         </div>
 
         <nav class="settings-tabs" role="tablist" aria-label="Configurações ADMIN">
-            @foreach (['geral' => 'Geral', 'notificacoes' => 'Notificações', 'seguranca' => 'Segurança', 'integracoes' => 'Integrações'] as $tab => $label)
+            @foreach (['geral' => 'Geral', 'notificacoes' => 'Notificações', 'seguranca' => 'Segurança', 'integracoes' => 'Integrações', 'backup' => 'Backup'] as $tab => $label)
                 <button type="button" id="settings-tab-{{ $tab }}" class="settings-tab {{ $tab === 'geral' ? 'is-active' : '' }}" role="tab" aria-selected="{{ $tab === 'geral' ? 'true' : 'false' }}" aria-controls="settings-panel-{{ $tab }}" tabindex="{{ $tab === 'geral' ? '0' : '-1' }}" data-settings-tab="{{ $tab }}">{{ $label }}</button>
             @endforeach
         </nav>
@@ -28,6 +28,35 @@
                     <div><dt>Ambiente</dt><dd class="settings-mono">{{ $geral['ambiente'] }}</dd></div>
                 </dl>
                 <p class="settings-note">Esses valores são definidos no <code>.env</code> do servidor para evitar alterações acidentais em produção.</p>
+            </section>
+            <section class="settings-section">
+                <div class="settings-heading">
+                    <div><h2>Limpeza de servidores inativos</h2><p>Remove servidores que pararam de consultar a zona RPZ</p></div>
+                    <span class="settings-status {{ $limpeza['ativo'] ? 'is-enabled' : '' }}">{{ $limpeza['ativo'] ? 'Ativa' : 'Inativa' }}</span>
+                </div>
+                <p class="settings-copy">Todo dia às 03:30 o painel procura servidores sem consultar a zona há mais de {{ $limpeza['dias'] }} dias (servidor que nunca consultou conta desde o cadastro). Primeiro ele <strong>avisa</strong> pelo Telegram e pela Auditoria; só remove se, passado o prazo de aviso, o servidor continuar parado. Se voltar a consultar antes, o aviso é cancelado.</p>
+                <p class="settings-note">Hoje há {{ $limpeza['candidatos'] }} servidor(es) além do prazo de {{ $limpeza['dias'] }} dias. Ao ativar, eles serão apenas avisados no primeiro ciclo. Simulação sem alterar nada: <code>php artisan servidores:limpar-inativos --dry-run</code></p>
+                <form id="settings-limpeza-save" class="settings-form" action="{{ route('configuracoes.limpeza-servidores.update') }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <label class="settings-check">
+                        <span><strong>Limpeza automática ativa</strong><small>Desligada por padrão — remoção de servidor é irreversível</small></span>
+                        <input type="checkbox" name="ativo" value="1" @checked($limpeza['ativo'])>
+                    </label>
+                    <div class="settings-fields">
+                        <div class="field-group">
+                            <label for="limpeza_dias">Dias sem consulta para avisar</label>
+                            <input type="number" class="form-control settings-mono" id="limpeza_dias" name="dias" value="{{ $limpeza['dias'] }}" min="30" max="365" required>
+                        </div>
+                        <div class="field-group">
+                            <label for="limpeza_aviso_dias">Dias entre o aviso e a remoção</label>
+                            <input type="number" class="form-control settings-mono" id="limpeza_aviso_dias" name="aviso_dias" value="{{ $limpeza['aviso_dias'] }}" min="1" max="30" required>
+                        </div>
+                    </div>
+                </form>
+                <div class="settings-actions">
+                    <button type="submit" form="settings-limpeza-save" class="button button-primary">Salvar alterações</button>
+                </div>
             </section>
             <section class="settings-section">
                 <div class="settings-heading"><h2>Administração</h2></div>
@@ -116,6 +145,89 @@
                 </dl>
                 <p class="settings-note">URLs, formatos e pausas são administrados diretamente em cada fonte.</p>
                 <a class="settings-shortcut" href="{{ route('listas.index') }}"><span aria-hidden="true">→</span> Gerenciar fontes</a>
+            </section>
+        </div>
+
+        <div id="settings-panel-backup" role="tabpanel" aria-labelledby="settings-tab-backup" data-settings-panel="backup" hidden>
+            <section class="settings-section">
+                <div class="settings-heading">
+                    <div><h2>Backup externo (Cloudflare R2)</h2><p>Backup semanal do SQLite comprimido em .bak.gz</p></div>
+                    <span class="settings-status {{ $r2['ativo'] ? 'is-enabled' : '' }}">{{ $r2['ativo'] ? 'Ativo' : 'Inativo' }}</span>
+                </div>
+                <p class="settings-copy">O backup automático roda uma vez por semana, com compressão gzip e retenção local de 14 dias. Com isso ativo, cada arquivo .bak.gz também é enviado pra um bucket R2 — protege contra perda do servidor inteiro, não só corrupção do arquivo local.</p>
+
+                <form id="settings-r2-save" class="settings-form" action="{{ route('configuracoes.r2.update') }}" method="POST">
+                    @csrf
+                    @method('PUT')
+                    <label class="settings-check">
+                        <span><strong>Envio pro R2 ativo</strong><small>Envia uma cópia de cada backup local pro bucket configurado</small></span>
+                        <input type="checkbox" name="ativo" value="1" @checked($r2['ativo'])>
+                    </label>
+                    <div class="settings-fields">
+                        <div class="field-group">
+                            <label for="account_id">Account ID (Cloudflare)</label>
+                            <input type="text" class="form-control settings-mono" id="account_id" name="account_id" value="{{ $r2['account_id'] }}" placeholder="ex: bec407d758365446312d1c62e87d8acf">
+                        </div>
+                        <div class="field-group">
+                            <label for="bucket">Nome do bucket</label>
+                            <input type="text" class="form-control settings-mono" id="bucket" name="bucket" value="{{ $r2['bucket'] }}" placeholder="dns-panel-rpz-backups">
+                        </div>
+                    </div>
+                    <div class="settings-fields">
+                        <div class="field-group">
+                            <label for="access_key_id">Access Key ID</label>
+                            <input type="password" class="form-control settings-mono" id="access_key_id" name="access_key_id" placeholder="{{ $r2['access_key_id'] ? '••••••••••••••••' : 'Access Key ID do token R2' }}" autocomplete="off">
+                            <small class="settings-note">{{ $r2['access_key_id'] ? 'Já configurado · deixe em branco para manter' : '' }}</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="secret_access_key">Secret Access Key</label>
+                            <input type="password" class="form-control settings-mono" id="secret_access_key" name="secret_access_key" placeholder="{{ $r2['secret_access_key'] ? '••••••••••••••••' : 'Secret Access Key do token R2' }}" autocomplete="off">
+                            <small class="settings-note">{{ $r2['secret_access_key'] ? 'Já configurado · deixe em branco para manter' : '' }}</small>
+                        </div>
+                    </div>
+                    <div class="settings-fields">
+                        <div class="field-group">
+                            <label for="keep_days">Retenção no R2 (dias)</label>
+                            <input type="number" class="form-control settings-mono" id="keep_days" name="keep_days" value="{{ $r2['keep_days'] }}" min="1" max="365">
+                            <small class="settings-note">Após cada envio confirmado, ao atingir 10 backups, mantém os 5 mais recentes. A retenção por dias também preserva pelo menos os 5 mais recentes. Padrão: 30 dias.</small>
+                        </div>
+                    </div>
+                </form>
+                <div class="settings-actions">
+                    <button type="submit" form="settings-r2-save" class="button button-primary">Salvar alterações</button>
+                    <form action="{{ route('configuracoes.r2.test') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="button button-secondary">Testar conexão</button>
+                    </form>
+                    <form action="{{ route('configuracoes.backup.run') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="button button-secondary" onclick="return confirm('Rodar o backup agora? Pode levar alguns segundos.')">Fazer backup agora</button>
+                    </form>
+                </div>
+                <div class="settings-help">
+                    <h3>Espaço no R2</h3>
+                    <form action="{{ route('configuracoes.r2.storage') }}" method="POST">
+                        @csrf
+                        <button type="submit" class="button button-secondary">Consultar espaço via API</button>
+                    </form>
+                    @if ($r2Usage)
+                        @php($usage = $r2Usage)
+                        @if ($usage['warning'])
+                            <p role="alert" class="alert alert-warning"><strong>Atenção: o bucket atingiu 80% ou mais da referência de 10 GB.</strong> Confira o consumo antes dos próximos backups.</p>
+                        @endif
+                        <p><strong>Usado no bucket:</strong> {{ number_format($usage['bytes'] / 1000000000, 3, ',', '.') }} GB · {{ $usage['objects'] }} arquivos.</p>
+                        <p><strong>Margem estimada até 10 GB:</strong> {{ number_format($usage['free_tier_remaining_bytes'] / 1000000000, 3, ',', '.') }} GB.</p>
+                        <p class="settings-note">Consultado em {{ \Carbon\Carbon::parse($usage['checked_at'])->timezone(config('app.timezone'))->format('d/m/Y H:i') }}.</p>
+                    @endif
+                    <p class="settings-note">O R2 não tem capacidade fixa. A franquia Standard é de 10 GB-mês por conta. A estimativa considera apenas este bucket, sem outros buckets nem a média de uso do mês; não representa saldo de cobrança.</p>
+                </div>
+                <details class="settings-help">
+                    <summary>Como gerar o Access Key / Secret no Cloudflare</summary>
+                    <p>No dashboard da Cloudflare: <strong>Armazenamento de objetos R2 → Gerenciar tokens de API → Create API Token</strong>. Escolha <strong>"Object Read &amp; Write"</strong> escopado só pro bucket deste backup (não "Admin Read &amp; Write" da conta toda). O Secret Access Key só aparece uma vez na criação — copie na hora.</p>
+                </details>
+                @if ($ultimoBackup)
+                    <p class="settings-note">Último evento de backup: <strong>{{ $ultimoBackup->description }}</strong> — {{ $ultimoBackup->created_at->diffForHumans() }}</p>
+                @endif
             </section>
         </div>
     </div>

@@ -12,12 +12,24 @@
     </div>
 
     @if ($lista->isExterna())
+        @php $manualSibling = $lista->manualSibling(); @endphp
         <div class="panel" style="margin-bottom:14px">
             <div class="alert-error" style="margin:0;background:rgba(33,199,232,0.08);border-color:var(--cyan, #21c7e8);color:var(--text)">
                 Esta lista é sincronizada automaticamente do feed <strong>{{ $lista->fonte_externa }}</strong>. Edição manual está desabilitada — qualquer alteração seria sobrescrita na próxima sincronização.
+                @if ($manualSibling)
+                    Pra cadastrar domínios manualmente, acesse
+                    <a href="{{ route('listas.dominios.index', $manualSibling) }}"><strong>{{ $manualSibling->nome }}</strong></a>.
+                @endif
             </div>
         </div>
     @else
+    @if ($lista->isAnatel())
+        <div class="panel" style="margin-bottom:14px">
+            <div class="alert-error" style="margin:0;background:rgba(33,199,232,0.08);border-color:var(--cyan, #21c7e8);color:var(--text)">
+                Esta lista também recebe domínios automaticamente da importação de PDFs da ANATEL. Domínios cadastrados aqui manualmente (ex.: de PDFs em formato imagem, que não dá pra extrair automaticamente) ficam permanentes — a sincronização de PDF só adiciona ou reativa domínios, nunca remove o que já está aqui.
+            </div>
+        </div>
+    @endif
     <div class="details-grid">
         <div class="panel">
             <div class="panel-header"><h2>Adicionar domínio</h2></div>

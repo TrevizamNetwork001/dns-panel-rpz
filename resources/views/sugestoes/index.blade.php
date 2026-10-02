@@ -3,7 +3,37 @@
 @section('title', 'Sugestões de domínio')
 
 @section('content')
-    <div class="page-heading">
+    <style>
+        .admin-suggestions-compact { max-width: 1400px; margin: 0 auto; }
+        .admin-suggestions-compact .page-heading { align-items: center; margin-bottom: 22px; }
+        .admin-suggestions-compact .page-heading h1 { font-size: 28px; letter-spacing: -.03em; }
+        .admin-suggestions-compact .page-heading p { color: var(--text-soft); font-size: 12px; }
+        .admin-suggestions-compact .page-heading .button { min-height: 40px; }
+        .admin-suggestions-compact .suggestions-filter { margin-bottom: 14px; padding: 14px 16px; }
+        .admin-suggestions-compact .suggestions-filter form { gap: 10px; }
+        .admin-suggestions-compact .suggestions-filter .field-group { min-width: 220px; }
+        .admin-suggestions-compact .suggestions-page { padding: 0; overflow: hidden; }
+        .admin-suggestions-compact .suggestions-table { table-layout: fixed; }
+        .admin-suggestions-compact .suggestions-table th { padding: 13px 12px; }
+        .admin-suggestions-compact .suggestions-table td { padding: 16px 12px; vertical-align: middle; }
+        .admin-suggestions-compact .suggestions-table td:first-child { padding-left: 18px; }
+        .admin-suggestions-compact .suggestions-table tbody tr:hover { background: var(--surface-soft); }
+        .admin-suggestions-compact .suggestions-actions { display: flex; justify-content: flex-end; }
+        .admin-suggestions-compact .actions-menu-toggle { width: 31px; height: 31px; }
+        @media (max-width: 700px) {
+            .admin-suggestions-compact .page-heading { align-items: flex-start; flex-direction: column; }
+            .admin-suggestions-compact .suggestions-filter form { align-items: stretch !important; }
+            .admin-suggestions-compact .suggestions-filter .field-group { min-width: 100%; }
+            .admin-suggestions-compact .suggestions-table thead { display: none; }
+            .admin-suggestions-compact .suggestions-table, .admin-suggestions-compact .suggestions-table tbody, .admin-suggestions-compact .suggestions-table tr { display: block; width: 100%; }
+            .admin-suggestions-compact .suggestions-table tr { padding: 14px 16px; border-top: 1px solid var(--border-soft); }
+            .admin-suggestions-compact .suggestions-table td, .admin-suggestions-compact .suggestions-table td:first-child { display: block; width: 100%; max-width: none !important; padding: 7px 0; border: 0; }
+            .admin-suggestions-compact .suggestions-table td:not(:first-child)::before { content: attr(data-label); display: block; margin-bottom: 4px; color: var(--text-muted); font-size: 9px; text-transform: uppercase; }
+            .admin-suggestions-compact .suggestions-actions { justify-content: flex-start; margin-top: 6px; }
+        }
+    </style>
+    <div class="admin-suggestions-compact">
+    <div class="page-heading page-heading-compact">
         <div>
             <div class="page-eyebrow">Sugestões</div>
             <h1>Sugestões de domínio</h1>
@@ -16,7 +46,7 @@
         </div>
     </div>
 
-    <div class="panel" style="margin-bottom:14px">
+    <div class="panel suggestions-filter">
         <form action="{{ route('sugestoes.index') }}" method="GET" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
             <div style="display:flex;gap:8px;flex-wrap:wrap">
                 <a href="{{ route('sugestoes.index', array_filter(['q' => $busca])) }}" class="button {{ $statusFiltro === null ? 'button-primary' : 'button-secondary' }}">Todas</a>
@@ -36,7 +66,7 @@
         </form>
     </div>
 
-    <div class="panel">
+    <div class="panel suggestions-page">
         @if ($sugestoes->isEmpty())
             <div class="empty-state empty-state-large">
                 <div class="empty-state-icon">◇</div>
@@ -53,7 +83,7 @@
             </div>
         @else
             <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table suggestions-table">
                     <thead>
                         <tr>
                             <th>Domínio</th>
@@ -75,13 +105,13 @@
                             <tr>
                                 <td class="table-mono"><strong>{{ $sugestao->dominio }}</strong></td>
                                 @if (auth()->user()->isAdmin())
-                                    <td>{{ $sugestao->empresa->nome }}</td>
-                                    <td>{{ $sugestao->criadoPor->name ?? '-' }}</td>
-                                    <td class="table-mono">{{ $sugestao->created_at->format('d/m/Y H:i') }}</td>
-                                    <td class="table-mono">{{ $sugestao->ip_address ?? '-' }}</td>
+                                    <td data-label="Empresa">{{ $sugestao->empresa->nome }}</td>
+                                    <td data-label="Enviado por">{{ $sugestao->criadoPor->name ?? '-' }}</td>
+                                    <td class="table-mono" data-label="Data">{{ $sugestao->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="table-mono" data-label="IP">{{ $sugestao->ip_address ?? '-' }}</td>
                                 @endif
-                                <td class="table-secondary-text" style="max-width:220px" title="{{ $sugestao->motivo }}">{{ $sugestao->motivo ? \Illuminate\Support\Str::limit($sugestao->motivo, 80) : '-' }}</td>
-                                <td>
+                                <td class="table-secondary-text" data-label="Motivo" style="max-width:220px" title="{{ $sugestao->motivo }}">{{ $sugestao->motivo ? \Illuminate\Support\Str::limit($sugestao->motivo, 80) : '-' }}</td>
+                                <td data-label="Status">
                                     @if ($sugestao->status === 'pending')
                                         <span class="status-pill is-warning">Pendente</span>
                                     @elseif ($sugestao->status === 'approved')
@@ -91,7 +121,7 @@
                                     @endif
                                 </td>
                                 @if (auth()->user()->isAdmin())
-                                    <td>
+                                    <td data-label="Ações"><div class="suggestions-actions">
                                         @if ($sugestao->status === 'pending')
                                             <x-actions-menu label="Ações da sugestão {{ $sugestao->dominio }}">
                                                 @foreach (['aprovar' => 'Aprovar', 'rejeitar' => 'Rejeitar'] as $action => $label)
@@ -107,7 +137,7 @@
                                                 </template>
                                             </x-actions-menu>
                                         @endif
-                                    </td>
+                                    </div></td>
                                 @endif
                             </tr>
                         @endforeach
@@ -117,7 +147,9 @@
         @endif
     </div>
 
-    {{ $sugestoes->links() }}
+    {{ $sugestoes->links('pagination.compact') }}
+
+    </div>
 
     @if (auth()->user()->isAdmin() && $sugestoes->contains('status', 'pending'))
         @include('sugestoes.partials.review-dialogs')

@@ -80,7 +80,12 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSee('Status cadastral')
             ->assertSee('Estado operacional')
             ->assertSee('Última consulta')
-            ->assertSee('Acesso RPZ')
+            ->assertDontSee('Acesso RPZ')
+            ->assertDontSee('Fontes disponíveis para adicionar')
+            ->assertSee('Ver listas')
+            ->assertSee('Sincronizar agora')
+            ->assertSee('Solução de problemas')
+            ->assertSee('Ver histórico completo')
             ->assertSee('detail-rpz-url')
             ->assertDontSee('detail-token-value')
             ->assertDontSee('detail-token-masked')
@@ -184,7 +189,45 @@ class AdminEndpointsPresentationTest extends TestCase
         $this->actingAs($cliente)->get(route('servidores.show', $servidor))
             ->assertOk()
             ->assertDontSee('admin-endpoint-access')
-            ->assertDontSee('Status cadastral');
+            ->assertSee('Status cadastral')
+            ->assertSee('Estado operacional')
+            ->assertSee('endpoint-detail-statuses')
+            ->assertDontSee('server-status-pill')
+            ->assertDontSee('id="endpoint-ips"', false);
+    }
+
+    public function test_unbound_server_page_shows_module_config_step_but_mikrotik_does_not(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $empresa = Empresa::factory()->create();
+        $unbound = Servidor::factory()->for($empresa)->create(['tipo_dns' => 'unbound']);
+        $mikrotik = Servidor::factory()->for($empresa)->create(['tipo_dns' => 'mikrotik']);
+
+        $this->actingAs($admin)->get(route('servidores.show', $unbound))->assertOk()
+            ->assertSee('id="module-snippet"', false)
+            ->assertSee('module-config: "respip validator iterator"', false)
+            ->assertSeeText('Passo 1')->assertSeeText('Passo 2')
+            ->assertSeeText('A ordem importa')
+            ->assertSee('id="rpz-fields-help"', false)
+            ->assertSeeText('Nome da zona no Unbound')
+            ->assertSeeText('Nome que identifica as linhas de log deste RPZ')
+            ->assertSee('id="rpz-attention"', false)
+            ->assertSee('id="rpz-restart-steps"', false)
+            ->assertSeeText('Passo 3')->assertSeeText('Passo 4')
+            ->assertSee('unbound-checkconf', false)
+            ->assertSee('systemctl restart unbound', false)
+            ->assertSee('dig @127.0.0.1 blocktest.', false)
+            ->assertSeeText('Não deixe o log habilitado em produção');
+
+        $config = $this->mainConfig($this->get(route('servidores.show', $unbound))->getContent());
+        $this->assertStringContainsString('# rpz-log: yes', $config);
+        $this->assertDoesNotMatchRegularExpression('/^\s*rpz-log:/m', $config, 'O log do RPZ deve vir comentado por padrão.');
+
+        $this->get(route('servidores.show', $mikrotik))->assertOk()
+            ->assertDontSee('id="module-snippet"', false)
+            ->assertDontSee('id="rpz-fields-help"', false)
+            ->assertDontSee('id="rpz-restart-steps"', false)
+            ->assertDontSee('module-config');
     }
 
     private function mainConfig(string $content): string

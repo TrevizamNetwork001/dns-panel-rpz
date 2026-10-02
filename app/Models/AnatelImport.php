@@ -12,6 +12,21 @@ class AnatelImport extends Model
 
     protected $casts = ['started_at' => 'datetime', 'finished_at' => 'datetime'];
 
+    private const STATUS_LABELS = [
+        'pending' => 'Na fila',
+        'processing' => 'Processando',
+        'awaiting_approval' => 'Aguardando aprovação',
+        'completed' => 'Aprovado',
+        'rejected' => 'Rejeitado',
+        'blocked' => 'Bloqueado automaticamente',
+        'failed' => 'Falhou',
+    ];
+
+    public function getStatusLabelAttribute(): string
+    {
+        return self::STATUS_LABELS[$this->status] ?? ucfirst($this->status);
+    }
+
     public function lista(): BelongsTo
     {
         return $this->belongsTo(Lista::class);

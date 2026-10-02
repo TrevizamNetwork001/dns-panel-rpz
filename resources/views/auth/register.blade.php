@@ -11,6 +11,9 @@
         })();
     </script>
     <link rel="stylesheet" href="{{ asset('assets/app.css') }}?v={{ filemtime(public_path('assets/app.css')) }}">
+    @if (config('services.turnstile.site_key'))
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    @endif
 </head>
 <body>
     <div class="login-page">
@@ -62,6 +65,12 @@
                     <label for="password_confirmation">Confirmar senha</label>
                     <input class="form-control" type="password" id="password_confirmation" name="password_confirmation" required>
                 </div>
+
+                @if (config('services.turnstile.site_key'))
+                    <div class="form-group">
+                        <div class="cf-turnstile" data-sitekey="{{ config('services.turnstile.site_key') }}" data-theme="dark"></div>
+                    </div>
+                @endif
 
                 <button type="submit" class="primary-button">Cadastrar</button>
             </form>

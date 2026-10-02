@@ -5,21 +5,32 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\Lista;
 use App\Models\Setting;
+use App\Services\R2BackupUploader;
+use App\Services\ServidoresInativosCleaner;
 use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\View\View;
 
 class ConfiguracoesController extends Controller
 {
-    public function index(TelegramNotifier $telegram): View
+    public function index(TelegramNotifier $telegram, R2BackupUploader $r2, ServidoresInativosCleaner $limpeza): View
     {
         $fontesGerenciadas = Lista::query()
             ->whereIn('origem', ['externa', 'anatel'])
             ->get(['origem', 'sync_ativo', 'last_sync_at']);
 
+        $ultimoBackup = AuditLog::where('action', 'like', 'backup.%')
+            ->orderByDesc('id')
+            ->first();
+
         return view('configuracoes.index', [
             'telegram' => $telegram->config(),
+            'r2' => $r2->config(),
+            'r2Usage' => $r2->cachedUsage(),
+            'limpeza' => $limpeza->config() + ['candidatos' => $limpeza->inativosQuery()->count()],
+            'ultimoBackup' => $ultimoBackup,
             'geral' => [
                 'nome' => config('app.name'),
                 'url' => config('app.url'),
@@ -47,7 +58,7 @@ class ConfiguracoesController extends Controller
         Setting::set('telegram_ativo', $request->boolean('ativo') ? '1' : '0');
 
         if (filled($data['bot_token'] ?? null)) {
-            Setting::set('telegram_bot_token', $data['bot_token']);
+            Setting::setEncrypted('telegram_bot_token', $data['bot_token']);
         }
 
         Setting::set('telegram_chat_id', $data['chat_id'] ?? null);
@@ -65,5 +76,78 @@ class ConfiguracoesController extends Controller
         return back()->with($ok ? 'status' : 'error', $ok
             ? 'Mensagem enviada com sucesso.'
             : 'Falha ao enviar mensagem. Confira token, chat ID e se a notificação está ativa.');
+    }
+
+    public function updateR2(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ativo' => ['nullable', 'boolean'],
+            'account_id' => ['nullable', 'string', 'max:255'],
+            'access_key_id' => ['nullable', 'string', 'max:255'],
+            'secret_access_key' => ['nullable', 'string', 'max:255'],
+            'bucket' => ['nullable', 'string', 'max:255'],
+            'keep_days' => ['nullable', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        Setting::set('r2_ativo', $request->boolean('ativo') ? '1' : '0');
+        Setting::set('r2_account_id', $data['account_id'] ?? null);
+        Setting::set('r2_bucket', $data['bucket'] ?? null);
+        Setting::set('r2_keep_days', $data['keep_days'] ?? null);
+
+        if (filled($data['access_key_id'] ?? null)) {
+            Setting::setEncrypted('r2_access_key_id', $data['access_key_id']);
+        }
+
+        if (filled($data['secret_access_key'] ?? null)) {
+            Setting::setEncrypted('r2_secret_access_key', $data['secret_access_key']);
+        }
+
+        AuditLog::record('configuracoes.r2_atualizado', 'Configuração de backup externo (R2) atualizada');
+
+        return back()->with('status', 'Configuração salva.');
+    }
+
+    public function updateLimpezaServidores(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'ativo' => ['nullable', 'boolean'],
+            'dias' => ['required', 'integer', 'min:30', 'max:365'],
+            'aviso_dias' => ['required', 'integer', 'min:1', 'max:30'],
+        ]);
+
+        Setting::set('servidor_limpeza_ativo', $request->boolean('ativo') ? '1' : '0');
+        Setting::set('servidor_limpeza_dias', (string) $data['dias']);
+        Setting::set('servidor_limpeza_aviso_dias', (string) $data['aviso_dias']);
+
+        AuditLog::record('configuracoes.limpeza_servidores_atualizado', 'Configuração de limpeza de servidores inativos atualizada');
+
+        return back()->with('status', 'Configuração salva.');
+    }
+
+    public function testR2(R2BackupUploader $r2): RedirectResponse
+    {
+        $erro = $r2->sendTest();
+
+        return back()->with($erro === null ? 'status' : 'error', $erro === null
+            ? 'Comunicação com o R2 OK — escrita, leitura e exclusão confirmadas. Arquivo de teste removido.'
+            : $erro);
+    }
+
+    public function r2Storage(R2BackupUploader $r2): RedirectResponse
+    {
+        $usage = $r2->storageUsage();
+
+        return redirect()->to(route('configuracoes.index', ['aba' => 'backup']))
+            ->with($usage['erro'] === null ? 'r2_usage' : 'error', $usage['erro'] ?? $usage);
+    }
+
+    public function runBackupNow(): RedirectResponse
+    {
+        $code = Artisan::call('backup:run');
+        $saida = trim(Artisan::output());
+
+        AuditLog::record('backup.manual_triggered', 'Backup manual disparado pela tela de Configurações');
+
+        return back()->with($code === 0 ? 'status' : 'error', ($code === 0 ? 'Backup executado. ' : 'Backup falhou. ').$saida);
     }
 }

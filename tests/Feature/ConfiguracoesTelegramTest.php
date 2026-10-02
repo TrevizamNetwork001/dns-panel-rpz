@@ -45,7 +45,7 @@ class ConfiguracoesTelegramTest extends TestCase
             'thread_id' => '99',
         ])->assertRedirect();
 
-        $this->assertSame('meu-token-secreto', Setting::get('telegram_bot_token'));
+        $this->assertSame('meu-token-secreto', Setting::getEncrypted('telegram_bot_token'));
         $this->assertSame('-1001234', Setting::get('telegram_chat_id'));
         $this->assertSame('99', Setting::get('telegram_thread_id'));
         $this->assertSame('1', Setting::get('telegram_ativo'));

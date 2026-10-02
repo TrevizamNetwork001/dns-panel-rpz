@@ -1,0 +1,13 @@
+[Unit]
+Description=Renovação do certificado TLS do DNS Panel RPZ
+Requires=docker.service
+Wants=network-online.target
+After=docker.service network-online.target nginx.service
+ConditionPathExists=/opt/dns-panel-rpz/certbot/conf/renewal/rpz.trevizamnetwork.com.br.conf
+ConditionPathExists=/usr/local/sbin/dns-panel-rpz-deploy-certificate
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/dns-panel-rpz-certbot-renew
+TimeoutStartSec=900
+UMask=0077

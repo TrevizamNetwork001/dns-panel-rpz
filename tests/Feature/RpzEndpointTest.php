@@ -108,12 +108,12 @@ class RpzEndpointTest extends TestCase
 
     public function test_authorized_ipv6_individual_and_cidr_are_supported(): void
     {
-        [$empresa] = $this->endpoint('ipv6', ['2001:db8::1', '2804:4ff0::/64']);
+        [$empresa] = $this->endpoint('ipv6', ['2001:db8::1', '2001:db8:a::/64']);
         $this->withServerVariables(['REMOTE_ADDR' => '2001:0db8:0:0:0:0:0:1'])
             ->get("/rpz/{$empresa->rpz_slug}.zone")->assertOk();
-        $this->withServerVariables(['REMOTE_ADDR' => '2804:4ff0::249'])
+        $this->withServerVariables(['REMOTE_ADDR' => '2001:db8:a::249'])
             ->get("/rpz/{$empresa->rpz_slug}.zone")->assertOk();
-        $this->withServerVariables(['REMOTE_ADDR' => '2804:4ff1::249'])
+        $this->withServerVariables(['REMOTE_ADDR' => '2001:db8:b::249'])
             ->get("/rpz/{$empresa->rpz_slug}.zone")->assertForbidden();
     }
 
@@ -154,7 +154,7 @@ class RpzEndpointTest extends TestCase
 
     public function test_legacy_token_endpoint_keeps_working(): void
     {
-        [, $servidor] = $this->endpoint('legado');
+        [, $servidor] = $this->endpoint('legado', ['127.0.0.1/32']);
         $this->get("/rpz/{$servidor->token}.zone")->assertOk();
     }
 
@@ -181,6 +181,50 @@ class RpzEndpointTest extends TestCase
 
         $client = User::factory()->cliente($empresa)->create();
         $this->actingAs($client)->get(route('empresas.show', $empresa))->assertDontSee('company-rpz-access');
+    }
+
+    public function test_company_endpoint_captures_the_client_user_agent_on_server_and_sync_log(): void
+    {
+        [$empresa, $servidor] = $this->endpoint('ua-empresa', ['127.0.0.1/32']);
+
+        $this->withHeaders(['User-Agent' => 'unbound/1.22.0'])->get("/rpz/{$empresa->rpz_slug}.zone")->assertOk();
+
+        $this->assertSame('unbound/1.22.0', $servidor->fresh()->last_user_agent);
+        $this->assertDatabaseHas('server_sync_logs', [
+            'servidor_id' => $servidor->id,
+            'user_agent' => 'unbound/1.22.0',
+        ]);
+    }
+
+    public function test_legacy_token_endpoint_also_captures_the_user_agent(): void
+    {
+        [, $servidor] = $this->endpoint('ua-legado', ['127.0.0.1/32']);
+
+        $this->withHeaders(['User-Agent' => 'unbound/1.26.1'])->get("/rpz/{$servidor->token}.zone")->assertOk();
+
+        $this->assertSame('unbound/1.26.1', $servidor->fresh()->last_user_agent);
+        $this->assertDatabaseHas('server_sync_logs', [
+            'servidor_id' => $servidor->id,
+            'user_agent' => 'unbound/1.26.1',
+        ]);
+    }
+
+    public function test_missing_user_agent_is_stored_as_null_not_empty_string(): void
+    {
+        [, $servidor] = $this->endpoint('ua-vazio', ['127.0.0.1/32']);
+
+        $this->withHeaders(['User-Agent' => ''])->get("/rpz/{$servidor->token}.zone")->assertOk();
+
+        $this->assertNull($servidor->fresh()->last_user_agent);
+    }
+
+    public function test_oversized_user_agent_is_truncated_to_fit_the_column(): void
+    {
+        [, $servidor] = $this->endpoint('ua-grande', ['127.0.0.1/32']);
+
+        $this->withHeaders(['User-Agent' => str_repeat('a', 400)])->get("/rpz/{$servidor->token}.zone")->assertOk();
+
+        $this->assertSame(190, strlen($servidor->fresh()->last_user_agent));
     }
 
     private function endpoint(string $slug, array $rules = []): array

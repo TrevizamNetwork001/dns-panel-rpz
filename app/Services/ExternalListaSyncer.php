@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\AuditLog;
 use App\Models\Dominio;
 use App\Models\Lista;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
@@ -14,7 +15,7 @@ class ExternalListaSyncer
 
     private const CHUNK_SIZE = 400;
 
-    public function __construct(private DomainNormalizer $normalizer) {}
+    public function __construct(private DomainNormalizer $normalizer, private RpzDirtyMarker $rpzDirty) {}
 
     /**
      * @return array{status: string, total?: int, adicionados?: int, removidos?: int, motivo?: string}
@@ -33,17 +34,41 @@ class ExternalListaSyncer
             return ['status' => 'erro', 'motivo' => 'URL do feed aponta para uma rede local ou reservada'];
         }
 
+        $lock = Cache::lock('external-lista-sync:'.$lista->id, 300);
+        if (! $lock->get()) {
+            return ['status' => 'erro', 'motivo' => 'já existe uma sincronização desta lista em andamento'];
+        }
+
         try {
-            $response = Http::timeout(30)->get($lista->fonte_url);
+            $response = Http::connectTimeout(10)
+                ->timeout(30)
+                ->withoutRedirecting()
+                ->get($lista->fonte_url);
         } catch (\Throwable $e) {
+            $lock->release();
             return ['status' => 'erro', 'motivo' => 'falha ao buscar o feed: '.$e->getMessage()];
         }
 
+        try {
         if (! $response->successful()) {
+            if ($response->redirect()) {
+                return ['status' => 'erro', 'motivo' => 'redirects não são permitidos para feeds externos'];
+            }
             return ['status' => 'erro', 'motivo' => 'feed respondeu com status '.$response->status()];
         }
 
-        $dominios = $this->parseFeed($response->body(), $lista->fonte_formato ?? 'hostfile');
+        $contentLength = $response->header('Content-Length');
+        $maxFeedBytes = max(1, (int) config('lists.external_feed_max_bytes', 134217728));
+        if ($contentLength !== null && (int) $contentLength > $maxFeedBytes) {
+            return ['status' => 'erro', 'motivo' => 'feed excede o tamanho máximo permitido'];
+        }
+
+        $body = $response->body();
+        if (strlen($body) > $maxFeedBytes) {
+            return ['status' => 'erro', 'motivo' => 'feed excede o tamanho máximo permitido'];
+        }
+
+        $dominios = $this->parseFeed($body, $lista->fonte_formato ?? 'hostfile');
 
         if (count($dominios) < self::MIN_DOMAINS_ESPERADOS) {
             return [
@@ -87,12 +112,19 @@ class ExternalListaSyncer
             $lista->forceFill(['last_sync_at' => $agora])->save();
         });
 
+        if ($adicionados > 0 || $paraDesativar !== []) {
+            $this->rpzDirty->markForList($lista->id);
+        }
+
         return [
             'status' => 'ok',
             'total' => count($dominios),
             'adicionados' => $adicionados,
             'removidos' => count($paraDesativar),
         ];
+        } finally {
+            $lock->release();
+        }
     }
 
     public function syncAndLog(Lista $lista): array
@@ -223,13 +255,14 @@ class ExternalListaSyncer
 
     private function isPublicFeedUrl(string $url): bool
     {
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
-        if ($host === '' || $host === 'localhost' || str_ends_with($host, '.local')) {
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+        if (! in_array($scheme, ['http', 'https'], true)) {
             return false;
         }
 
-        if (app()->environment('testing') && str_ends_with($host, '.example')) {
-            return true;
+        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        if ($host === '' || $host === 'localhost' || str_ends_with($host, '.local')) {
+            return false;
         }
 
         if (app()->environment('testing') && str_ends_with($host, '.example')) {

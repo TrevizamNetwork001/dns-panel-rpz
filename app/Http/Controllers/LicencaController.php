@@ -67,7 +67,7 @@ class LicencaController extends Controller
 
     public function update(Request $request, Licenca $licenca): RedirectResponse
     {
-        $data = $this->validated($request);
+        $data = $this->validated($request, true);
 
         $licenca->update($data);
 
@@ -85,10 +85,12 @@ class LicencaController extends Controller
         return redirect()->route('licencas.index')->with('status', 'Licença removida.');
     }
 
-    private function validated(Request $request): array
+    private function validated(Request $request, bool $editing = false): array
     {
         $data = $request->validate([
-            'empresa_id' => ['required', 'exists:empresas,id'],
+            'empresa_id' => $editing
+                ? ['sometimes', 'nullable', 'exists:empresas,id']
+                : ['required', 'exists:empresas,id'],
             'starts_at' => ['required', 'date'],
             'validity_type' => ['nullable', 'in:with_expiry,no_expiry'],
             'expires_at' => ['nullable', 'required_if:validity_type,with_expiry', 'date', 'after_or_equal:starts_at'],
@@ -99,6 +101,10 @@ class LicencaController extends Controller
         $validityType = $data['validity_type'] ?? (($data['expires_at'] ?? null) === null ? 'no_expiry' : 'with_expiry');
         $data['expires_at'] = $validityType === 'no_expiry' ? null : $data['expires_at'];
         unset($data['validity_type']);
+
+        if ($editing) {
+            unset($data['empresa_id']);
+        }
 
         return $data;
     }

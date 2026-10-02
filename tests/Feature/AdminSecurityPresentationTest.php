@@ -12,7 +12,7 @@ class AdminSecurityPresentationTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function audit(string $action, string $date, string $ip = '107.173.160.167'): AuditLog
+    private function audit(string $action, string $date, string $ip = '198.51.100.167'): AuditLog
     {
         return AuditLog::create([
             'action' => $action,
@@ -74,8 +74,8 @@ class AdminSecurityPresentationTest extends TestCase
 
     public function test_streams_preserve_ips_details_jail_actions_repetitions_and_order(): void
     {
-        $this->ban('ban', '45.182.96.18', '2026-09-01 17:20:41');
-        $this->ban('unban', '45.182.96.18', '2026-09-01 18:20:39');
+        $this->ban('ban', '198.51.100.18', '2026-09-01 17:20:41');
+        $this->ban('unban', '198.51.100.18', '2026-09-01 18:20:39');
         $this->ban('ban', '2001:db8::abcd', '2026-09-01 19:20:39');
         $this->audit('auth.login_failed', '2026-09-06 14:48:34');
         $this->audit('auth.login_failed', '2026-09-06 14:49:34');
@@ -84,7 +84,7 @@ class AdminSecurityPresentationTest extends TestCase
         $response = $this->actingAs(User::factory()->admin()->create())->get(route('seguranca.index'));
 
         $response->assertOk()->assertDontSee('<table', false)->assertDontSee('status-pill')
-            ->assertSeeText('107.173.160.167')->assertSeeText('2001:db8::abcd')
+            ->assertSeeText('198.51.100.167')->assertSeeText('2001:db8::abcd')
             ->assertSeeText('alvo@example.com')->assertSeeText('sshd')
             ->assertSee('title="Tentativa de login falhou para alvo@example.com"', false)
             ->assertSeeText('Bloqueado')->assertSeeText('Desbloqueado')

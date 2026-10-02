@@ -30,6 +30,10 @@ class HealthCheck extends Command
         $problemas = array_merge($problemas, $this->checkSiteUp());
 
         if (empty($problemas)) {
+            $ultimaAcao = AuditLog::where('action', 'like', 'health.%')
+                ->orderByDesc('id')
+                ->value('action');
+
             AuditLog::create([
                 'user_id' => null,
                 'empresa_id' => null,
@@ -39,6 +43,12 @@ class HealthCheck extends Command
                 'created_at' => now(),
             ]);
             $this->info('Tudo OK: disco, certificado e site.');
+
+            // Só avisa recuperação se o healthcheck anterior tinha detectado problema;
+            // silencioso nas execuções normais pra não gerar ruído a cada 30min.
+            if ($ultimaAcao !== null && $ultimaAcao !== 'health.ok') {
+                $telegram->notifyHealthRecovered();
+            }
 
             return self::SUCCESS;
         }

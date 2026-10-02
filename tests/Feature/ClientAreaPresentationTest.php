@@ -20,7 +20,7 @@ class ClientAreaPresentationTest extends TestCase
     public function test_cliente_dashboard_uses_simple_labels_pt_br_counts_and_operational_statuses(): void
     {
         Carbon::setTestNow('2026-08-27 12:00:00');
-        $empresa = Empresa::factory()->create(['nome' => 'SPEEDNET']);
+        $empresa = Empresa::factory()->create(['nome' => 'PROVEDOR EXEMPLO']);
         $cliente = User::factory()->cliente($empresa)->create();
         $empresa->licencas()->delete();
         Licenca::create([
@@ -49,9 +49,11 @@ class ClientAreaPresentationTest extends TestCase
             ->assertSee('1 de 2 usado da licença')
             ->assertSee('1 disponível')
             ->assertSee('há 17 h')
-            ->assertSee('Normal')
-            ->assertSee('Minhas sugestões de domínio')
-            ->assertSee('+ Sugerir domínio')
+            ->assertSee('Em dia')
+            ->assertSee('dashboard-grid-cliente', false)
+            ->assertDontSee('<h2>Listas disponíveis</h2>', false)
+            ->assertDontSee('Minhas sugestões de domínio')
+            ->assertDontSee('+ Sugerir domínio')
             ->assertSee('Listas')
             ->assertSee('Servidores')
             ->assertDontSee('1 day ago')
@@ -122,7 +124,7 @@ class ClientAreaPresentationTest extends TestCase
         $this->actingAs($cliente)->get('/')
             ->assertOk()
             ->assertSee('Atenção')
-            ->assertSee('Sem sincronização');
+            ->assertSee('Sem solicitação RPZ');
     }
 
     public function test_cliente_only_sees_lists_and_servers_from_its_company_scope(): void
@@ -143,5 +145,23 @@ class ClientAreaPresentationTest extends TestCase
             ->assertDontSee($servidorAlheio->nome);
         $this->actingAs($cliente)->get("/listas/{$listaAlheia->id}")->assertForbidden();
         $this->actingAs($cliente)->get("/servidores/{$servidorAlheio->id}")->assertForbidden();
+    }
+
+    public function test_cliente_lists_are_alphabetical_across_pages(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        foreach (range(1, 21) as $number) {
+            Lista::factory()->create([
+                'empresa_id' => null,
+                'nome' => sprintf('Lista %02d', $number),
+            ]);
+        }
+
+        $this->actingAs($cliente)->get('/listas')->assertOk()
+            ->assertSeeInOrder(['Lista 01', 'Lista 02', 'Lista 20'])
+            ->assertDontSee('Lista 21');
+        $this->actingAs($cliente)->get('/listas?page=2')->assertOk()
+            ->assertSee('Lista 21')->assertDontSee('Lista 01');
     }
 }

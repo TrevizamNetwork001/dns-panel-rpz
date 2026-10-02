@@ -11,13 +11,22 @@
 @endphp
 
 @section('content')
-    <div @if(auth()->user()->isAdmin()) class="admin-endpoint-form" @endif>
+    @if (auth()->user()->isAdmin())
+        @include('servidores.partials.admin-form-styles')
+    @endif
+    <div @if(auth()->user()->isAdmin()) class="admin-endpoint-form" @else class="client-server-form" @endif>
+    @if (auth()->user()->isAdmin())
+        <nav class="endpoint-form-breadcrumb" aria-label="Navegação"><a href="{{ route('servidores.index') }}">Endpoints RPZ</a><x-ui-icon name="chevron" size="14" /><span>{{ $servidor->exists ? $servidor->nome : 'Novo endpoint' }}</span></nav>
+    @endif
     <div class="page-heading page-heading-compact">
         <div>
+            @if (auth()->user()->isAdmin())<div class="page-eyebrow">Configuração do servidor</div>@endif
             <h1>{{ auth()->user()->isAdmin()
                 ? ($servidor->exists ? 'Editar endpoint RPZ' : 'Novo endpoint RPZ')
                 : ($servidor->exists ? 'Editar servidor' : 'Novo servidor') }}</h1>
+            @if (auth()->user()->isAdmin())<p>{{ $servidor->exists ? $servidor->nome.' · '.$servidor->empresa->nome : 'Defina o servidor, o acesso e as listas de proteção.' }}</p>@endif
         </div>
+        @if (auth()->user()->isAdmin() && $servidor->exists)<a href="{{ route('servidores.show', $servidor) }}" class="button button-secondary"><x-ui-icon name="server" size="17" />Ver servidor</a>@endif
     </div>
 
     @isset($licencaBlocker)
@@ -34,8 +43,9 @@
             @method('PUT')
         @endif
 
+        <div class="server-settings @unless(auth()->user()->isAdmin()) panel @endunless">
         <div class="panel form-panel" style="margin-bottom:14px">
-            <div class="panel-header"><h2>Identificação</h2></div>
+            <div class="panel-header"><h2><x-ui-icon name="server" size="{{ auth()->user()->isAdmin() ? 23 : 18 }}" /> Identificação</h2></div>
             <div class="form-grid">
                 @if (auth()->user()->isAdmin())
                     <div class="field-group">
@@ -47,33 +57,31 @@
                             @endforeach
                         </select>
                     </div>
-                @else
-                    <div class="field-group">
-                        <label>Empresa</label>
-                        <input class="form-control" type="text" value="{{ $empresas->first()->nome ?? '-' }}" disabled>
-                    </div>
                 @endif
 
                 <div class="field-group">
-                    <label for="nome">Nome</label>
+                    <label for="nome">{{ auth()->user()->isAdmin() ? 'Nome' : 'Nome do servidor' }}</label>
                     <input class="form-control" type="text" id="nome" name="nome" value="{{ old('nome', $servidor->nome) }}" required>
                 </div>
 
                 <div class="field-group">
                     <label for="status">Status</label>
+                    <div class="server-status-field">
+                    @unless(auth()->user()->isAdmin())<x-ui-icon name="dot" size="14" class="server-status-indicator" />@endunless
                     <select class="form-control" id="status" name="status">
                         <option value="active" @selected(old('status', $servidor->status) === 'active')>Ativo</option>
                         <option value="inactive" @selected(old('status', $servidor->status) === 'inactive')>Inativo</option>
                     </select>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div class="panel form-panel" style="margin-bottom:14px">
-            <div class="panel-header"><h2>{{ auth()->user()->isAdmin() ? 'Configuração RPZ' : 'Configuração do servidor' }}</h2></div>
+            <div class="panel-header"><h2><x-ui-icon name="{{ auth()->user()->isAdmin() ? 'settings' : 'server' }}" size="{{ auth()->user()->isAdmin() ? 23 : 18 }}" />{{ auth()->user()->isAdmin() ? 'Configuração RPZ' : 'Configuração DNS' }}</h2></div>
             <div class="form-grid">
                 <div class="field-group">
-                    <label for="tipo_dns">Tipo de DNS</label>
+                    <label for="tipo_dns" class="server-icon-label"><x-ui-icon name="server" />Tipo de DNS</label>
                     @php $tipoDnsAtual = old('tipo_dns', $servidor->tipo_dns ?? 'unbound'); @endphp
                     <select class="form-control" id="tipo_dns" name="tipo_dns">
                         <option value="unbound" @selected($tipoDnsAtual === 'unbound')>Unbound (RPZ)</option>
@@ -87,29 +95,33 @@
                         <option value="nxdomain" @selected(old('bloqueio_modo', $servidor->bloqueio_modo ?? 'nxdomain') === 'nxdomain')>NXDOMAIN (domínio não existe)</option>
                         <option value="redirect" @selected(old('bloqueio_modo', $servidor->bloqueio_modo) === 'redirect')>Página de bloqueio (redireciona)</option>
                     </select>
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">No MikroTik, o Adlist sempre responde com 0.0.0.0; a página de bloqueio só se aplica ao RPZ/Unbound.</p>
+                    <aside class="server-dns-notice"><x-ui-icon name="info" /><span>Página de bloqueio indisponível; use NXDOMAIN. HTTPS pode gerar alerta de certificado. No MikroTik, o Adlist responde com 0.0.0.0.</span></aside>
                 </div>
 
                 <div class="field-group">
-                    <label for="ip_v4">IPv4 (opcional)</label>
+                    <label for="ip_v4">{{ auth()->user()->isCliente() ? 'IPv4 de saída do DNS' : 'IPv4 (opcional)' }}</label>
                     <input class="form-control" type="text" id="ip_v4" name="ip_v4" value="{{ old('ip_v4', $servidor->ip_v4) }}" placeholder="203.0.113.10">
                 </div>
 
                 <div class="field-group">
-                    <label for="ip_v6">IPv6 (opcional)</label>
+                    <label for="ip_v6">{{ auth()->user()->isCliente() ? 'IPv6 de saída do DNS (opcional)' : 'IPv6 (opcional)' }}</label>
                     <input class="form-control" type="text" id="ip_v6" name="ip_v6" value="{{ old('ip_v6', $servidor->ip_v6) }}" placeholder="2001:db8::1">
                 </div>
             </div>
             @if (auth()->user()->isAdmin())
-                <p class="endpoint-form-note">IPv4 e IPv6 são informativos e não controlam restrição de acesso ao feed RPZ.</p>
+                @if ($servidor->exists)
+                    <p class="endpoint-form-note">Na edição, IPv4 e IPv6 são informativos e não alteram a ACL. Gerencie os IPs liberados em "Restrição de IP", na tela do servidor.</p>
+                @else
+                    <p class="endpoint-form-note">Ao cadastrar, o IPv4/IPv6 informado já entra como IP <strong>liberado</strong> (ACL), sem precisar adicioná-lo depois.</p>
+                @endif
             @else
-                <p style="color:var(--text-muted);font-size:10px;margin-top:6px">IPv4 e IPv6 são informativos e não controlam o acesso ao feed RPZ.</p>
+                <p id="ip-liberacao-help" style="color:var(--text-muted);font-size:10px;margin-top:6px">Informe o IP <strong>público</strong> de onde o seu servidor DNS acessa a internet (IPv4 ou IPv6, pelo menos um). Depois de salvar, o suporte precisa <strong>liberar</strong> esse IP antes de o seu Unbound receber a lista — você vê o estado na tela do servidor. Não sabe qual é? No servidor DNS, rode <code>curl -4 ifconfig.me</code>.</p>
             @endif
         </div>
 
-        @if ($servidor->exists)
+        @if ($servidor->exists && auth()->user()->isAdmin())
             <div class="panel form-panel" style="margin-bottom:14px">
-                <div class="panel-header"><h2>Acesso ao feed</h2></div>
+                <div class="panel-header"><h2><x-ui-icon name="lock" size="23" />Acesso ao feed</h2></div>
                 <div class="field-group">
                     <label>URL do feed</label>
                     @if (auth()->user()->isAdmin())
@@ -134,14 +146,21 @@
                     <p style="color:var(--text-muted);font-size:10px;margin-top:6px">O token dá acesso à zona RPZ {{ auth()->user()->isAdmin() ? 'deste endpoint' : 'deste servidor' }}. Não compartilhe fora do que for necessário.</p>
                 </div>
             </div>
-        @else
+        @elseif (! $servidor->exists && auth()->user()->isAdmin())
             <p style="color:var(--text-muted);font-size:11px;margin-top:10px">O token é gerado automaticamente ao salvar.</p>
         @endif
 
+        @unless(auth()->user()->isAdmin())
+            @include('servidores.partials.form-actions')
+        @endunless
+        </div>
+        @if (! auth()->user()->isAdmin())
+            @include('servidores.partials.list-selector', ['listasDisponiveis' => $listasDisponiveis ?? collect()])
+        @else
         @if (isset($listasDisponiveis) && $listasDisponiveis->isNotEmpty())
             <div class="panel form-panel" style="margin-bottom:14px" id="fontes-habilitadas-panel">
                 <div class="panel-header">
-                    <h2>{{ auth()->user()->isAdmin() ? 'Fontes habilitadas' : 'Listas habilitadas' }}</h2>
+                    <h2><x-ui-icon name="link" size="23" />Fontes habilitadas</h2>
                     <div class="endpoint-sources-heading">
                         @if (auth()->user()->isAdmin())
                             <button type="button" class="inline-link endpoint-selection-action" id="fontes-selecionar-todas">Selecionar todas</button>
@@ -150,23 +169,24 @@
                         <span id="fontes-selecionadas-count"></span>
                     </div>
                 </div>
-                <input type="text" class="form-control" id="fontes-filtro" placeholder="{{ auth()->user()->isAdmin() ? 'Pesquisar fontes...' : 'Pesquisar listas...' }}" style="margin-bottom:10px">
-                <div style="display:grid;gap:6px;max-height:340px;overflow-y:auto">
+                <p class="endpoint-source-help">Selecione as listas que este servidor deve utilizar.</p>
+                <label class="endpoint-source-search"><x-ui-icon name="search" size="18" /><input aria-label="Pesquisar fontes" type="text" class="form-control" id="fontes-filtro" placeholder="{{ auth()->user()->isAdmin() ? 'Pesquisar fontes...' : 'Pesquisar listas...' }}" ></label>
+                <div class="endpoint-source-options">
                     @foreach ($listasDisponiveis as $lista)
                         @php
                             $tipoFonte = $lista->isAnatel()
                                 ? 'Catálogo / Importação ANATEL'
                                 : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'));
-                            $tipoListaCliente = $lista->isExterna()
-                                ? 'Externa'
-                                : ($lista->empresa_id ? 'Própria' : 'Catálogo');
+                            $tipoListaCliente = $lista->empresa_id ? 'Própria' : 'Catálogo';
                         @endphp
-                        <label class="checkbox-label" data-fonte-nome="{{ strtolower($lista->nome) }}">
+                        <label class="checkbox-label" data-fonte-nome="{{ mb_strtolower($lista->nome.' '.$lista->descricao) }}">
                             <input type="checkbox" name="lista_ids[]" value="{{ $lista->id }}" data-fonte-checkbox
                                 @checked($servidor->exists && $servidor->listas->contains($lista->id))>
+                            <x-list-category-icon :lista="$lista" />
                             <div>
                                 <strong>{{ $lista->nome }}</strong>
                                 <small>{{ auth()->user()->isAdmin() ? $tipoFonte : $tipoListaCliente }}</small>
+                                @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif
                             </div>
                         </label>
                     @endforeach
@@ -176,16 +196,24 @@
             <p style="color:var(--text-muted);font-size:11px;margin-top:14px">Selecione a empresa e salve para poder escolher as fontes.</p>
         @endif
 
-        <div class="form-actions">
-            <a href="{{ route('servidores.index') }}" class="button button-secondary">Cancelar</a>
-            <button type="submit" class="button button-primary" @if(!empty($licencaBlocker)) disabled @endif>Salvar</button>
-        </div>
+        @endif
+
+        @if (auth()->user()->isAdmin())
+            @include('servidores.partials.form-actions')
+        @endif
+
     </form>
+    @if ($servidor->exists && ! auth()->user()->isAdmin())
+        <form id="delete-server-form" action="{{ route('servidores.destroy', $servidor) }}" method="POST" onsubmit="return confirm('Excluir servidor?')">
+            @csrf
+            @method('DELETE')
+        </form>
+    @endif
 
     <script>
         (function () {
             var isAdminEndpointForm = {{ auth()->user()->isAdmin() ? 'true' : 'false' }};
-            var endpointToken = @json($servidor->exists ? $servidor->token : null);
+            var endpointToken = @json($servidor->exists && auth()->user()->isAdmin() ? $servidor->token : null);
             var maskedEndpointToken = isAdminEndpointForm ? '••••••••••••••••••••••••••••' : '••••••••••••••••••••';
             document.querySelectorAll('[data-copy-target]').forEach(function (btn) {
                 btn.addEventListener('click', function () {
@@ -242,7 +270,7 @@
                         var termo = fontesFiltro.value.trim().toLowerCase();
                         linhas.forEach(function (linha) {
                             var nome = linha.getAttribute('data-fonte-nome') || '';
-                            linha.style.display = nome.indexOf(termo) === -1 ? 'none' : '';
+                            linha.hidden = nome.indexOf(termo) === -1;
                         });
                     });
                 }

@@ -3,17 +3,20 @@
 @section('title', auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores')
 
 @section('content')
+    @if (auth()->user()->isAdmin())
+        @include('servidores.partials.admin-index')
+    @else
     <div class="page-heading page-heading-compact">
         <div>
             <h1>{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</h1>
-            <p>{{ $servidores->total() }} cadastrados · {{ $servidoresAtivos }} ativos</p>
+            <p>{{ $servidores->total() }} cadastrados • {{ $servidoresAtivos }} ativos</p>
         </div>
         <div class="page-actions">
-            <a href="{{ route('servidores.create') }}" class="button button-primary">+ {{ auth()->user()->isAdmin() ? 'Novo endpoint' : 'Novo servidor' }}</a>
+            <a href="{{ route('servidores.create') }}" class="button button-primary"><x-ui-icon name="plus" /> {{ auth()->user()->isAdmin() ? 'Novo endpoint' : 'Novo servidor' }}</a>
         </div>
     </div>
 
-    <div class="panel @if(auth()->user()->isAdmin()) admin-endpoints-page @endif">
+    <div class="panel @if(auth()->user()->isAdmin()) admin-endpoints-page @else client-servers-page @endif">
         @if ($servidores->isEmpty())
             <div class="empty-state empty-state-large">
                 <div class="empty-state-icon">+</div>
@@ -28,19 +31,19 @@
                     <thead>
                         <tr>
                             <th>Nome</th>
-                            @if (auth()->user()->isAdmin())<th>Empresa</th>@endif
+                            @if (auth()->user()->isAdmin())<th>Empresa</th>@else<th>Tipo</th>@endif
                             <th>{{ auth()->user()->isAdmin() ? 'Fontes habilitadas' : 'Listas' }}</th>
-                            <th>{{ auth()->user()->isAdmin() ? 'Última consulta' : 'Última sincronização' }}</th>
+                            <th>{{ auth()->user()->isAdmin() ? 'Última consulta' : 'Última solicitação RPZ' }}</th>
                             <th>Status</th>
-                            <th class="table-actions-column"></th>
+                            <th class="table-actions-column">{{ auth()->user()->isAdmin() ? '' : 'Ações' }}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($servidores as $servidor)
                             @php $dias = $servidor->diasSemSincronizar(); @endphp
                             <tr>
-                                <td><a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">{{ $servidor->nome }}</a></td>
-                                @if (auth()->user()->isAdmin())<td>{{ $servidor->empresa->nome }}</td>@endif
+                                <td><a href="{{ route('servidores.show', $servidor) }}" class="table-primary-link">@unless(auth()->user()->isAdmin())<x-ui-icon name="server" size="18" class="client-server-icon" />@endunless{{ $servidor->nome }}</a></td>
+                                @if (auth()->user()->isAdmin())<td>{{ $servidor->empresa->nome }}</td>@else<td><span class="server-icon-label"><x-ui-icon name="server" class="server-muted-icon" />{{ $servidor->tipo_dns === 'mikrotik' ? 'MikroTik (Adlist)' : 'Unbound (RPZ)' }}</span></td>@endif
                                 <td>
                                     @if ($servidor->listas->isEmpty())
                                         <a href="{{ route('servidores.show', $servidor) }}" class="inline-link" style="color:var(--danger)">nenhuma — escolher</a>
@@ -52,7 +55,7 @@
                                     @if (auth()->user()->isAdmin())
                                         {{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}
                                     @else
-                                        {{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}
+                                        <span class="server-icon-label"><x-ui-icon name="clock" class="server-muted-icon" />{{ \App\Http\Controllers\DashboardController::relativoPt($servidor->last_synced_at) }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -62,23 +65,42 @@
                                             $estadoClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active');
                                         @endphp
                                         <div class="endpoint-status-stack">
-                                            <span class="status-pill {{ $estadoClasse }}">{{ $estadoLabel }}</span>
+                                            <span class="status-pill server-status-pill {{ $estadoClasse }}"><x-ui-icon name="dot" size="14" />{{ $estadoLabel }}</span>
                                             <small>{{ $servidor->status === 'active' ? 'Ativo' : 'Inativo' }} no painel</small>
+                                            @if ($servidor->ips_pendentes_count > 0)
+                                                <span class="status-pill is-warning">IP aguardando liberação</span>
+                                            @endif
+                                            @if ($servidor->tipo_dns !== 'mikrotik' && $servidor->unboundVersionAfetada())
+                                                <span class="status-pill is-warning" title="Unbound {{ $servidor->unboundVersion() }} não atualiza a zona sozinho — ver detalhes do servidor">Unbound desatualizado</span>
+                                            @endif
                                         </div>
                                     @else
                                         @php
-                                            $estadoLabel = $dias === null ? 'Sem sincronização' : ($dias >= 2 ? 'Atenção' : 'Normal');
+                                            $estadoLabel = $dias === null ? 'Sem solicitação RPZ' : ($dias >= 2 ? 'Atenção' : 'Em dia');
                                             $estadoClasse = $dias === null ? 'is-muted' : ($dias >= 2 ? 'is-warning' : 'is-active');
                                         @endphp
-                                        <span class="status-pill {{ $estadoClasse }}">{{ $estadoLabel }}</span>
+                                        <div class="endpoint-status-stack">
+                                            <span class="status-pill server-status-pill {{ $estadoClasse }}"><x-ui-icon name="dot" size="14" />{{ $estadoLabel }}</span>
+                                            @if ($servidor->tipo_dns !== 'mikrotik' && $servidor->unboundVersionAfetada())
+                                                <span class="status-pill is-warning" title="Atualize o Unbound para 1.26.1 ou mais recente — ver detalhes do servidor">Precisa atualizar</span>
+                                            @endif
+                                        </div>
                                     @endif
                                 </td>
                                 <td>
+                                    <div class="client-server-actions">
+                                    @unless(auth()->user()->isAdmin())
+                                        <a href="{{ route('servidores.edit', $servidor) }}" class="button button-secondary"><x-ui-icon name="pencil" />Editar</a>
+                                    @endunless
                                     <x-actions-menu label="Ações do {{ auth()->user()->isAdmin() ? 'endpoint' : 'servidor' }} {{ $servidor->nome }}">
                                         @if (auth()->user()->isAdmin())
                                             <a href="{{ route('servidores.show', $servidor) }}" class="actions-menu-item">Ver detalhes</a>
                                         @endif
-                                        <a href="{{ route('servidores.edit', $servidor) }}" class="actions-menu-item">Editar</a>
+                                        @if(auth()->user()->isAdmin())
+                                            <a href="{{ route('servidores.edit', $servidor) }}" class="actions-menu-item">Editar</a>
+                                        @else
+                                            <a href="{{ route('servidores.show', $servidor) }}" class="actions-menu-item">Ver detalhes</a>
+                                        @endif
                                         <div class="actions-menu-divider"></div>
                                         <form action="{{ route('servidores.destroy', $servidor) }}" method="POST">
                                             @csrf
@@ -86,6 +108,7 @@
                                             <button type="submit" class="actions-menu-item actions-menu-item-danger" onclick="return confirm('Remover {{ auth()->user()->isAdmin() ? 'endpoint' : 'servidor' }}?')">Remover</button>
                                         </form>
                                     </x-actions-menu>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -95,5 +118,6 @@
         @endif
     </div>
 
-    {{ $servidores->links() }}
+    {{ $servidores->links('pagination.compact') }}
+    @endif
 @endsection

@@ -21,17 +21,20 @@ class AdminEndpointStreamTest extends TestCase
         $list = Lista::factory()->create(['nome' => 'Fonte 1007']);
         $server->listas()->attach($list);
         Dominio::factory()->for($list)->count(1007)->create(['ativo' => false]);
-        $sync = $server->syncLogs()->create(['dominios_count' => 244493, 'ip_address' => '2804:4ff0::249', 'created_at' => now()]);
+        $sync = $server->syncLogs()->create(['dominios_count' => 244493, 'ip_address' => '2001:db8::249', 'created_at' => now()]);
 
         $response = $this->actingAs($admin)->get(route('servidores.show', $server));
+        // Rotulos/mensagens atuais (24eefd6/2710250): "Zona consultada" /
+        // "Domínios adicionados" / "Domínios removidos", sem IP nem nome do
+        // servidor no evento de sync (redundante, ja estamos na pagina dele).
         $response->assertOk()->assertSee('endpoint-event-stream')
-            ->assertSee('Adição')->assertSee('Remoção')->assertSee('Sincronização')
+            ->assertSee('Domínios adicionados')->assertSee('Domínios removidos')->assertSee('Zona consultada')
             ->assertSee('Fonte 1007')->assertSee('ganhou 1.007 domínios')->assertSee('perdeu 1.007 domínios')
-            ->assertSee('Servidor sincronizou — 244.493 domínios entregues')
-            ->assertSee('IP 2804:4ff0::249')->assertDontSee('Fonte +')->assertDontSee('Fonte -');
+            ->assertSee('Zona consultada — 244.493 domínios')
+            ->assertDontSee('Fonte +')->assertDontSee('Fonte -');
         $events = collect($response->viewData('logServidor'));
         $this->assertEqualsCanonicalizing(['sync', 'lista_add', 'lista_remove'], $events->pluck('tipo')->all());
-        $this->assertSame('Servidor sincronizou — 244493 domínios entregues', $events->firstWhere('tipo', 'sync')['detalhe']);
+        $this->assertSame('RPZ solicitada — 244493 domínio(s)', $events->firstWhere('tipo', 'sync')['detalhe']);
         $this->assertSame(244493, $sync->fresh()->dominios_count);
         $this->assertSame(1007, $list->dominios()->where('ativo', false)->count());
     }
@@ -42,6 +45,10 @@ class AdminEndpointStreamTest extends TestCase
         $server = Servidor::factory()->create(['created_at' => now()->subDays(5)]);
         $server->listas()->attach(Lista::factory()->create());
         $this->actingAs($admin);
+        // Aquece o cache do indicador de saude (rodape do layout, 5 min) antes
+        // de medir -- senao a 1a chamada tem 1 query a mais so por causa do
+        // cache frio, o que nao e crescimento real ligado aos dados do teste.
+        $this->get(route('servidores.show', $server))->assertOk();
         DB::enableQueryLog();
         $this->get(route('servidores.show', $server))->assertOk();
         $baseline = count(DB::getQueryLog());
@@ -57,21 +64,23 @@ class AdminEndpointStreamTest extends TestCase
         DB::disableQueryLog();
         $response->assertOk();
         $this->assertSame($baseline, $queries, 'Mais fontes e eventos não devem adicionar queries.');
-        $this->assertSame(80, substr_count($response->getContent(), '<li class="endpoint-event '));
+        preg_match('/<div class="panel endpoint-history-card">(.*?)<dialog id="endpoint-history"/s', $response->getContent(), $recent);
+        $this->assertSame(5, substr_count($recent[1], '<li class="endpoint-event '));
+        $this->assertSame(85, substr_count($response->getContent(), '<li class="endpoint-event '));
         $events = $response->viewData('logServidor');
         $this->assertCount(80, $events);
-        $this->assertSame('Servidor sincronizou — 1 domínios entregues', $events[0]['detalhe']);
-        $this->assertSame('Servidor sincronizou — 80 domínios entregues', $events[79]['detalhe']);
+        $this->assertSame('RPZ solicitada — 1 domínio(s)', $events[0]['detalhe']);
+        $this->assertSame('RPZ solicitada — 80 domínio(s)', $events[79]['detalhe']);
     }
 
-    public function test_client_keeps_original_log_and_admin_has_no_legacy_panel(): void
+    public function test_client_has_recent_history_and_admin_has_no_legacy_panel(): void
     {
         $server = Servidor::factory()->create();
         $client = User::factory()->cliente($server->empresa)->create();
         $server->syncLogs()->create(['dominios_count' => 244493, 'created_at' => now()]);
         $this->actingAs($client)->get(route('servidores.show', $server))->assertOk()
-            ->assertDontSee('endpoint-event-stream')->assertDontSee('admin-endpoint-detail')
-            ->assertSee('Log do servidor (últimos 30 dias)')->assertSee('244493 domínios entregues')
+            ->assertSee('endpoint-event-stream')
+            ->assertSee('Histórico recente')->assertSee('244.493 domínios')
             ->assertSee('Cole este bloco no');
         $admin = User::factory()->admin()->create();
         $response = $this->actingAs($admin)->get(route('servidores.show', $server));

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extrai candidatos de PDFs; não contém regras de bloqueio nem toca no banco."""
+"""Extrai candidatos de PDFs e planilhas Excel (.xlsx); não contém regras de bloqueio nem toca no banco."""
 import argparse
 import gc
 import json
@@ -23,7 +23,7 @@ def normalize_candidate(value):
 def candidates(text):
     return {normalize_candidate(match.group(0)) for match in DOMAIN.finditer(text or '')}
 
-def extract(path):
+def extract_pdf(path):
     import pdfplumber
     found, candidate_count, invalid = set(), 0, 0
     pages = 0
@@ -49,6 +49,33 @@ def extract(path):
                 del page_found
                 gc.collect()
     return {'filename': Path(path).name, 'pages': pages, 'candidates': candidate_count, 'domains': len(found), 'invalid': invalid}, found
+
+def extract_xlsx(path):
+    import openpyxl
+    found, candidate_count = set(), 0
+    sheets = 0
+    # read_only + data_only: streaming (nao carrega a planilha inteira na memoria) e
+    # pega o valor calculado de formulas, nao a formula em si.
+    workbook = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    try:
+        sheets = len(workbook.sheetnames)
+        for sheet in workbook.worksheets:
+            for row in sheet.iter_rows():
+                for cell in row:
+                    value = cell.value
+                    if value is None:
+                        continue
+                    candidate_count += 1
+                    found.update(candidates(str(value)))
+    finally:
+        workbook.close()
+    return {'filename': Path(path).name, 'pages': sheets, 'candidates': candidate_count, 'domains': len(found), 'invalid': 0}, found
+
+def extract(path):
+    suffix = Path(path).suffix.lower()
+    if suffix in ('.xlsx', '.xlsm'):
+        return extract_xlsx(path)
+    return extract_pdf(path)
 
 def main():
     parser = argparse.ArgumentParser()

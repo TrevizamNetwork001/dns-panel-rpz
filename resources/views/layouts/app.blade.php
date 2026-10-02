@@ -37,10 +37,7 @@
                 <nav class="sidebar-nav">
                     <a href="{{ route('dominios.index') }}" class="sidebar-link @if(request()->routeIs('dominios.*') || request()->routeIs('consulta.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/></svg>Domínios</a>
                     <a href="{{ route('listas.index') }}" class="sidebar-link @if(request()->routeIs('listas.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg>{{ auth()->user()->isAdmin() ? 'Fontes' : 'Listas' }}</a>
-                    @if (auth()->user()->isAdmin())
-                    <a href="{{ route('rbl.index') }}" class="sidebar-link @if(request()->routeIs('rbl.*')) is-active @endif">RBL Checker</a>
-                    @endif
-                    <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01"/><path d="M7 16.5h.01"/></svg>{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</a>
+                    <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif"><x-ui-icon name="server" size="18" class="sidebar-nav-icon" />{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</a>
                 </nav>
 
                 <p class="sidebar-section-label">Gestão</p>
@@ -73,9 +70,13 @@
                 // Ultimo resultado real do "php artisan health:check" (roda por timer,
                 // ver RUNBOOK.md) -- cacheado 5 min pra nao consultar a auditoria em
                 // toda carga de pagina (este rodape aparece em todas elas).
+                // Cache::remember() do Laravel nao cacheia valor null (reconsulta
+                // sempre nesse caso) -- guarda string vazia como sentinela pra
+                // "nunca rodou health:check ainda" continuar cacheado tambem.
                 $ultimoHealthAction = \Illuminate\Support\Facades\Cache::remember('sidebar-health-status', 300, function () {
-                    return \App\Models\AuditLog::where('action', 'like', 'health.%')->orderByDesc('id')->value('action');
+                    return \App\Models\AuditLog::where('action', 'like', 'health.%')->orderByDesc('id')->value('action') ?? '';
                 });
+                $ultimoHealthAction = $ultimoHealthAction === '' ? null : $ultimoHealthAction;
                 $ultimoHealth = $ultimoHealthAction !== null;
                 $sistemasOk = $ultimoHealthAction === 'health.ok';
             @endphp
@@ -149,6 +150,10 @@
             <main class="page-content">
                 @if (session('status'))
                     <div class="alert-success">{{ session('status') }}</div>
+                @endif
+
+                @if (session('error'))
+                    <div class="alert-error">{{ session('error') }}</div>
                 @endif
 
                 @if ($errors->any())

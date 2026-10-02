@@ -163,7 +163,7 @@ relatório resume blocos e IPs listados; o CSV inclui tipo/valor do alvo, IP
 verificado, grupo, ciclo, progresso e status agregado, mantendo neutralização de
 fórmulas.
 
-Exemplo: cadastre `45.239.156.0/24` como alvo `cidr`, associe-o a um grupo CGNAT e
+Exemplo: cadastre `198.51.100.0/24` como alvo `cidr`, associe-o a um grupo CGNAT e
 use **Verificar agora** ou o scheduler. O botão sempre verifica apenas o próximo
 lote. `php artisan rbl:check --target=ID --dry-run` mostra total, cursor, ciclo,
 progresso, IPs e checks planejados, limites atuais e uma estimativa simples da

@@ -1,0 +1,11 @@
+[Unit]
+Description=Agenda renovação TLS do DNS Panel RPZ
+
+[Timer]
+OnCalendar=*-*-* 03,15:00:00
+RandomizedDelaySec=3600
+Persistent=true
+Unit=dns-panel-rpz-certbot-renew.service
+
+[Install]
+WantedBy=timers.target

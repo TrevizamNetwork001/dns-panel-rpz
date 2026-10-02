@@ -2,7 +2,7 @@
     .admin-audit .audit-stream { list-style: none; margin: 0; padding: 0; }
     .admin-audit .audit-event {
         --audit-marker: var(--text-muted);
-        position: relative; display: grid; grid-template-columns: 154px minmax(0, 1fr) minmax(0, 230px);
+        position: relative; display: grid; grid-template-columns: 154px minmax(0, 1fr) minmax(0, 160px);
         gap: 16px; align-items: start; padding: 14px 0 14px 14px; border-bottom: 1px solid var(--border-soft);
         font-size: 12px; overflow-wrap: anywhere;
     }
@@ -14,7 +14,12 @@
     .admin-audit .audit-date, .admin-audit .audit-ip { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; line-height: 1.6; color: var(--text-muted); }
     .admin-audit .audit-ip { text-align: right; }
     .admin-audit .audit-action { display: block; font-size: 13px; font-weight: 600; line-height: 1.5; color: var(--text); }
+    .admin-audit .audit-context { display: block; }
     .admin-audit .audit-meta { margin-top: 3px; line-height: 1.5; color: var(--text-soft); }
+    .admin-audit .audit-details { margin-top: 7px; }
+    .admin-audit .audit-details summary { cursor: pointer; color: var(--text-muted); font-size: 11px; width: fit-content; }
+    .admin-audit .audit-details[open] { padding-bottom: 5px; }
+    .admin-audit .audit-description { margin-top: 4px; line-height: 1.5; color: var(--text-muted); font-size: 11px; }
     .admin-audit .audit-event-routine .audit-action { color: var(--text-soft); font-weight: 400; }
     .admin-audit .audit-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
     .admin-audit [hidden] { display: none !important; }

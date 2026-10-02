@@ -60,6 +60,22 @@ class Lista extends Model
         return $this->isExterna() || $this->isAnatel();
     }
 
+    /**
+     * Lista manual irmã desta fonte gerenciada (ex.: "ANATEL" -> "ANATEL
+     * (Manual)"), identificada por convenção de nome — é onde o usuário
+     * deve cadastrar domínios manualmente pra essa fonte.
+     */
+    public function manualSibling(): ?self
+    {
+        if (! $this->isManaged()) {
+            return null;
+        }
+
+        return static::where('empresa_id', $this->empresa_id)
+            ->where('nome', $this->nome.' (Manual)')
+            ->first();
+    }
+
     public function anatelImports(): HasMany
     {
         return $this->hasMany(AnatelImport::class);

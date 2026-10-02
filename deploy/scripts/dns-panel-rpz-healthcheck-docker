@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+cd /opt/dns-panel-rpz
+export RPZ_ENV_FILE=/etc/dns-panel-rpz/app.env
+exec /usr/bin/docker compose --profile cutover run --rm --no-deps --volume /etc/nginx/tls/rpz.trevizamnetwork.com.br:/etc/letsencrypt/live/rpz.trevizamnetwork.com.br:ro app php artisan health:check

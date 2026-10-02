@@ -28,6 +28,7 @@ class Servidor extends Model
 
     protected $casts = [
         'last_synced_at' => 'datetime',
+        'inatividade_avisada_em' => 'datetime',
         'ip_restriction_enabled' => 'boolean',
     ];
 
@@ -69,6 +70,33 @@ class Servidor extends Model
         return (int) $this->last_synced_at->diffInDays(now());
     }
 
+    /**
+     * Versão do Unbound extraída do User-Agent da última sincronização
+     * (ele já se identifica sozinho, ex.: "unbound/1.22.0") — nada
+     * precisa ser instalado ou configurado no cliente pra isso funcionar.
+     */
+    public function unboundVersion(): ?string
+    {
+        if ($this->last_user_agent === null) {
+            return null;
+        }
+
+        return preg_match('/unbound\/(\d+\.\d+(?:\.\d+)?)/i', $this->last_user_agent, $m) === 1 ? $m[1] : null;
+    }
+
+    /**
+     * Versões abaixo de 1.26.1 têm uma regressão conhecida (ver RUNBOOK,
+     * "Unbound não atualiza RPZ por HTTPS"): o download inicial funciona,
+     * mas a atualização periódica automática pelo serial do SOA não
+     * dispara sozinha — o cliente fica com a zona congelada sem avisar.
+     */
+    public function unboundVersionAfetada(): bool
+    {
+        $versao = $this->unboundVersion();
+
+        return $versao !== null && version_compare($versao, '1.26.1', '<');
+    }
+
     public function legacyRpzEndpointUrl(): string
     {
         return url('/rpz/'.$this->token.'.zone');
@@ -91,11 +119,18 @@ class Servidor extends Model
 
     public function ipAllowed(string $ip): bool
     {
+        $rules = $this->allowedIps()->where('status', 'active')->pluck('ip_cidr');
+
+        // Sem nenhum IP cadastrado, o servidor não recebe o zonefile de jeito
+        // nenhum — o toggle "restrição de IP" só controla se a lista de IPs
+        // cadastrados é aplicada ou não, não serve mais de bypass total.
+        if ($rules->isEmpty()) {
+            return false;
+        }
+
         if (! $this->ip_restriction_enabled) {
             return true;
         }
-
-        $rules = $this->allowedIps()->where('status', 'active')->pluck('ip_cidr');
 
         foreach ($rules as $cidr) {
             if (self::ipMatchesCidr($ip, $cidr)) {

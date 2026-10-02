@@ -26,21 +26,27 @@ class AnatelDashboardController extends Controller
         return view('anatel.index', compact('listas', 'imports'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, \App\Services\AnatelPdfExtractor $extractor): RedirectResponse
     {
-        $data = $request->validate(['lista_id' => ['required', 'exists:listas,id'], 'pdfs' => ['required', 'array', 'min:1', 'max:'.config('anatel.max_files')], 'pdfs.*' => ['required', 'file', 'mimetypes:application/pdf,application/x-pdf', 'max:'.config('anatel.max_pdf_kb')]]);
+        $data = $request->validate(['lista_id' => ['required', 'exists:listas,id'], 'pdfs' => ['required', 'array', 'min:1', 'max:'.config('anatel.max_files')], 'pdfs.*' => ['required', 'file', 'mimetypes:application/pdf,application/x-pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip', 'max:'.config('anatel.max_pdf_kb')]]);
         $lista = Lista::findOrFail($data['lista_id']);
         abort_unless($lista->isAnatel(), 422);
         $ids = [];
         foreach ($request->file('pdfs') as $upload) {
             $real = $upload->getRealPath();
-            if (! $real || file_get_contents($real, false, null, 0, 5) !== '%PDF-') {
-                throw ValidationException::withMessages(['pdfs' => 'O conteúdo enviado não é um PDF válido.']);
+            $extension = $real ? $extractor->detectExtension($real) : null;
+            if ($extension === null) {
+                throw ValidationException::withMessages(['pdfs' => 'O conteúdo enviado não é um PDF nem uma planilha Excel (.xlsx) válida.']);
             }$sha = hash_file('sha256', $real);
-            if (AnatelImport::where('sha256', $sha)->whereIn('status', ['pending', 'processing', 'completed'])->exists()) {
-                throw ValidationException::withMessages(['pdfs' => 'Um dos PDFs já foi processado.']);
-            }$path = $upload->storeAs(date('Y/m'), $sha.'.pdf', 'anatel');
-            $import = AnatelImport::create(['lista_id' => $lista->id, 'user_id' => $request->user()->id, 'original_filename' => basename($upload->getClientOriginalName()), 'storage_path' => $path, 'sha256' => $sha, 'size_bytes' => $upload->getSize(), 'status' => 'pending', 'progress' => 0]);
+            if (AnatelImport::where('sha256', $sha)->whereIn('status', ['pending', 'processing', 'awaiting_approval', 'completed'])->exists()) {
+                throw ValidationException::withMessages(['pdfs' => 'Um dos arquivos já foi processado.']);
+            }$path = $upload->storeAs(date('Y/m'), $sha.'.'.$extension, 'anatel');
+            try {
+                $import = AnatelImport::create(['lista_id' => $lista->id, 'user_id' => $request->user()->id, 'original_filename' => basename($upload->getClientOriginalName()), 'storage_path' => $path, 'sha256' => $sha, 'size_bytes' => $upload->getSize(), 'status' => 'pending', 'progress' => 0]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+                Storage::disk('anatel')->delete($path);
+                throw ValidationException::withMessages(['pdfs' => 'Um dos arquivos já foi processado.']);
+            }
             AuditLog::record('anatel.import.started', 'Importação ANATEL enfileirada: '.$import->original_filename, $lista->empresa_id, 'anatel_import', $import->id);
             ProcessAnatelImport::dispatch($import->id);
             $ids[] = $import->id;
@@ -53,7 +59,7 @@ class AnatelDashboardController extends Controller
     {
         $import->load('lista');
 
-        return response()->json(['id' => $import->id, 'status' => $import->status, 'progress' => $import->progress, 'filename' => $import->original_filename, 'finished_at' => optional($import->finished_at)->format('d/m/Y H:i:s'), 'new' => $import->new_count, 'existing' => $import->existing_count, 'reactivated' => $import->reactivated_count, 'excluded' => $import->excluded_count, 'invalid' => $import->invalid_count, 'total_active' => $import->lista->dominios()->where('ativo', true)->count(), 'endpoints' => $import->lista->servidores()->count(), 'preview_url' => $import->status === 'awaiting_approval' ? route('anatel.preview', $import) : null, 'new_url' => $import->status === 'completed' ? route('anatel.imports.new', [$import->lista, $import]) : null]);
+        return response()->json(['id' => $import->id, 'status' => $import->status, 'status_label' => $import->status_label, 'progress' => $import->progress, 'filename' => $import->original_filename, 'finished_at' => optional($import->finished_at)->format('d/m/Y H:i:s'), 'new' => $import->new_count, 'existing' => $import->existing_count, 'reactivated' => $import->reactivated_count, 'excluded' => $import->excluded_count, 'invalid' => $import->invalid_count, 'total_active' => $import->lista->dominios()->where('ativo', true)->count(), 'endpoints' => $import->lista->servidores()->count(), 'preview_url' => $import->status === 'awaiting_approval' ? route('anatel.preview', $import) : null, 'new_url' => $import->status === 'completed' ? route('anatel.imports.new', [$import->lista, $import]) : null]);
     }
 
     public function preview(AnatelImport $import, Request $request): View
@@ -106,14 +112,31 @@ class AnatelDashboardController extends Controller
         }, 'anatel-previa-'.$import->id.'.txt', ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 
-    public function batchPreview(Lista $lista): View
+    public function batchPreview(Lista $lista, Request $request): View
     {
         abort_unless($lista->isAnatel(), 404);
         $pending = $lista->anatelImports()->where('status', 'awaiting_approval')->orderBy('id')->get();
         $ids = $pending->pluck('id');
-        $domains = DB::table('anatel_import_domains')->whereIn('anatel_import_id', $ids)->select('domain')->selectRaw("CASE WHEN SUM(CASE WHEN result = 'excluded' THEN 1 ELSE 0 END) > 0 THEN 'excluded' WHEN SUM(CASE WHEN result = 'new' THEN 1 ELSE 0 END) > 0 THEN 'new' WHEN SUM(CASE WHEN result = 'reactivated' THEN 1 ELSE 0 END) > 0 THEN 'reactivated' ELSE 'existing' END as result")->selectRaw('COUNT(*) as occurrences')->groupBy('domain')->orderBy('domain')->paginate(100);
 
-        return view('anatel.batch', compact('lista', 'pending', 'domains'));
+        $agregado = DB::table('anatel_import_domains')
+            ->whereIn('anatel_import_id', $ids)
+            ->select('domain')
+            ->selectRaw("CASE WHEN SUM(CASE WHEN result = 'excluded' THEN 1 ELSE 0 END) > 0 THEN 'excluded' WHEN SUM(CASE WHEN result = 'new' THEN 1 ELSE 0 END) > 0 THEN 'new' WHEN SUM(CASE WHEN result = 'reactivated' THEN 1 ELSE 0 END) > 0 THEN 'reactivated' ELSE 'existing' END as result")
+            ->selectRaw('COUNT(*) as occurrences')
+            ->groupBy('domain');
+
+        $counts = DB::query()->fromSub($agregado, 'agregado')
+            ->select('result')->selectRaw('COUNT(*) as total')
+            ->groupBy('result')->pluck('total', 'result');
+
+        $filter = $request->input('result');
+        $domains = DB::query()->fromSub($agregado, 'agregado')
+            ->when(in_array($filter, ['new', 'existing', 'reactivated', 'excluded'], true), fn ($q) => $q->where('result', $filter))
+            ->orderBy('domain')
+            ->paginate(100)
+            ->withQueryString();
+
+        return view('anatel.batch', compact('lista', 'pending', 'domains', 'filter', 'counts'));
     }
 
     public function publishBatch(Lista $lista, AnatelImporter $importer): RedirectResponse

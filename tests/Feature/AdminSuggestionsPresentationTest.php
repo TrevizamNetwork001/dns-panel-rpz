@@ -113,6 +113,9 @@ class AdminSuggestionsPresentationTest extends TestCase
             return $queries;
         };
         $add();
+        // Aquece o cache do indicador de saude do layout (5 min) antes de
+        // medir -- senao a 1a chamada tem 1 query a mais so por cache frio.
+        $count();
         $single = $count();
         foreach (range(1, 19) as $index) {
             $add();

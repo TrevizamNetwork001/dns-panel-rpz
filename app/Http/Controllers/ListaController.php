@@ -7,22 +7,27 @@ use App\Models\Empresa;
 use App\Models\Lista;
 use App\Models\Servidor;
 use App\Services\ExternalListaSyncer;
+use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Illuminate\Validation\Rule;
 
 class ListaController extends Controller
 {
+    public function __construct(private RpzDirtyMarker $rpzDirty) {}
+
     public function index(): View
     {
         $user = Auth::user();
 
         $query = Lista::with('empresa')
-            ->withCount(['dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)])
-            ->orderByDesc('id');
+            ->withCount(['dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)]);
+
+        $query->orderBy('nome')->orderByDesc('id');
 
         if ($user->isCliente()) {
             $query->where(function ($q) use ($user) {
@@ -32,6 +37,10 @@ class ListaController extends Controller
 
         $listasAtivas = (clone $query)->where('status', 'active')->count();
         $listas = $query->paginate(20);
+
+        if ($user->isCliente()) {
+            return view('listas.cliente', compact('listas', 'listasAtivas'));
+        }
 
         return view('listas.index', compact('listas', 'listasAtivas'));
     }
@@ -54,6 +63,7 @@ class ListaController extends Controller
 
         $lista = Lista::create($data);
         $lista->servidores()->sync($servidorIds);
+        $this->rpzDirty->markForList($lista->id);
 
         AuditLog::record('lista.created', "Lista \"{$lista->nome}\" criada", $lista->empresa_id, 'lista', $lista->id);
 
@@ -69,7 +79,15 @@ class ListaController extends Controller
     {
         $this->authorizeAccess($lista);
 
-        $lista->load(['empresa', 'servidores.empresa']);
+        // Lista de catálogo é vinculada a servidores de várias empresas: o
+        // cliente só pode ver os da própria empresa, nunca os dos outros.
+        $user = Auth::user();
+        $lista->load([
+            'empresa',
+            'servidores' => fn ($query) => $query
+                ->when($user->isCliente(), fn ($proprios) => $proprios->where('empresa_id', $user->empresa_id))
+                ->with('empresa'),
+        ]);
         $lista->loadCount(['dominios', 'dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)]);
         $dominiosPreview = $lista->dominios()
             ->select(['id', 'lista_id', 'dominio', 'ativo'])
@@ -99,9 +117,13 @@ class ListaController extends Controller
     {
         $data = $this->validated($request);
         $servidorIds = $request->input('servidor_ids', []);
+        $servidorIdsAntes = $lista->servidores()->pluck('servidores.id')->all();
 
         $lista->update($data);
         $lista->servidores()->sync($servidorIds);
+        // Marca tanto os servidores que perderam quanto os que ganharam o
+        // vinculo -- sync() so deixa visivel o conjunto NOVO depois.
+        $this->rpzDirty->markForServers(array_unique(array_merge($servidorIdsAntes, $servidorIds)));
 
         AuditLog::record('lista.updated', "Lista \"{$lista->nome}\" atualizada", $lista->empresa_id, 'lista', $lista->id);
 
@@ -121,7 +143,9 @@ class ListaController extends Controller
 
         AuditLog::record('lista.destroyed', "Lista \"{$lista->nome}\" removida", $lista->empresa_id, 'lista', $lista->id);
 
+        $serverIds = $lista->servidores()->pluck('servidores.id')->all();
         $lista->delete();
+        $this->rpzDirty->markForServers($serverIds);
 
         return redirect()->route('listas.index')->with('status', 'Lista removida.');
     }
@@ -252,6 +276,7 @@ class ListaController extends Controller
 
     private function validated(Request $request): array
     {
+        $empresaId = $request->input('empresa_id');
         $data = $request->validate([
             'empresa_id' => ['nullable', 'exists:empresas,id'],
             'nome' => ['required', 'string', 'max:255'],
@@ -260,6 +285,16 @@ class ListaController extends Controller
             'origem' => ['nullable', 'in:manual,externa,anatel'],
             'fonte_url' => ['nullable', 'url', 'max:500', 'required_if:origem,externa'],
             'fonte_formato' => ['nullable', 'in:hostfile,plain,unbound_local_zone'],
+            'servidor_ids' => ['nullable', 'array'],
+            'servidor_ids.*' => [
+                'integer',
+                'distinct',
+                Rule::exists('servidores', 'id')->where(function ($query) use ($empresaId) {
+                    if ($empresaId !== null) {
+                        $query->where('empresa_id', $empresaId);
+                    }
+                }),
+            ],
         ]);
 
         $data['empresa_id'] = $data['empresa_id'] ?? null;
