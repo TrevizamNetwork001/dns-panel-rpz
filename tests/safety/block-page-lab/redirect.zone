@@ -1,0 +1,6 @@
+$ORIGIN rpz-lab.test.
+$TTL 60
+@ IN SOA localhost. hostmaster.localhost. (1 3600 300 86400 60)
+@ IN NS localhost.
+bloqueio-controlado.test IN CNAME rpz.trevizamnetwork.com.br.
+*.bloqueio-controlado.test IN CNAME rpz.trevizamnetwork.com.br.

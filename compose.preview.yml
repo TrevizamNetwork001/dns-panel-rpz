@@ -13,6 +13,7 @@ services:
       - ./deploy/nginx/rpz-preview-proxy.conf:/etc/nginx/preview-proxy.conf:ro
       - ./.recovery/preview-tls:/preview-tls:ro
       - ./.recovery/acme:/var/www/acme:ro
+      - ./public/bloqueado:/block-page:ro
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]

@@ -1,0 +1,173 @@
+Auditoria do ecossistema RPZ e teste de página de bloqueio — 23/10/2026
+
+Escopo e método
+- Revisão do código atual, configurações, contêineres, SQLite, filas,
+  timers systemd, TLS, firewall, Fail2ban, backups e logs.
+- Leituras de produção; nenhuma alteração de dados/clientes para reproduzir
+  bugs. A página estática e seu encaminhamento HTTP foram publicados a pedido
+  do usuário durante a auditoria. Não foi ativado redirect para clientes.
+- Suíte completa em contêiner sem rede, SQLite :memory: e fixture somente
+  de esquema do laboratório: 495 testes, 2366 asserções, todos aprovados.
+  Vendor de laboratório substitui migrations pelo esquema recuperado vazio;
+  isso não comprova que migrations funcionem do zero num checkout limpo.
+- Teste adicional descartável demonstrou a falha da janela de segurança:
+  um ban ainda vigente seguido de 200 eventos alheios resulta em zero bans
+  e zero bans nas últimas 24h na tela. 1 teste, 3 asserções.
+- Hashes de ExternalListaSyncer, RpzZoneBuildService, Setting e
+  RunDatabaseBackup coincidem entre workspace e app em execução.
+- Não houve pentest destrutivo, varredura externa de portas, análise completa
+  de CVEs/dependências nem simulação de perda/restauração de toda a VPS.
+
+Achados prioritários
+
+1. ALTA — modo de bloqueio ignorado no endpoint empresarial
+   Evidência: RpzController.php:194 fixa target='.'; RpzZoneBuildService.php:496
+   também retorna '.' para company, enquanto o formulário salva redirect no
+   servidor e o caminho server usa builder->target(bloqueio_modo).
+   Efeito: mudar um servidor para “Página de bloqueio” não muda a zona entregue
+   por /rpz/<empresa>.zone, que é justamente a URL usada pelos clientes.
+   Correção: definir política por empresa e destino de bloqueio explícito,
+   compartilhar a escolha entre build e fallback, preservar exceções e
+   publicar versão nova. Não escolher arbitrariamente o primeiro DNS de uma
+   empresa que possa ter servidores com modos diferentes.
+   Estado: confirmado por revisão; ainda não corrigido. Teste isolado validou
+   RPZ CNAME, página HTTP e limite de TLS, sem alterar zonas de produção.
+
+2. ALTA — proteção externa dos backups indisponível no runtime atual
+   Evidência: R2BackupUploader::isConfigured() retorna false no app; logs do
+   backup confirmam envio externo pulado. Backup local recente existe
+   (23/10 02:15 UTC), mas o último r2_uploaded no banco restaurado é de 02/10.
+   Efeito: perda da VPS pode também perder os backups locais. A ausência de
+   registros recentes não prova ausência de objetos no bucket externo.
+   RunBackup.php:35-40 considera backup local completo suficiente para adiar
+   o automático por uma semana; reativar R2 sozinho não força envio imediato.
+   Correção: revalidar credenciais e testar envio/restauração; separar o
+   agendamento do backup local da garantia de cópia externa.
+   Estado: risco confirmado, já conhecido na recuperação. O usuário havia
+   adiado novo backup completo; nenhum backup/envio foi disparado nesta análise.
+
+3. ALTA — SSH permite root com senha pela rede
+   Evidência: sshd -T retorna permitrootlogin yes e passwordauthentication yes;
+   serviço escuta IPv4/IPv6 na porta 22 e Fail2ban já registra atacantes reais.
+   Efeito: autenticação root exposta a adivinhação de senha. Fail2ban mitiga
+   reincidência, mas não impede uma senha válida obtida de outra forma.
+   Correção: validar primeiro conta administrativa/chave e recuperação de
+   acesso, depois restringir login root por senha. Não alterar às cegas.
+   Estado: configuração confirmada, sem evidência obtida de comprometimento;
+   nenhuma alteração SSH feita nesta auditoria.
+
+4. MÉDIA — contadores e bloqueios ativos ficam incorretos após 200 eventos
+   Evidência: SegurancaController.php:14 limita todos os cálculos aos últimos
+   200 eventos. Reprodução descartável: ban válido + 200 unbans de outros
+   endereços → bansAtivos vazio e bansUltimas24h=0.
+   Efeito: bloqueio progressivo de vários dias pode desaparecer visualmente
+   antes de expirar; contador de 24h também subestima ataques intensos.
+   Correção: consultar último estado por jail/IP sem janela global, contar
+   eventos de 24h no banco e reconciliar estado com fonte operacional segura.
+   A tela é baseada em eventos: falha do hook pode produzir divergência do
+   firewall. Falha visual não remove a proteção real do Fail2ban.
+   Estado: reproduzido; correção não aplicada nesta análise.
+
+5. MÉDIA — concorrência SQLite ainda causa falhas reais
+   Evidência: 36 failed_jobs, dos quais 34 são históricos recuperados; falhas
+   novas em 22/10 22:40 e 23/10 04:44 com database is locked. external-sync
+   também terminou com erro de lock e aguarda próximo intervalo de 6 horas.
+   Efeito: uma execução pode abortar antes de concluir todas as listas;
+   processo “Up” não significa última sincronização bem-sucedida.
+   Banco usa WAL e busy_timeout=10000; correções anteriores de retries já
+   existem, mas não eliminaram todos os caminhos de concorrência.
+   Correção: localizar transações longas/escritas sobrepostas, transações
+   curtas e retries por operação, sem retry cego de jobs antigos. Considerar
+   fila/cache separados do SQLite para reduzir competição.
+   Estado atual: zero jobs pendentes e nenhuma zona dirty; listas Malware,
+   Phishing, Ransomware e Ameaças têm sucessos recentes. Os HTTP 410 vistos
+   em logs anteriores foram seguidos por sucessos; não são falhas atuais
+   confirmadas das mesmas fontes. ThreatFox respeita intervalo de 12h.
+
+6. MÉDIA — monitoramento operacional não foi restaurado integralmente
+   Evidência: host só tem timer próprio de renovação TLS; não há timer de
+   healthcheck instalado. routes/console.php não agenda health:check.
+   HealthCheck.php espera certificado em /etc/letsencrypt/live/.../cert.pem,
+   caminho não montado no app; os certificados ativos estão no gateway.
+   Efeito: campo Saúde pode ficar antigo e expiração/disco/indisponibilidade
+   deixam de gerar alertas. Habilitar o comando sem adaptar os caminhos pode
+   gerar falso alerta de certificado ausente. Healthcheck Docker é outro
+   mecanismo e não substitui essas verificações de operação.
+   Correção: restaurar agendamento, adaptar leitura TLS e disco do host e
+   testar alertas/recuperação com canal de notificação configurado.
+
+7. MÉDIA — estado de produção ainda não é reproduzível só pelos commits
+   Evidência: dezenas de alterações locais e classes/migrations ainda não
+   versionadas, incluindo CompanyDomainQuery, RpzPolicyCompiler e políticas
+   de exceção utilizadas pelo código atual. Imagens recuperadas têm tags locais.
+   Efeito: clone/build/deploy só do GitHub pode perder funcionalidades ou
+   conter código diferente do servidor. Novos commits desta sessão não
+   representam toda a recuperação anterior.
+   Correção: revisar e versionar a recuperação restante sem segredos/bancos;
+   validar migrations e build do zero; testar restauração em ambiente separado.
+
+8. BAIXA — resíduos de laboratório e mensagens desatualizadas
+   RpzZoneBuilder.php:41 mantém refresh=300 para server:15, enquanto o padrão
+   é 3600. Sua configuração atual deve ser revalidada antes de manter a
+   exceção; a URL empresarial usa outra zona, portanto não afirmar impacto
+   automático nesse caminho.
+   Servidor::unboundVersionAfetada() e aviso de UI tratam toda versão inferior
+   a 1.26.1 como incapaz de atualização automática, mas o RUNBOOK documenta
+   que versões antigas atualizavam e podiam travar em falhas de rede.
+   Efeito: diagnóstico enganoso e possível carga de refresh maior no legado.
+   Correção: remover exceção de laboratório quando encerrado e qualificar
+   o aviso por versão/comportamento realmente validado.
+
+Observações adicionais
+- Duas unidades cloud-init em estado failed desde provisionamento (20/10).
+  Serviços do painel funcionam. Investigar logs completos antes de repetir
+  cloud-init, que pode reescrever rede/chaves/configuração da VPS.
+- LLMNR (systemd-resolved) escuta 5355 TCP/UDP em todas as interfaces.
+  Não foi testada exposição pela rede da hospedagem; avaliar necessidade.
+- Audit_logs/server_sync_logs e histórico de versões RPZ não têm política
+  de retenção abrangida pelo logrotate. Dados atuais não indicam emergência
+  de disco; planejar retenção sem remover evidência ativa ou versão publicada.
+
+Verificações positivas
+- SQLite quick_check=ok, WAL ativo, jobs pendentes=0, zonas dirty=0.
+- App e nginx saudáveis; fila, scheduler, backup e external-sync ativos.
+- Disco 99 GiB, aproximadamente 86 GiB livres na leitura; memória disponível
+  superior a 4 GiB. Logs e armazenamento não estavam perto de lotar.
+- Fail2ban sshd/panel-login ativos, bloqueio progressivo e rotação configurados.
+- TLS válido até 20/01/2027; timer renovação habilitado e última execução exit 0.
+- APP_DEBUG=false, sessão Secure/HttpOnly; cache e fila persistentes no banco.
+- Backend publicado só em 127.0.0.1:8082; IP original preservado no gateway.
+- Downloads recentes SBC e Fast Net registrados com IPs reais; DNSs com
+  registros antigos continuam exigindo diagnóstico específico do cliente.
+- 495 testes existentes passaram; isso não invalida os problemas não cobertos
+  demonstrados acima nem comprova segurança total de todo o ecossistema.
+
+Teste controlado da página de bloqueio
+- HTML antigo citado em /opt/dns-blocked-page/public/index.html não existe
+  nesta VPS. Foi criada página estática independente em public/bloqueado.
+- Publicada em https://rpz.trevizamnetwork.com.br/bloqueado, HTTP 200 em IPv4
+  e IPv6, certificado válido, sem cookies de aplicação ou dependências externas.
+- Host HTTP desconhecido redireciona por 302 para a URL HTTPS fixa da página,
+  sem refletir Host/caminho consultado; login e feeds conhecidos preservados.
+- Página é servida diretamente pelo gateway, sem PHP, com CSP restritiva,
+  no-store/noindex e sem pedir credenciais.
+- Unbound 1.25.2 instalado somente na imagem descartável block-lab. Contêiner
+  sem rede, sem portas publicadas, filesystem read-only e capabilities removidas.
+- Domínio bloqueio-controlado.test; DNS upstream simulado em loopback.
+  RPZ respondeu CNAME para o painel e A/AAAA esperados, status NOERROR.
+- HTTP no domínio fictício → 302 para página válida; HTTPS direto no domínio
+  fictício → curl erro 60 por certificado de outro nome, como esperado.
+- Contêiner de laboratório encerrado. Nenhuma configuração de DNS de cliente,
+  modo de bloqueio no banco ou serial de zona de produção foi alterado.
+- Fixtures e Dockerfile em tests/safety/block-page-lab. Configuração contém
+  endereços deste ambiente; não usar como configuração de cliente.
+- SSL da página própria não permite apresentar certificado válido para
+  domínios de terceiros. Referência: RFC 9525, identidade do serviço TLS:
+  https://www.rfc-editor.org/rfc/rfc9525.html
+  RPZ CNAME: https://unbound.docs.nlnetlabs.nl/en/latest/topics/filtering/rpz.html
+
+Próxima ordem recomendada
+1. Confirmar estratégia de cópia externa/restauração e acesso administrativo.
+2. Corrigir estado da segurança e monitoramento, reduzir locks SQLite.
+3. Definir política por empresa antes de piloto real da página de bloqueio.
+4. Consolidar recuperação no Git e validar build/restauração independente.

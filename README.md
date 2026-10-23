@@ -368,7 +368,9 @@ Servidor que para de consultar a zona RPZ fica no banco indefinidamente, então 
 - `php artisan servidores:limpar-inativos --dry-run` lista o que seria avisado/removido **sem alterar nada** e funciona mesmo com a função desligada — use antes de ativar. No container: `docker compose exec app php artisan servidores:limpar-inativos --dry-run`.
 
 <a id="pagina-bloqueio"></a>
-## 🚧 Página de bloqueio (não implementada)
+## 🚧 Página de bloqueio (teste controlado disponível)
+
+Atualização de 23/10/2026: página informativa publicada em `https://rpz.trevizamnetwork.com.br/bloqueado`, com HTTPS válido. Hosts HTTP desconhecidos são encaminhados pelo gateway para essa URL. O teste com Unbound isolado confirmou RPZ CNAME em IPv4/IPv6; HTTPS direto em domínio bloqueado continua sujeito à validação do certificado original. Nenhum cliente foi alterado. O endpoint empresarial ainda força NXDOMAIN e precisa de política própria antes de ativar o modo por empresa. Evidências e pendências em [auditoria de 23/10](docs/reviews/2026-10-23-ecosystem-audit.txt). O texto abaixo registra a limitação histórica anterior à recuperação atual.
 
 O modo `redirect` existe no código e no formulário do servidor, e o app estático da página está pronto em `/opt/dns-blocked-page/public/index.html` (arquivo único, sem dependências externas), mas **nada serve essa página** e o modo deve ficar desligado. Estado verificado em set/2026:
 
