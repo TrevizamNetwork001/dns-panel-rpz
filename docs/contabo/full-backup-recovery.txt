@@ -1,0 +1,76 @@
+Backup completo local do painel recuperado
+
+Ferramenta: scripts/full-backup.py (Python 3.12+ e Docker Compose no host).
+O pacote contém segredos, APP_KEY e chaves TLS. Diretório 0700 e arquivos
+0600; não enviar por chat, Git ou armazenamento público. Não é criptografado.
+
+Criar, como root no host:
+  python3 scripts/full-backup.py create --directory /opt/dns-panel-rpz/.recovery/full-backups
+
+A captura interrompe temporariamente os serviços do compose.staging.yml,
+faz snapshot SQLite pela API de backup, verifica integridade/FKs e captura
+storage, código, ambiente, certificados e configurações RPZ do host.
+Retoma os serviços em finally antes de exportar imagens Docker.
+SIGTERM/CTRL-C tentam retomar os serviços; kill -9/falha do host exigem
+docker compose -f compose.staging.yml start --wait manualmente.
+Não há novas migrations, limpeza de backups anteriores, retenção ou upload.
+Somente pacote aprovado por checksum e integridade perde o sufixo .partial.
+
+Incluído:
+- SQLite consistente, com todas as tabelas e contagens de referência.
+- Volume storage inteiro: documentos, uploads, artefatos RPZ e logs.
+- Arquivos versionados na revisão capturada, .env.staging e material
+  TLS/ACME/Let's Encrypt da recuperação.
+- Imagens efetivamente utilizadas pelo painel e gateway, exportadas com
+  docker save, identificadas também por ID imutável no manifesto.
+- Scripts/unidades/logrotate dns-panel-rpz* instalados no host e arquivos
+  Fail2ban cujo nome contém rpz. Configurações do repositório também inclusas.
+
+Excluído: backups SQLite antigos, banco histórico preservado, cache derivado,
+serviços de outros sistemas, autenticação SSH e sistema operacional completo.
+Não é uma imagem de disco da VPS. Arquivos históricos já ausentes no servidor
+também não podem ser recuperados por este backup.
+
+Verificar e extrair em diretório NOVO, fora de /tmp (o pacote inclui imagens):
+  python3 scripts/full-backup.py verify CAMINHO_DO_PACOTE --restore-to /opt/dns-panel-rpz/.recovery/restore-test-NOVO
+  python3 scripts/full-backup.py smoke-test /opt/dns-panel-rpz/.recovery/restore-test-NOVO
+
+O teste inicia somente um processo PHP, sem rede e sem volumes de produção,
+com banco e storage extraídos. Confirma HTTP 200 na rota de login e contagem
+de usuários. Não inicia workers, sincronização, backup ou DNS primário.
+O pacote original continua imutável; o banco extraído pode receber escritas
+de inicialização do teste. Checksums detectam corrupção, não autenticam um
+pacote obtido de terceiros: usar exclusivamente cópia de origem confiável.
+
+Recuperação em OUTRO host limpo, sem painel/volumes de produção existentes:
+1. Instalar Python 3.12+, Docker e Compose. Transferir pacote por canal privado.
+   Copiar também o script para executar verify --restore-to em diretório novo.
+2. Conferir SHA-256 por referência guardada separadamente e verificar pacote.
+3. docker load -i DIRETORIO_EXTRAIDO/images.tar
+4. Executar smoke-test. Usar os IDs/tags do manifesto, não imagens aleatórias.
+5. Instalar conteúdo de project em /opt/dns-panel-rpz; preservar .env.staging,
+   APP_KEY e .recovery com permissões restritas e ownership apropriado.
+6. Criar os quatro volumes externos definidos em compose.staging.yml:
+   dns-panel-rpz-staging-test-data, dns-panel-rpz-staging-storage,
+   dns-panel-rpz-staging-cache, dns-panel-rpz-staging-backups.
+   Recusar a operação se algum desses volumes já contiver dados.
+7. Usar container temporário da imagem app capturada, --network none e
+   --user 0:0, para copiar database.sqlite para o volume de dados e o conteúdo
+   de storage para seu volume. Não copiar WAL/SHM de um banco vivo.
+   Exemplo de mounts: DIRETORIO_EXTRAIDO:/restore:ro, volume de dados:/data,
+   volume storage:/target-storage. Dentro do container: cp
+   /restore/database.sqlite /data/database.sqlite; cp -a /restore/storage/.
+   /target-storage/. O init existente ajustará ownership e criará diretórios.
+8. docker compose -f compose.staging.yml up -d --no-build --wait
+   Executa init contra o banco restaurado, sem inicializar banco vazio.
+9. Rever IP/DNS, portas e validade TLS antes de subir compose.preview.yml.
+   Restaurar apenas configurações RPZ necessárias de host/, revisar caminhos,
+   instalar serviços/timers e executar systemctl daemon-reload. Não sobrescrever
+   configurações SSH ou de outros serviços. Validar firewall e renovação TLS.
+10. Conferir HTTPS, acesso administrativo, documentos, contagens, versões e
+    downloads RPZ. Restaurar automações externas só após revisar credenciais,
+    endereço do novo servidor e risco de dois servidores ativos simultaneamente.
+
+Um pacote apenas nesta VPS não cobre perda do disco/servidor. Guardar cópia
+externa privada e testar sua recuperação continua necessário. R2 não é ativado
+por esta ferramenta; o uploader atual da aplicação cobre somente SQLite.
