@@ -1,0 +1,31 @@
+Atualização do runtime PHP — 23/10/2026
+
+Imagem: dns-panel-rpz-app:php-8.4.27-20261023
+Base PHP 8.4.27 fixada por digest nos dois Dockerfiles.
+session.upload_progress.enabled=0 em docker/php.ini.
+
+Validação
+- Build completo do target app em docker/Dockerfile.contabo aprovado,
+  incluindo dependências Composer, assets e extensões PHP.
+- compose.staging.yml validado com config --quiet.
+- PHP 8.4.27 e upload_progress=0 confirmados na imagem e no app ativo.
+- 502 testes PHP, 2398 asserções, aprovados em cópia descartável com
+  banco em memória, sem rede nem volumes de produção.
+- Dependências de desenvolvimento reutilizadas do laboratório anterior;
+  RefreshDatabase restaurado a partir do framework original da imagem,
+  removendo adaptação histórica que exigia /audit/schema-only.sql.
+- Cinco testes Python do extrator aprovados na imagem nova.
+- git diff --check aprovado.
+
+Aplicação
+- app, queue, scheduler, external-sync e backup recriados com a imagem nova,
+  usando up --no-deps --no-build --wait. Nenhuma migration foi executada.
+- nginx recarregado para resolver o endereço do app recriado.
+- App e nginx saudáveis; demais serviços em execução.
+- HTTPS /login, /up e /bloqueado retornaram HTTP 200.
+- SQLite PRAGMA quick_check retornou ok após a atualização.
+- Imagem anterior ecosystem-fixes-20261023 preservada para reversão.
+- R2, SSH e configuração do DNS primário permanecem fora desta atualização.
+
+Escopo do build: Dockerfile.contabo, utilizado pelo runtime ativo.
+O Dockerfile da raiz recebeu a mesma base PHP, sem build independente.

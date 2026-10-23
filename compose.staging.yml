@@ -3,7 +3,7 @@
 name: dns-panel-rpz-staging
 
 x-runtime: &runtime
-  image: dns-panel-rpz-app:ecosystem-fixes-20261023
+  image: dns-panel-rpz-app:php-8.4.27-20261023
   build:
     context: .
     dockerfile: docker/Dockerfile.contabo

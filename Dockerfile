@@ -5,7 +5,7 @@ RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --opt
 COPY . .
 RUN composer dump-autoload --no-dev --no-interaction --optimize --classmap-authoritative
 
-FROM php:8.4.12-fpm-alpine AS app
+FROM php:8.4.27-fpm-alpine@sha256:6b83fd767e1902ae4c89fe11f929f02e78bf769215c703060ac8a7c4be672c8c AS app
 RUN apk add --no-cache ca-certificates curl fcgi icu-libs libzip libxml2 py3-pip py3-virtualenv python3 sqlite \
     && apk add --no-cache --virtual .build-deps curl-dev icu-dev libzip-dev libxml2-dev linux-headers oniguruma-dev sqlite-dev $PHPIZE_DEPS \
     && docker-php-ext-install -j"$(nproc)" bcmath curl intl mbstring opcache pcntl pdo_sqlite sockets zip \
