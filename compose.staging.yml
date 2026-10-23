@@ -33,6 +33,10 @@ x-runtime: &runtime
     - ./app/Models/AuditLog.php:/var/www/html/app/Models/AuditLog.php:ro
     - ./app/Http/Controllers/AuditoriaController.php:/var/www/html/app/Http/Controllers/AuditoriaController.php:ro
     - ./app/Http/Controllers/DashboardController.php:/var/www/html/app/Http/Controllers/DashboardController.php:ro
+    - ./app/Http/Controllers/AuthController.php:/var/www/html/app/Http/Controllers/AuthController.php:ro
+    - ./config/logging.php:/var/www/html/config/logging.php:ro
+    - ./app/Http/Controllers/SegurancaController.php:/var/www/html/app/Http/Controllers/SegurancaController.php:ro
+    - ./resources/views/seguranca/index.blade.php:/var/www/html/resources/views/seguranca/index.blade.php:ro
     - ./resources/views/auditoria/index.blade.php:/var/www/html/resources/views/auditoria/index.blade.php:ro
   read_only: true
   tmpfs: [/tmp]

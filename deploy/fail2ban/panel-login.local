@@ -1,0 +1,11 @@
+[panel-login]
+enabled = true
+filter = dns-panel-login
+backend = polling
+port = http,https
+logpath = /var/lib/docker/volumes/dns-panel-rpz-staging-storage/_data/logs/security.log
+findtime = 10m
+maxretry = 5
+bantime = 1h
+action = %(action_)s
+         dns-panel-hook[name=%(__name__)s]

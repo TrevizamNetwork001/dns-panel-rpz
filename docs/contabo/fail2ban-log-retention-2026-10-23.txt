@@ -1,0 +1,109 @@
+Fail2ban SSH, login do painel e retenção de logs — 23/10/2026
+
+Instalação e integração
+- Instalados no Debian 13: fail2ban 1.1.0-8, python3-systemd e logrotate.
+- fail2ban.service habilitado no boot; regras sshd e panel-login ativas.
+- SSH: journal systemd de ssh.service/sshd, porta 22, IPv4 e IPv6.
+- Login: falhas de credenciais geram mensagem fixa panel-login-failed ip=IP
+  no arquivo storage/logs/security.log. Senhas e e-mails não vão para esse
+  arquivo dedicado. Falhas continuam registradas também na auditoria.
+- Filtro aceita somente o formato fixo emitido pelo servidor. O IP vem
+  de Request::ip(), com o gateway corrigido para preservar o IP real.
+- panel-login monitora o arquivo pelo host e bloqueia portas HTTP/HTTPS.
+  HTTP redireciona para HTTPS; o login da aplicação é processado em HTTPS.
+  Visitas normais, downloads RPZ e logins bem-sucedidos não contam como falha.
+- Falhas de validação de formulário e respostas já limitadas pelo rate limiter
+  não geram nova linha de falha de credenciais nesse arquivo.
+- Bloqueios HTTP/HTTPS afetam todas as requisições do IP nas portas 80/443
+  enquanto durar o ban, incluindo RPZ. SSH é bloqueado separadamente.
+- Regras de firewall usam a ação nftables do pacote Debian, no host.
+- Hook executa security:log-ban no app via compose.staging.yml explícito,
+  sem recorrer ao compose legado ou ao arquivo de ambiente antigo.
+- Ban/unban geram linhas em security_bans e na auditoria; a tela Segurança
+  mostra falhas de login, histórico e bloqueios SSH/painel.
+- Estado de bloqueio na tela é calculado por jail + IP, evitando que um
+  desbloqueio HTTP remova visualmente um bloqueio SSH do mesmo endereço.
+
+Política progressiva solicitada
+- 5 falhas em 10 minutos: ban inicial de 1 hora.
+- bantime.increment=true, factor=1, maxtime=7d, overalljails=false.
+- Reincidência aumenta exponencialmente o tempo, conforme histórico do
+  Fail2ban, até sete dias; contagens independentes para SSH e painel.
+- Banco de reincidência do Fail2ban preservado por 30 dias (dbpurgeage).
+- IP da sessão SSH administrativa presente na instalação foi adicionado
+  a /etc/fail2ban/jail.d/administrator.local, junto com loopback. Essa exceção
+  local não é versionada; revisar quando mudar a conexão administrativa.
+- Limitação preexistente: Segurança deriva o estado dos últimos 200 eventos,
+  não de uma consulta direta ao firewall. O Fail2ban é a fonte operacional.
+
+Rotação e limites
+- Log fixo security.log evita perder o monitoramento na virada de dia.
+- Logs *.log no volume de storage RPZ: rotação diária ou ao exceder 10 MiB,
+  verificada de hora em hora, com 14 arquivos antigos e compressão.
+- copytruncate mantém o arquivo aberto pelos processos. Existe uma janela
+  pequena de perda de linhas durante cópia/truncamento; não é armazenamento
+  de auditoria transacional. Eventos da aplicação permanecem no SQLite.
+- Rotação roda como root: o diretório de volumes Docker não é atravessável
+  pelo www-data do host; o UID da aplicação no Alpine também é diferente.
+- /var/log/fail2ban.log: mesma política diária/10 MiB/14 arquivos antigos,
+  usando flushlogs após rotação para reabrir o arquivo.
+- logrotate.timer: horário, com atraso aleatório de até cinco minutos;
+  serviço executado e timer confirmado ativo/habilitado.
+- Logs nativos de apt/dpkg/cloud-init e outras ferramentas continuam sob as
+  regras fornecidas pelos respectivos pacotes, verificadas pelo mesmo timer.
+- systemd journal (SSH/sistema): SystemMaxUse=256M, SystemKeepFree=1G,
+  SystemMaxFileSize=32M, RuntimeMaxUse=64M, RuntimeMaxFileSize=16M,
+  retenção máxima 14 dias e compressão. O journal foi reiniciado.
+- 1 GiB é reserva de espaço livre para o journal; não é um teto global
+  de logs nem um gatilho para apagar todos os registros do servidor.
+- Todos os sete contêineres ativos já usam rotação json-file do próprio
+  Docker: max-size=10m, max-file=3, aproximadamente 30 MiB por contêiner.
+  Não aplicar logrotate externo aos json-file do Docker.
+- Limites por tamanho são verificados periodicamente; não são quotas rígidas.
+  14 rotações podem representar menos de 14 dias sob alto volume.
+- Nenhuma política de exclusão de audit_logs/security_bans/server_sync_logs
+  no SQLite foi adicionada. Banco, backups e documentos não são logs rotativos.
+
+Validação
+- fail2ban-client -t aprovado; duas jails ativas; parâmetros incrementais
+  conferidos no dump de configuração e dbpurgeage efetivo de 2592000s.
+- Testes reais de ban/unban com endereços reservados 192.0.2.123 e
+  2001:db8::123 confirmaram regras nftables e eventos no painel.
+- Cinco mensagens de falha com IPs reservados 192.0.2.124 e 192.0.2.125
+  dispararam ban automático; todos os IPs técnicos foram desbloqueados.
+- Auditoria dos bans/unbans técnicos recebeu prefixo explícito “Teste técnico
+  de integração Fail2ban”; as linhas de histórico de segurança permanecem.
+- Filtro fail2ban-regex reconheceu o formato Monolog real, incluindo timestamp
+  ISO com fuso horário e campos vazios de contexto. Credenciais não entram
+  na expressão nem permitem injeção de linha no arquivo dedicado.
+- SSH já registrou bloqueios reais automaticamente após a ativação.
+- 28 testes / 407 asserções aprovados: AuthTest, AdminSecurityPresentationTest,
+  AdminAuditPresentationTest e AdminDashboardPresentationTest, em ambiente
+  descartável sem rede e SQLite :memory: com fixture somente de esquema.
+- Teste de login confirma envio apenas do IP IPv6 ao logger e presença
+  do IP correto no evento da auditoria.
+- Blade compilado; login público HTTPS 200; logrotate --debug global aprovado,
+  execução normal de logrotate.service concluída sem erro.
+- journal, fail2ban e timer de logrotate ativos após aplicação.
+
+Arquivos e operação
+- deploy/fail2ban/jail.local -> /etc/fail2ban/jail.local
+- deploy/fail2ban/fail2ban.local -> /etc/fail2ban/fail2ban.local
+- deploy/fail2ban/dns-panel-login.conf -> /etc/fail2ban/filter.d/
+- deploy/fail2ban/panel-login.local -> /etc/fail2ban/jail.d/
+- deploy/fail2ban/dns-panel-hook.conf -> /etc/fail2ban/action.d/
+- deploy/scripts/dns-panel-rpz-security-log-ban -> /usr/local/sbin/, modo 0755
+- deploy/fail2ban/dns-panel-security.logrotate -> /etc/logrotate.d/dns-panel-security
+- deploy/fail2ban/fail2ban.logrotate -> /etc/logrotate.d/fail2ban
+- deploy/systemd/dns-panel-rpz-journald.conf -> /etc/systemd/journald.conf.d/dns-panel-rpz.conf
+- deploy/systemd/dns-panel-rpz-logrotate-timer.conf -> /etc/systemd/system/logrotate.timer.d/dns-panel-rpz.conf
+- Configuração de logging, AuthController, SegurancaController e view Segurança
+  montados somente leitura no runtime recuperado por compose.staging.yml.
+- Validar: fail2ban-client status sshd / status panel-login / fail2ban-client -t.
+- Desbloquear: fail2ban-client set NOME_DA_JAIL unbanip ENDERECO.
+- Após alterações: validar antes de recarregar Fail2ban; mudanças globais de
+  histórico requerem restart; após views, executar artisan view:cache no app.
+- Contagem/timers estão no fuso do host; registros do painel usam o fuso
+  da aplicação. Não interpretar diferença de horário como atraso de coleta.
+- Configurações do host são aplicadas separadamente do Docker Compose;
+  versionar arquivos não instala serviços automaticamente em outro servidor.

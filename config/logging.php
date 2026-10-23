@@ -52,6 +52,16 @@ return [
 
     'channels' => [
 
+        'security' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/security.log'),
+            'level' => 'warning',
+            'permission' => 0640,
+            'locking' => true,
+            'formatter' => Monolog\Formatter\LineFormatter::class,
+            'formatter_with' => ['dateFormat' => 'Y-m-d\TH:i:sP'],
+        ],
+
         'stack' => [
             'driver' => 'stack',
             'channels' => explode(',', (string) env('LOG_STACK', 'single')),

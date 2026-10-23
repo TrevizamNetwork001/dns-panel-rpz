@@ -1,5 +1,9 @@
 [DEFAULT]
 bantime = 1h
+bantime.increment = true
+bantime.factor = 1
+bantime.maxtime = 7d
+bantime.overalljails = false
 findtime = 10m
 maxretry = 5
 backend = systemd

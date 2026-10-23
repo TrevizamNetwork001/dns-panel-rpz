@@ -6,6 +6,7 @@ use App\Models\AuditLog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 
@@ -39,6 +40,12 @@ class AuthController extends Controller
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             RateLimiter::hit($throttleKey, 300);
+
+            // Fixed message and validated IP only: never log credentials here.
+            $ip = $request->ip();
+            if (filter_var($ip, FILTER_VALIDATE_IP)) {
+                Log::channel('security')->warning('panel-login-failed ip='.$ip);
+            }
 
             AuditLog::create([
                 'user_id' => null,

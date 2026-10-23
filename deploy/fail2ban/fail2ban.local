@@ -1,0 +1,3 @@
+[Definition]
+# Retain recurrence history beyond the maximum seven-day ban.
+dbpurgeage = 30d

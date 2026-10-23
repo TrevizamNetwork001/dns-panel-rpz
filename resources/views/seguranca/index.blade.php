@@ -65,8 +65,8 @@
     <aside class="security-note" aria-label="Proteção SSH">
         <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8 12 3 3 5-6"/></svg>
         <div>
-            <strong>Proteção SSH</strong>
-            <p>O SSH está protegido por fail2ban: 5 tentativas de senha erradas em 10 minutos geram bloqueio automático por 1 hora. Esta tela apenas exibe o estado; não é um firewall configurável por aqui.</p>
+            <strong>Proteção SSH e login do painel</strong>
+            <p>O SSH e o login do painel estão protegidos por fail2ban: 5 tentativas de senha erradas em 10 minutos geram bloqueio automático por 1 hora. Em caso de reincidência, o tempo aumenta progressivamente até 7 dias, com histórico de 30 dias. As regras são separadas: SSH bloqueia a porta 22; login do painel bloqueia HTTP/HTTPS. Esta tela exibe os eventos registrados.</p>
         </div>
     </aside>
 
@@ -90,7 +90,7 @@
     <div class="security-grid">
         <section class="panel" aria-labelledby="security-active-heading">
             <div class="panel-header">
-                <h2 id="security-active-heading">IPs bloqueados agora (SSH)</h2>
+                <h2 id="security-active-heading">Bloqueios ativos — SSH e painel</h2>
                 <span class="security-status">
                     {{ $bansAtivos->count() > 0 ? 'ameaças ativas' : 'nenhuma ameaça ativa' }}
                 </span>
@@ -130,7 +130,7 @@
 
         <section class="panel security-history" aria-labelledby="security-history-heading">
             <div class="panel-header">
-                <h2 id="security-history-heading">Histórico de bloqueios/desbloqueios SSH</h2>
+                <h2 id="security-history-heading">Histórico de bloqueios e desbloqueios</h2>
                 <span class="security-status">últimos 50</span>
             </div>
             @if ($historico->isEmpty())

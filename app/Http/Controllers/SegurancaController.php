@@ -15,10 +15,11 @@ class SegurancaController extends Controller
 
         $ativos = [];
         foreach ($eventos->sortBy('id') as $evento) {
+            $key = $evento->jail.'|'.$evento->ip_address;
             if ($evento->action === 'ban') {
-                $ativos[$evento->ip_address] = $evento;
+                $ativos[$key] = $evento;
             } else {
-                unset($ativos[$evento->ip_address]);
+                unset($ativos[$key]);
             }
         }
         $bansAtivos = collect($ativos)->sortByDesc('created_at')->values();

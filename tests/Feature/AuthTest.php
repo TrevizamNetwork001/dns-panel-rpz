@@ -11,6 +11,18 @@ class AuthTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_failed_login_emits_only_source_ip_to_fail2ban_log(): void
+    {
+        $logger = \Mockery::mock(\Psr\Log\LoggerInterface::class);
+        $logger->shouldReceive('warning')->once()->with('panel-login-failed ip=2001:db8::42');
+        \Illuminate\Support\Facades\Log::shouldReceive('channel')->once()->with('security')->andReturn($logger);
+
+        $this->withServerVariables(['REMOTE_ADDR' => '2001:db8::42'])
+            ->post('/login', ['email' => 'test@example.test', 'password' => 'invalid-secret'])
+            ->assertSessionHasErrors('email');
+        $this->assertDatabaseHas('audit_logs', ['action' => 'auth.login_failed', 'ip_address' => '2001:db8::42']);
+    }
+
     public function test_login_with_valid_credentials_succeeds(): void
     {
         $user = User::factory()->admin()->create([
