@@ -1,0 +1,28 @@
+#!/usr/bin/python3
+"""Publish only validated ban addresses; never expose a Docker socket to PHP."""
+import ipaddress
+import json
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import time
+
+directory = Path('/var/lib/docker/volumes/dns-panel-rpz-staging-storage/_data/app/private/security')
+bans = []
+for jail in ('sshd', 'panel-login'):
+    output = subprocess.check_output(['/usr/bin/fail2ban-client', 'get', jail, 'banip'], text=True, timeout=10)
+    for address in output.split():
+        bans.append({'jail': jail, 'ip_address': str(ipaddress.ip_address(address))})
+directory.mkdir(mode=0o755, parents=True, exist_ok=True)
+fd, name = tempfile.mkstemp(prefix='.fail2ban-', dir=directory)
+try:
+    with os.fdopen(fd, 'w') as handle:
+        json.dump({'generated_at': int(time.time()), 'bans': bans}, handle)
+        handle.flush()
+        os.fchmod(handle.fileno(), 0o644)
+        os.fsync(handle.fileno())
+    os.replace(name, directory / 'fail2ban-status.json')
+finally:
+    if os.path.exists(name):
+        os.unlink(name)

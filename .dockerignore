@@ -15,3 +15,15 @@ docs
 deploy
 Dockerfile*
 compose*.yml
+
+# Recovery material must never enter image layers, regardless of location.
+**/*.sqlite*
+**/*.bak
+**/*.bak.gz
+**/*.sql
+**/*.sql.gz
+**/*.db
+backups*/
+.recovery/
+certbot/
+auth.json

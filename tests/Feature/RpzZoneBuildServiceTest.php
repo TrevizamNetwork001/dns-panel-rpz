@@ -30,6 +30,58 @@ class RpzZoneBuildServiceTest extends TestCase
         return $servidor->fresh();
     }
 
+    public function test_missing_artifact_is_restored_byte_for_byte_without_reusing_revision_in_a_new_row(): void
+    {
+        Storage::fake('local');
+        Queue::fake();
+        $server = $this->servidorComDominio();
+        $service = app(RpzZoneBuildService::class);
+        $key = 'server:'.$server->id;
+        $service->build($key);
+        $zone = RpzZone::where('zone_key', $key)->firstOrFail();
+        $version = $zone->currentVersion;
+        $bytes = Storage::disk('local')->get($version->file_path);
+        Storage::disk('local')->delete($version->file_path);
+        $result = $service->build($key);
+        $this->assertSame('restored', $result['status']);
+        $this->assertSame($bytes, Storage::disk('local')->get($version->file_path));
+        $this->assertSame($version->id, $zone->fresh()->current_version_id);
+        $this->assertSame(1, RpzZoneVersion::count());
+        $this->assertSame($version->serial, $result['serial']);
+    }
+
+    public function test_no_publish_command_validates_without_versions_jobs_or_artifacts_even_when_publication_is_disabled(): void
+    {
+        Storage::fake('local');
+        Queue::fake();
+        $server = $this->servidorComDominio();
+        config(['rpz.publication_enabled' => false]);
+        $this->artisan('rpz:build', ['--zone' => 'server:'.$server->id, '--no-publish' => true])->assertSuccessful();
+        $this->assertDatabaseCount('rpz_zones', 0);
+        $this->assertDatabaseCount('rpz_zone_versions', 0);
+        $this->assertDatabaseCount('audit_logs', 0);
+        Queue::assertNothingPushed();
+        $this->assertSame([], Storage::disk('local')->allFiles());
+    }
+
+    public function test_corrupted_artifact_is_restored_and_bad_metadata_does_not_get_silently_rewritten(): void
+    {
+        Storage::fake('local');
+        Queue::fake();
+        $server = $this->servidorComDominio();
+        $service = app(RpzZoneBuildService::class);
+        $key = 'server:'.$server->id;
+        $service->build($key);
+        $version = RpzZone::where('zone_key', $key)->firstOrFail()->currentVersion;
+        Storage::disk('local')->put($version->file_path, 'corrupt');
+        $this->assertSame('restored', $service->build($key)['status']);
+        $this->assertSame($version->file_hash, hash('sha256', Storage::disk('local')->get($version->file_path)));
+        $version->update(['file_hash' => str_repeat('0', 64)]);
+        Storage::disk('local')->delete($version->file_path);
+        $this->assertSame('failed', $service->build($key)['status']);
+        Storage::disk('local')->assertMissing($version->file_path);
+    }
+
     public function test_first_build_bootstraps_and_publishes_even_with_generation_zero_zero(): void
     {
         $servidor = $this->servidorComDominio();

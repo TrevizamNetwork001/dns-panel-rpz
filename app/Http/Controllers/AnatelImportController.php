@@ -20,21 +20,13 @@ class AnatelImportController extends Controller
         abort_unless($lista->isAnatel(), 404);
         $request->validate(['pdfs' => ['required', 'array', 'min:1', 'max:'.config('anatel.max_files')], 'pdfs.*' => ['required', 'file', 'mimetypes:application/pdf,application/x-pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip', 'max:'.config('anatel.max_pdf_kb')]]);
         $completed = [];
-        foreach ($request->file('pdfs') as $upload) {
-            $real = $upload->getRealPath();
-            $extension = $real ? $extractor->detectExtension($real) : null;
-            if ($extension === null) {
-                throw ValidationException::withMessages(['pdfs' => 'O conteúdo enviado não é um PDF nem uma planilha Excel (.xlsx) válida.']);
-            }
-            $sha = hash_file('sha256', $real);
-            if (AnatelImport::where('sha256', $sha)->whereIn('status', ['pending', 'processing', 'awaiting_approval', 'completed'])->exists()) {
-                throw ValidationException::withMessages(['pdfs' => 'Este arquivo já foi processado.']);
-            }
+        $prepared = app(\App\Services\AnatelUploadValidator::class)->prepare($request->file('pdfs'), $extractor);
+        foreach ($prepared as [$upload, $extension, $sha]) {
             $path = $upload->storeAs(date('Y/m'), $sha.'.'.$extension, 'anatel');
             try {
                 $import = AnatelImport::create(['lista_id' => $lista->id, 'user_id' => $request->user()->id, 'original_filename' => basename($upload->getClientOriginalName()), 'storage_path' => $path, 'sha256' => $sha, 'size_bytes' => $upload->getSize(), 'status' => 'processing', 'started_at' => now()]);
             } catch (\Illuminate\Database\UniqueConstraintViolationException) {
-                Storage::disk('anatel')->delete($path);
+                // Do not delete a shared hash path referenced by the winner.
                 throw ValidationException::withMessages(['pdfs' => 'Este arquivo já foi processado.']);
             }
             AuditLog::record('anatel.import.started', 'Importação ANATEL iniciada: '.$import->original_filename, $lista->empresa_id, 'anatel_import', $import->id);

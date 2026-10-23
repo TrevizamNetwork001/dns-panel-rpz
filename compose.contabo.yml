@@ -1,0 +1,166 @@
+# Standalone PREPARATION proposal. Do not merge with compose.yml/staging.
+# No ports, automatic services, migrations, key generation or original volumes.
+name: dns-panel-rpz-contabo
+
+x-safe-environment: &safe-environment
+  APP_ENV: staging
+  APP_DEBUG: "false"
+  DB_CONNECTION: sqlite
+  DB_DATABASE: /data/database.sqlite
+  DB_FOREIGN_KEYS: "true"
+  DB_BUSY_TIMEOUT: "10000"
+  DB_JOURNAL_MODE: WAL
+  DB_SYNCHRONOUS: NORMAL
+  QUEUE_CONNECTION: database
+  DB_QUEUE_CONNECTION: sqlite
+  DB_QUEUE_RETRY_AFTER: "600"
+  ANATEL_EXTRACT_TIMEOUT: "300"
+  RPZ_ENDPOINTS_ENABLED: "false"
+  RPZ_PUBLICATION_ENABLED: "false"
+  RPZ_STATIC_ARTIFACTS_ENABLED: "false"
+  RPZ_PRIMARY_ENABLED: "false"
+  RPZ_NOTIFY_ENABLED: "false"
+  RPZ_NOTIFY_SERVER_IDS: ""
+  EXTERNAL_SYNC_ENABLED: "false"
+  CONTABO_AUTOMATION_APPROVED: "0"
+  VIEW_COMPILED_PATH: /tmp/compiled-views
+  LOG_CHANNEL: stderr
+
+x-runtime: &runtime
+  image: dns-panel-rpz-app:${CONTABO_RELEASE:-contabo-review}
+  build:
+    context: .
+    dockerfile: docker/Dockerfile.contabo
+    target: app
+  env_file: ["${CONTABO_RUNTIME_ENV_FILE:-/etc/dns-panel-rpz/contabo.env}"]
+  environment: *safe-environment
+  networks: [isolated]
+  volumes:
+    - data:/data
+    - storage:/var/www/html/storage
+    - cache:/var/www/html/bootstrap/cache
+    - backups:/backups
+  read_only: true
+  tmpfs: [/tmp]
+  init: true
+  restart: "no"
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+services:
+  preflight:
+    <<: *runtime
+    profiles: [preparation]
+    command: [/bin/sh, /opt/contabo/preflight.sh]
+    # Inspection only, including when run explicitly. No chmod/chown/init writes.
+    volumes:
+      - data:/data:ro
+      - storage:/var/www/html/storage:ro
+      - cache:/var/www/html/bootstrap/cache:ro
+      - backups:/backups:ro
+      - ./docker/contabo-preflight.sh:/opt/contabo/preflight.sh:ro
+      - ./docker/contabo-preflight.php:/opt/contabo/preflight.php:ro
+    healthcheck: {disable: true}
+    cpus: "0.25"
+    mem_limit: 192m
+
+  app:
+    <<: *runtime
+    profiles: [preparation]
+    command: [/bin/sh, -ec, 'test -n "$$APP_KEY" || { echo "APP_KEY original ausente" >&2; exit 1; }; exec php-fpm -F']
+    depends_on:
+      preflight: {condition: service_completed_successfully}
+    cpus: "1.00"
+    mem_limit: 768m
+
+  nginx:
+    image: dns-panel-rpz-web:${CONTABO_RELEASE:-contabo-review}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.contabo
+      target: web
+    profiles: [preparation]
+    depends_on:
+      app: {condition: service_healthy}
+    networks: [isolated]
+    volumes:
+      - storage:/var/www/html/storage:ro
+    read_only: true
+    tmpfs: [/tmp, /var/cache/nginx, /var/run]
+    restart: "no"
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    cpus: "0.50"
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+    # Deliberately no ports. Future dual-stack host gateway needs reviewed mapping.
+
+  worker:
+    <<: *runtime
+    profiles: [automation-blocked]
+    command: [/bin/sh, /opt/contabo/automation.sh, worker]
+    volumes:
+      - data:/data
+      - storage:/var/www/html/storage
+      - cache:/var/www/html/bootstrap/cache
+      - backups:/backups
+      - ./docker/contabo-automation.sh:/opt/contabo/automation.sh:ro
+    depends_on:
+      app: {condition: service_healthy}
+    healthcheck: {disable: true}
+    stop_grace_period: 400s
+    cpus: "0.75"
+    mem_limit: 768m
+
+  scheduler:
+    <<: *runtime
+    profiles: [automation-blocked]
+    command: [/bin/sh, /opt/contabo/automation.sh, scheduler]
+    volumes:
+      - data:/data
+      - storage:/var/www/html/storage
+      - cache:/var/www/html/bootstrap/cache
+      - backups:/backups
+      - ./docker/contabo-automation.sh:/opt/contabo/automation.sh:ro
+    depends_on:
+      app: {condition: service_healthy}
+    healthcheck: {disable: true}
+    stop_grace_period: 400s
+    cpus: "0.50"
+    mem_limit: 384m
+
+  backup:
+    <<: *runtime
+    profiles: [automation-blocked]
+    command: [/bin/sh, /opt/contabo/automation.sh, backup]
+    volumes:
+      - data:/data
+      - storage:/var/www/html/storage
+      - cache:/var/www/html/bootstrap/cache
+      - backups:/backups
+      - ./docker/contabo-automation.sh:/opt/contabo/automation.sh:ro
+    depends_on:
+      app: {condition: service_healthy}
+    healthcheck: {disable: true}
+    stop_grace_period: 660s
+    cpus: "0.25"
+    mem_limit: 384m
+
+networks:
+  # Native IPv4/IPv6 will terminate at the host gateway after separate approval.
+  # The private application hop does not require public IPv6 in the bridge.
+  isolated:
+    internal: true
+
+volumes:
+  # External volumes must be provisioned/restored later after approval.
+  # Compose cannot silently create replacements or attach recovered staging data.
+  data: {external: true, name: dns-panel-rpz-contabo-data}
+  storage: {external: true, name: dns-panel-rpz-contabo-storage}
+  cache: {external: true, name: dns-panel-rpz-contabo-cache}
+  backups: {external: true, name: dns-panel-rpz-contabo-backups}

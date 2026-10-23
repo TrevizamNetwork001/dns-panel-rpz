@@ -154,7 +154,8 @@
                     <div><h2>Backup externo (Cloudflare R2)</h2><p>Backup semanal do SQLite comprimido em .bak.gz</p></div>
                     <span class="settings-status {{ $r2['ativo'] ? 'is-enabled' : '' }}">{{ $r2['ativo'] ? 'Ativo' : 'Inativo' }}</span>
                 </div>
-                <p class="settings-copy">O backup automático roda uma vez por semana, com compressão gzip e retenção local de 14 dias. Com isso ativo, cada arquivo .bak.gz também é enviado pra um bucket R2 — protege contra perda do servidor inteiro, não só corrupção do arquivo local.</p>
+                <p class="settings-copy">Este fluxo guarda somente o banco SQLite, com compressão gzip e retenção local de 14 dias. O envio ao R2 depende de credenciais válidas. Este arquivo não inclui os arquivos enviados nem as configurações do servidor.</p>
+                @if($r2['ativo'] && (!$r2['access_key_id'] || !$r2['secret_access_key']))<p class="settings-note">Preencha credenciais R2 válidas para retomar o envio externo. As credenciais antigas foram preservadas para recuperação.</p>@endif
 
                 <form id="settings-r2-save" class="settings-form" action="{{ route('configuracoes.r2.update') }}" method="POST">
                     @csrf

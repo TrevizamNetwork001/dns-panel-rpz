@@ -85,10 +85,9 @@ class Servidor extends Model
     }
 
     /**
-     * Versões abaixo de 1.26.1 têm uma regressão conhecida (ver RUNBOOK,
-     * "Unbound não atualiza RPZ por HTTPS"): o download inicial funciona,
-     * mas a atualização periódica automática pelo serial do SOA não
-     * dispara sozinha — o cliente fica com a zona congelada sem avisar.
+     * Sinaliza versões anteriores à referência validada nesta instalação.
+     * É um aviso de revisão, não diagnóstico de falha de atualização:
+     * versões antigas também podem atualizar normalmente (ver RUNBOOK).
      */
     public function unboundVersionAfetada(): bool
     {
@@ -156,7 +155,7 @@ class Servidor extends Model
         }
 
         [$subnet, $maskLength] = array_pad(explode('/', $cidr, 2), 2, null);
-        if ($subnet === null || $maskLength === null) {
+        if ($subnet === null || $maskLength === null || ! ctype_digit($maskLength)) {
             return false;
         }
 

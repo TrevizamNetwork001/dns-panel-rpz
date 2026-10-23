@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'block_page_host' => env('RPZ_BLOCK_PAGE_HOST'),
+    // Preparation environments must block dynamic delivery as well as artifacts.
+    'endpoints_enabled' => (bool) env('RPZ_ENDPOINTS_ENABLED', true),
+    'publication_enabled' => (bool) env('RPZ_PUBLICATION_ENABLED', true),
     /*
     |--------------------------------------------------------------------------
     | Artefatos RPZ estaticos (RPZ-BUILD-1)

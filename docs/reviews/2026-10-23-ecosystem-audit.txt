@@ -1,5 +1,9 @@
 Auditoria do ecossistema RPZ e teste de página de bloqueio — 23/10/2026
 
+Atualização: correções autorizadas foram aplicadas posteriormente nesta data.
+Consultar 2026-10-23-ecosystem-corrections.txt para o estado atual; R2 e SSH
+foram explicitamente adiados. Os achados abaixo registram a análise original.
+
 Escopo e método
 - Revisão do código atual, configurações, contêineres, SQLite, filas,
   timers systemd, TLS, firewall, Fail2ban, backups e logs.

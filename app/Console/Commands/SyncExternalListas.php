@@ -28,6 +28,13 @@ class SyncExternalListas extends Command
         $houveErro = false;
 
         foreach ($listas as $lista) {
+            $intervalHours = (int) config('lists.sync_interval_hours.'.$lista->fonte_externa, 0);
+            if ($intervalHours > 0 && $lista->last_sync_at
+                && $lista->last_sync_at->gt(now()->subHours($intervalHours))) {
+                $this->line("[{$lista->nome}] intervalo de {$intervalHours} horas ainda não atingido, pulando.");
+                continue;
+            }
+
             $resultado = $syncer->syncAndLog($lista);
 
             match ($resultado['status']) {

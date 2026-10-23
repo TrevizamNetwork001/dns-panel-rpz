@@ -1,0 +1,147 @@
+VARREDURA E CORREÇÕES LOCAIS — DNS PANEL RPZ — 21/10/2026
+
+Escopo
+Revisão estática transversal dos controllers, rotas, modelos, serviços, jobs,
+comandos, middleware, configuração, templates, scripts e arquivos de operação;
+verificação de sintaxe, suíte PHP, extrator Python, build e auditorias das
+bibliotecas PHP/JavaScript/Python. Não houve pentest do ambiente publicado nem
+varredura de rede. Esta revisão não é uma garantia de ausência de outras falhas.
+
+As alterações anteriores em .dockerignore, .gitignore e compose.staging.yml
+não foram produzidas nem revertidas nesta tarefa. Nenhum ambiente em execução
+foi atualizado. Os testes usam containers novos sem volumes de serviços reais.
+
+ACHADOS E CORREÇÕES
+
+F01 — Reativação de feed não reconstruía zonas estáticas — impacto operacional
+Arquivo: app/Services/ExternalListaSyncer.php, método sync().
+Antes: upsert reativava registros existentes, mas a marcação de zona dependia
+apenas de domínio novo ou removido. Um feed composto por registros já conhecidos
+podia alterar a política sem incrementar desired_generation.
+Correção: contar reativações e incluí-las na decisão de reconstrução.
+Evidência: teste com 100 domínios conhecidos, um inativo, sem adições/remoções;
+exige marcação do servidor e da empresa. A repetição sem alteração não gera job.
+Status: corrigido localmente.
+
+F02 — Endpoint estático aceitava versão inconsistente — proteção de isolamento
+Arquivo: app/Http/Controllers/RpzController.php, serveStaticArtifact().
+Antes: a existência de current_version_id e arquivo era suficiente; não se
+checavam status published e vínculo rpz_zone_id com a zona solicitada.
+Consequência: um ponteiro inconsistente no banco podia servir um candidato
+reprovado ou um arquivo pertencente a outra zona/empresa.
+Correção: exigir os dois invariantes, usando fallback dinâmico em caso inválido.
+Evidência: dois testes com ponteiro para versão de outra empresa ou status failed.
+Ambos falhavam no código anterior. Não foi demonstrado um vetor HTTP normal que
+permita criar esse ponteiro; trata-se de proteção diante de dados inconsistentes.
+Status: corrigido localmente; nenhum dado recuperado foi reparado ou alterado.
+
+F03 — Máscara CIDR inválida podia virar /0 — proteção de ACL
+Arquivo: app/Models/Servidor.php, ipMatchesCidr().
+Antes: conversão direta para inteiro aceitava texto inválido como zero, podendo
+transformar regra malformada armazenada em correspondência para qualquer IP.
+Correção: exigir apenas dígitos antes da conversão, preservando /0 válido.
+Evidência: testes com máscara vazia, textual, decimal, negativa, sufixo e barra.
+O cadastro normal já valida o CIDR; o problema exigia dado inválido legado ou
+introduzido por outro caminho. Nenhuma ACL ou credencial existente foi alterada.
+Status: corrigido localmente.
+
+F04 — Transporte de feeds tinha lacunas de SSRF, tamanho e sigilo de erros
+Arquivo: app/Services/ExternalListaSyncer.php.
+Antes: o DNS era validado e depois resolvido novamente pela conexão HTTP;
+a checagem de tamanho ocorria depois do download; exceções eram devolvidas
+literalmente para auditoria/interface, podendo conter URL com token.
+Correções:
+- Fixar CURLOPT_RESOLVE aos endereços públicos previamente validados; rejeitar
+  o conjunto inteiro se contiver IP privado/reservado; tratar IPv4 mapeado,
+  multicast e faixas de transição IPv6 que podem transportar endereços internos.
+- Desabilitar proxy de ambiente nessa requisição, para que outro resolvedor
+  não contorne a validação. Preservar TLS e a proibição de redirects.
+- Limitar Content-Length ao receber headers e bytes durante a transferência.
+- Solicitar identity, desabilitar decodificação automática e rejeitar compressão
+  não solicitada antes de carregar o corpo, evitando contornar o limite por gzip.
+- Retornar erro genérico sem expor a URL ou texto bruto da exceção.
+Evidência: seis testes com HTTP/DNS simulados, incluindo pinning IPv4/IPv6,
+resposta DNS mista, IPs especiais, headers, progresso, liberação de lock,
+compressão, esquema em maiúsculas e sigilo de token sintético.
+Não houve tentativa real de DNS rebinding nem acesso a feeds externos.
+Mudança de compatibilidade: feeds que só funcionem via proxy de ambiente ou
+insistam em resposta comprimida serão recusados. Não se consultaram feeds reais
+para homologar essa condição, respeitando o isolamento solicitado.
+Status: corrigido localmente; a regra das exceções empresariais não foi ativada.
+
+F05 — Bibliotecas PHP com avisos de segurança
+Arquivo: composer.lock.
+O Composer encontrou quatro avisos em laravel/framework, league/commonmark e
+symfony/http-foundation. Atualizações compatíveis com composer.json:
+- laravel/framework: 13.26.1 -> 13.38.0
+- league/commonmark: 2.10.0 -> 2.10.4
+- symfony/http-foundation: 8.1.4 -> 8.1.9
+- laravel/prompts: 0.3.23 -> 0.3.26, dependência necessária do framework.
+Incluem XSS na página de debug, problemas de HTML/complexidade no CommonMark
+e ReDoS em parsing de header. Presença de versão afetada não significa que todos
+os vetores estejam expostos no painel. Auditoria posterior sem avisos conhecidos.
+Status: lockfile corrigido; vendor/imagens em execução não foram atualizados.
+
+F06 — Bibliotecas JavaScript com avisos de segurança
+Arquivo: package-lock.json.
+npm audit identificou quatro pacotes afetados: concurrently, shell-quote,
+source-map-js e vite. São principalmente ferramentas de desenvolvimento/build;
+não se demonstrou exploração no site publicado. Atualizações dentro dos
+intervalos já permitidos em package.json, incluindo dependências transitivas:
+concurrently 10.0.5 -> 10.0.6; shell-quote 1.9.0 -> 1.12.0;
+source-map-js 1.2.1 -> 1.2.2; vite 8.2.2 -> 8.3.4.
+Auditoria posterior sem avisos; npm ci e build executados na cópia descartável.
+Status: lockfile corrigido; nenhum asset de produção foi publicado.
+
+F07 — Extrator Python usava pdfminer.six vulnerável e instalador divergente
+Arquivos: docker/requirements-anatel.txt; scripts/install-anatel-extractor.sh.
+O ambiente da imagem contém pdfminer.six 20250506, com dois CVEs distintos
+(CVE-2025-64512 e CVE-2025-70559; o auditor listou entradas duplicadas).
+São problemas de desserialização cujo aproveitamento depende do controle de
+arquivos/caminhos de CMap. Não foi tentado exploit nem processamento de PDF real.
+Correção: pdfplumber 0.11.7 -> 0.11.10 e pdfminer.six fixado em 20260107.
+O instalador manual agora usa o mesmo requirements do Docker, incluindo openpyxl
+(antes ausente nesse instalador), e verifica ambos os imports.
+Evidência: cinco testes Python, incluindo extração efetiva de PDF e XLSX
+sintéticos; auditoria posterior registrada no resumo de testes.
+Status: requisitos e instalador corrigidos; nenhum venv existente foi atualizado.
+
+PENDÊNCIAS BLOQUEANTES DAS EXCEÇÕES
+P01 — empresa_domain_exceptions existe no banco recuperado, mas o gerador não
+a consulta. A regra requerida ainda NÃO está implementada.
+P02 — O candidato simples PASSTHRU + remoção de bloqueios dentro do ramo
+introduz empty non-terminals e libera irmãos/ancestrais em alguns cenários.
+P03 — DomainNormalizer remove www. Esse comportamento dos feeds deve ser
+preservado; um futuro cadastro de exceções precisará preservar o domínio exato.
+
+Essas pendências não foram mascaradas por uma correção parcial. Conforme a
+condição explícita de segurança, a implementação das exceções foi interrompida.
+Detalhes, reprodução e alternativas não validadas no relatório separado:
+2026-10-21-company-exceptions-review.txt. Não se afirma impossibilidade geral
+da regra em RPZ; falta uma representação validada que preserve os demais ramos.
+
+VALIDAÇÃO E PRESERVAÇÃO
+Resultados consolidados no arquivo 2026-10-21-code-audit-tests.txt.
+Três regressões foram executadas antes das correções e falharam; verificações
+posteriores cobrem os mesmos cenários. O teste RpzNotifyTransportTest foi excluído
+somente na configuração de laboratório, pois efetivamente transmite NOTIFY UDP.
+Os demais testes de NOTIFY usam mocks; a configuração original do repositório
+não foi alterada. Builds de testes ficam em storage isolado, sem publicação real.
+
+Banco recuperado aberto somente leitura para criar cópia via backup SQLite;
+SHA-256 preservado. Os testes PHPUnit usam SQLite em memória e as fixtures RPZ
+usam transação com rollback na cópia descartável. Nenhuma migration foi executada
+contra o banco recuperado. Nenhuma credencial ou APP_KEY foi modificada, nenhum
+NOTIFY foi enviado, nenhum DNS público foi alterado, nenhum commit/push ocorreu.
+
+Fontes dos avisos (consultadas pelas auditorias de dependências e documentos
+primários; a aplicabilidade ao painel foi tratada separadamente acima):
+https://github.com/advisories/GHSA-jh5r-qr3c-85q8
+https://github.com/advisories/GHSA-97jj-33gv-5xf9
+https://github.com/advisories/GHSA-3q6v-r5mr-hxv8
+https://symfony.com/cve-2026-108082
+https://github.com/advisories/GHSA-pqg4-j6r4-53mv
+https://github.com/advisories/GHSA-68fv-2mgg-jv7q
+https://github.com/pdfminer/pdfminer.six/security/advisories/GHSA-wf5f-4jwr-ppcp
+https://github.com/pdfminer/pdfminer.six/security/advisories/GHSA-f83h-ghpp-7wcc
+https://github.com/jsvine/pdfplumber/blob/stable/CHANGELOG.md

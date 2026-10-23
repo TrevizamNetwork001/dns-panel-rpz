@@ -36,6 +36,13 @@ class Setting extends Model
         try {
             return Crypt::decryptString($raw);
         } catch (DecryptException) {
+            $payload = json_decode(base64_decode($raw, true) ?: '', true);
+            if (is_array($payload) && (isset($payload['iv']) || isset($payload['mac']) || isset($payload['tag']))) {
+                // A ciphertext encrypted by another key is not a legacy token.
+                // Preserve it for recovery, but never send it as credentials.
+                return $default;
+            }
+
             return $raw;
         }
     }

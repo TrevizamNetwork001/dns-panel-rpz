@@ -1,0 +1,211 @@
+CONTABO DEBIAN 13 — PROPOSTA DE PREPARAÇÃO — 21/10/2026
+
+ESTADO
+Preparação local concluída; produção NÃO homologada. Nenhum serviço desta
+proposta foi iniciado. Sem portas publicadas, alterações de firewall/DNS, swap,
+migrations, commit/push ou modificação de credenciais/APP_KEY.
+compose.yml e compose.staging.yml existentes foram preservados.
+
+ARQUIVOS DA PROPOSTA
+- compose.contabo.yml: arquivo standalone, não combinar com os Compose antigos.
+- docker/Dockerfile.contabo: build separado com npm ci/build na mesma revisão;
+  não depende de public/build previamente existente nem altera o Dockerfile legado.
+- .env.contabo.example: parâmetros não secretos do Compose; não é runtime env.
+- docker/contabo-preflight.sh e .php: verificações somente leitura, sem criar
+  banco vazio, alterar permissões, limpar cache ou executar migrations.
+- docker/php-fpm.contabo.conf: pool conservador de dois filhos, limite de 180s.
+- docker/contabo-automation.sh: recusa executar worker/scheduler/backup enquanto
+  CONTABO_AUTOMATION_APPROVED=0 (forçado no Compose, inclusive com profile ativo).
+- deploy/nginx/rpz-contabo.conf.example: gateway dual stack futuro, não instalado.
+- recovered-exception-schemas.json: inventário de schema extraído somente leitura.
+- testes Contabo em tests/Feature/ContaboPreparationSafetyTest.php e tests/safety/.
+
+REDE NATIVA E ISOLAMENTO
+Endereços encontrados em eth0, com rotas padrão presentes:
+  IPv4: 213.199.47.105/20; gateway 213.199.32.1.
+  IPv6: 2a02:c207:2368:3678::1/64; gateway fe80::1.
+Não foram alterados endereços, rotas, sysctl, daemon Docker, firewall ou DNS.
+A proposta elimina o IPv4 ABSAM 108.181.224.210 e o piloto server:15 de seu
+Compose. Os arquivos legados continuam existindo como referência, sem execução.
+
+Arquitetura futura: cliente IPv4/IPv6 -> Nginx TLS no host Contabo -> backend
+privado -> FPM -> SQLite/storage compartilhados. O IP real IPv4/IPv6 é preservado
+em X-Forwarded-For sobrescrito pelo gateway; o hop privado pode continuar IPv4.
+O template reserva como intenção 127.0.0.1:8083 para evitar o staging existente
+em 8082, mas NENHUM mapping foi criado ou incluído na proposta atual.
+Não é necessário publicar FPM, rotear o /64 público na bridge nem usar NAT66
+para atender clientes HTTP IPv6. A rede Compose é internal:true, sem egress.
+Homologação de saída IPv6/integrações exigirá uma decisão futura de egress.
+
+Não há serviço rpz-primary nem porta 53 nesta proposta. O listener atual usa
+AF_INET e ainda não atende SOA via IPv6 nativo. Expor esse listener exigiria
+implementação/testes AF_INET6, ACL e aprovação separada. O template de gateway
+bloqueia /rpz/ e /mikrotik/ com 503, além dos bloqueios da aplicação.
+
+VOLUMES E DADOS
+Volumes existentes preservados:
+  dns-panel-rpz-staging-data       — SQLite original recuperado, somente leitura nas auditorias.
+  dns-panel-rpz-staging-test-data  — cópia usada pelo staging existente.
+  dns-panel-rpz-staging-storage
+  dns-panel-rpz-staging-cache
+  dns-panel-rpz-staging-backups
+A proposta referencia apenas volumes external:true com nomes próprios:
+  dns-panel-rpz-contabo-data, -storage, -cache e -backups.
+Eles NÃO foram criados, restaurados, montados para escrita ou inicializados.
+Compose falhará se faltarem, em vez de criar silenciosamente banco/volumes vazios.
+Não executar down -v, volume rm/prune, init legado com chown/chmod recursivos,
+restauração sobre banco vivo ou copia do SQLite isolada de seus WAL/SHM.
+
+Achados somente leitura:
+- SQLite: integrity_check=ok, 0 violações de FK, 709.678 domínios preservados.
+- SHA-256: 8a21ad8cbafa25095fb543781833ff6de3874c9ab42f3fbb32bdac0717cb3312.
+- Volume storage disponível: faltam todos os 59 arquivos ANATEL referenciados
+  e todos os 13 artefatos current_version; não foi possível verificar seus hashes.
+- Volume de backups: nenhum arquivo. O backup compactado original no workspace
+  é preservado; isso não substitui uma política de backup operacional.
+- Jobs recuperados: 0 pendentes e 34 failed_jobs. Nenhum retry/flush foi feito.
+
+BLOQUEIO DE ENTREGA E AUTOMAÇÕES
+O Compose força endpoints, publicação, artefatos estáticos, primary, NOTIFY e
+sincronização externa desativados, além de não oferecer serviço external-sync.
+RPZ_STATIC_ARTIFACTS_ENABLED=false isoladamente NÃO bloqueia a resposta dinâmica;
+por isso foram adicionados switches explícitos, com defaults true para preservar
+o comportamento dos ambientes existentes que não usam a proposta:
+  RPZ_ENDPOINTS_ENABLED=false: RPZ/MikroTik retornam 503/no-store antes de consultar
+    empresas/tokens; o responder SOA também não atende.
+  RPZ_PUBLICATION_ENABLED=false: build() retorna skipped_disabled antes de criar
+    locks, versões, arquivos ou jobs; os dirty markers permanecem pendentes.
+  EXTERNAL_SYNC_ENABLED=false: sincronizadores normal e legado ANATEL pausados
+    antes de banco/rede. A ausência de egress adiciona outra barreira.
+  RPZ_NOTIFY_ENABLED=false: também reforçado pelos switches de entrega/publicação.
+A configuração do staging existente e suas imagens não foram substituídas.
+
+Todos os serviços exigem profiles explícitos; nenhum fica ativo por padrão.
+Profiles de preparação: preflight -> app -> nginx (dependências de sucesso/saúde).
+Profiles de automação: worker, scheduler e backup, bloqueados mesmo se chamados.
+Não há restart automático na proposta. Ativar profiles não constitui autorização
+para produção; o modo atual não é um Compose de produção pronto para uso.
+
+FILAS, TEMPOS E DEPENDÊNCIAS
+Aplicação, preflight e automações usam a mesma imagem/tag; não há base notify-pilot
+com vendor/Python antigos misturados a código novo. app e web precisam ser
+construídos da mesma revisão, incluindo build JavaScript dos assets.
+Worker planejado: timeout=360s; retry_after=600s; stop_grace_period=400s.
+Extrator ANATEL: 300s; job ProcessAnatelImport: 330s; BuildRpzZone: 300s;
+NotifyRpzZone: 90s, porém inativo. As margens evitam liberar o job antes de acabar.
+Backup: comando local pode durar 600s; parada graciosa planejada de 660s.
+O FPM legado permite 12 filhos com PHP memory_limit=256M sob app de 768 MiB.
+A proposta separada limita a dois filhos e request_terminate_timeout=180s;
+Nginx/FastCGI e PHP usam 180s. Isso reduz o risco de OOM, mas exige teste de carga.
+Os fluxos HTTP legados de importação síncrona e backup manual podem exceder 180s;
+homologar sua execução via fila/CLI aprovada antes de liberar essas ações no painel.
+Não elevar os timeouts de todos os serviços para mascarar esse problema.
+Ajustar consumo/memory_limit por medição antes de ativar concorrência; manter um
+worker inicialmente, respeitando o escritor único do SQLite e flock por zona.
+
+Scheduler real em routes/console.php: remoção de inativos, consulta de release
+externa e rpz:build --dirty a cada cinco minutos. Por isso ele permanece parado;
+não é apenas um agendador ANATEL. Nenhum retry dos 34 jobs com falha foi aprovado.
+O loop de backup original pode usar R2 quando habilitado no banco: permanece
+bloqueado, sem egress e sem execução contra volumes reais.
+
+APP_KEY — NÃO GERAR NEM SUBSTITUIR
+A chave configurada foi lida somente no container sem rede; seu valor não foi
+impresso, copiado para arquivos versionados ou alterado. Possui tamanho válido
+para AES-256-CBC, mas NÃO descriptografa os dois valores R2 recuperados.
+O token Telegram no banco está ausente. Formato válido não comprova que seja a
+chave original. Localizar a chave original e confirmar a cifra por canal seguro;
+não sobrescrever a configurada nem salvar novamente as credenciais nesta fase.
+Não executar artisan key:generate ou composer setup: esse script gera chave e
+executa migrations. Nenhum desses comandos foi usado nesta preparação.
+
+Dependências da chave:
+- Setting::setEncrypted/getEncrypted: token Telegram e credenciais R2.
+- Cookies criptografados de sessão/remember-me e sessão se SESSION_ENCRYPT=true.
+- Assinatura de URLs temporárias, incluindo o disco local servido pelo framework.
+- Qualquer ciphertext que precise de APP_PREVIOUS_KEYS, se essas chaves existirem.
+Senhas bcrypt, slugs e tokens RPZ aleatórios NÃO são recuperados pela APP_KEY;
+não rotacioná-los como tentativa de corrigir essa incompatibilidade.
+Setting::getEncrypted possui fallback legado que devolve raw em falha; ele NÃO
+foi usado para concluir compatibilidade. Foi chamada a descriptografia estrita.
+Cache persistido config.php pode embutir outra chave/flags; o preflight o rejeita,
+sem apagar automaticamente o cache existente.
+
+O preflight verifica em modo leitura: DB íntegro e não vazio, mínimo da recuperação,
+FKs, chave/ciphertext, referências privadas, hashes disponíveis e gzip dos backups.
+Ele recusa a situação atual: 2 credenciais incompatíveis e 72 arquivos ausentes.
+Não cria arquivos substitutos nem tenta corrigir esses bloqueios.
+
+MIGRATIONS AUSENTES — INVESTIGAÇÃO SEM ALTERAÇÃO DO BANCO
+Histórico recuperado:
+  batch 36: 2026_10_02_170000_create_empresa_domain_exceptions_table
+  batch 37: 2026_10_02_210000_create_lista_domain_exceptions_table
+Não há os arquivos no checkout nem resultados no git log --all local para esses
+caminhos. Não se recuperou o código original de up/down nem a semântica original;
+o schema não prova a implementação de negócio que existia no servidor antigo.
+Não foram criadas migrations substitutas, alterados batches ou removidas tabelas.
+Todas as migrations atualmente presentes no repositório já constam no histórico
+recuperado; não foi detectada necessidade de executar essas migrations agora.
+
+empresa_domain_exceptions:
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL;
+  empresa_id INTEGER NOT NULL REFERENCES empresas(id) ON DELETE CASCADE;
+  dominio VARCHAR NOT NULL; motivo VARCHAR NULL;
+  created_at DATETIME NULL; updated_at DATETIME NULL;
+  UNIQUE(empresa_id, dominio); 5 registros.
+lista_domain_exceptions:
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL;
+  lista_id INTEGER NOT NULL REFERENCES listas(id) ON DELETE CASCADE;
+  dominio VARCHAR NOT NULL; motivo VARCHAR NULL;
+  created_at DATETIME NULL; updated_at DATETIME NULL;
+  UNIQUE(lista_id, dominio); 0 registros.
+O JSON ao lado contém SQL literal, PRAGMA table_info, índices e foreign keys.
+
+Incompatibilidades e limites:
+- SQLite VARCHAR não impõe comprimento, CHECK de domínio ou normalização.
+- Unicidade usa a collation padrão: diferença de caixa/trailing dot pode duplicar
+  domínios semanticamente iguais. Não há coluna ativo nem regra explícita de escopo.
+- Exclusão de pai em empresas/listas apaga exceções por CASCADE.
+- Uma exceção por lista compartilhada não representa isolamento empresarial.
+- Fresh install pelo repositório não cria essas tabelas; restaurar o SQLite as
+  preserva, mas não resolve a divergência do histórico com o código.
+- O gerador atual não lê essas tabelas. Não aplicar correções com remoção de
+  domínio exato/PASSTHRU ingênuo: os testes demonstraram liberação de irmãos.
+Exceções empresariais continuam BLOQUEADAS, sem mudança da política das listas.
+
+VALIDAÇÃO E REPRODUÇÃO SEGURA
+Compose foi validado via config --no-env-resolution --format json, sem segredos,
+criação de redes/volumes ou startup. Oito testes de infraestrutura verificam
+portas ausentes, volumes externos separados, flags, profiles, timeouts, imagem
+comum, preflight somente leitura e recusa efetiva das automações.
+PHPUnit usa cópia de código/vendor e esquema recuperado vazio em :memory:, com
+adaptador de laboratório que substitui migrate:fresh pela carga do schema fixture.
+Nenhuma migration executada. RpzNotifyTransportTest fica excluído por transmitir
+UDP; testes restantes de NOTIFY usam mocks. Nunca apontar a suíte para o SQLite
+recuperado. Builds e arquivos de teste ficam exclusivamente sob /tmp.
+
+Comandos de inspeção seguros, sem iniciar serviços:
+  docker compose --env-file .env.contabo.example -f compose.contabo.yml --profile '*' config --no-env-resolution --quiet
+  docker compose --env-file .env.contabo.example -f compose.contabo.yml --profile '*' config --no-env-resolution --format json --output /tmp/contabo-compose.json
+  python3 tests/safety/test_contabo_proposal.py /tmp/contabo-compose.json
+Não usar config --environment nem imprimir uma renderização com env_file secreto.
+Os scripts tests/safety/contabo_readonly_audit.php e contabo-preflight.php exibem
+somente contagens/status; não valores criptografados ou descriptografados.
+
+PENDÊNCIAS PARA HOMOLOGAÇÃO DE PRODUÇÃO
+1. Recuperar/validar a APP_KEY original e a cifra sem rotacionar a chave atual.
+2. Localizar/restaurar os 59 arquivos ANATEL e o pacote de storage original em
+   cópias autorizadas; validar as referências de versões RPZ. Não preencher o
+   storage vazio com arquivos fictícios. Regeneração exigiria aprovação separada.
+3. Disponibilizar backup local inicial e comprovar restauração de SQLite + storage
+   + chave por canal seguro, com retenção e cópia externa homologadas.
+4. Resolver os schemas/código faltantes e as exceções empresariais com uma
+   representação segura, mantendo a barreira de segurança dos wildcards.
+5. Construir as imagens da revisão final; homologar permissions/UID, locks,
+   WAL/SHM, throughput, memória e concorrência em cópia, sem tocar os originais.
+6. Revisar manualmente failed_jobs; não executar retry all/flush.
+7. Homologar TLS, chain de proxy e ACLs IPv4/IPv6, egress/feeds e comportamento
+   de compressão/proxy, sem ativar o primary IPv6 ainda não implementado.
+8. Só após aprovação separada: preparar overlay de exposição/produção, políticas
+   de restart, firewall, corte DNS, observabilidade e rollback. Nenhuma dessas
+   ações foi executada. Não configurar swap.

@@ -1,0 +1,156 @@
+Correções da auditoria e consolidação da recuperação — 23/10/2026
+
+Autorização e limites
+- Usuário autorizou corrigir a auditoria, deixando R2 e SSH para depois.
+- Não foram alterados credenciais, ativação, retenção ou agendamento do R2;
+  isConfigured continua false. Nenhuma configuração de autenticação SSH mudou.
+- O commit inclui também o código recuperado que já estava sendo utilizado
+  no servidor e permanecia fora do Git. Isso inclui classes de backup/R2 e
+  proteções de Setting anteriores à sessão; não representa ativação do R2.
+
+1. Estado da segurança
+- Consulta do último evento por jail/IP considera todo o histórico, sem a
+  janela global de 200 eventos. Contador de 24 horas é calculado no banco.
+- Índices novos em (jail, ip_address, id) e (action, created_at).
+- Snapshot real do Fail2ban publicado atomicamente pelo host a cada minuto
+  em storage/app/private/security/fail2ban-status.json. A aplicação não
+  recebe Docker socket nem permissão para executar comandos no host.
+- O leitor valida horário, estrutura, jails e IPs; snapshot com mais de
+  180 segundos não é tratado como confirmação atual do firewall.
+- Snapshot recente é a fonte dos bloqueios ativos, mesmo se faltar evento
+  de hook. Sem snapshot recente, exibe último estado registrado e aviso.
+- Se não houver horário de início no banco, a tela informa isso em vez
+  de inventar uma data a partir do instante da consulta.
+
+2. Saúde operacional
+- Novo timer do host executa a verificação a cada 30 minutos.
+- O wrapper copia somente o certificado público ativo para o volume da
+  aplicação; a chave privada do gateway não é disponibilizada ao PHP.
+- Caminhos e URL configuráveis em config/health.php; runtime verifica /data,
+  certificado público copiado e URL HTTPS /up do painel.
+- Falha ao medir disco agora gera alerta; disco com zero bytes livres
+  é corretamente tratado como cheio, não como falha silenciosa de leitura.
+- Primeira execução real terminou com health.ok; timer permaneceu ativo
+  e registrou novas verificações bem-sucedidas durante a sessão.
+
+3. Concorrência e importação SQLite
+- Transações usam IMMEDIATE por padrão, configurável em DB_TRANSACTION_MODE.
+  A reserva de escrita ocorre antes das leituras transacionais, evitando
+  a falha de upgrade de snapshot WAL em transações DEFERRED.
+- SqliteDomainFeedWriter prepara domínios em tabela TEMP com chave primária,
+  fora da transação de escrita no banco principal. A aplicação final usa
+  operações SQL em lote numa transação atômica com até cinco tentativas.
+- Contadores são recalculados dentro da transação vencedora; somente domínios
+  alterados são reescritos. Feed inalterado não atualiza todas as linhas nem
+  dispara rebuild desnecessário.
+- Dirty markers fazem parte da mesma transação. Se ocorrer falha nessa
+  etapa, domínios e data da lista também são revertidos. TEMP é removida
+  mesmo quando ocorre erro.
+- Feed externo continua substitutivo: ativa os presentes e desativa ausentes.
+  Feed legado ANATEL continua aditivo: preserva domínios vindos de PDFs e
+  respeita exclusões, sem reativar inactive_reason=anatel_exclusion.
+- Verificação de exclusões ANATEL é feita antes da transação de escrita,
+  evitando segurar o banco durante o processamento de todo o arquivo.
+- Caminho anterior permanece para conexões que não são SQLite. Falhas de
+  banco do legado viram resultado de erro resumido; estados pausado/ignorado
+  não tentam acessar campos inexistentes na mensagem de auditoria.
+
+4. Página de bloqueio por empresa
+- Coluna empresas.rpz_bloqueio_modo, padrão nxdomain, adicionada por migration.
+- Escolha administrativa em Editar empresa. Vale para a URL empresarial
+  compartilhada pelos DNS. URL individual mantém a escolha do servidor,
+  agora identificada claramente no formulário como URL individual.
+- Build estático e fallback dinâmico usam companyTarget(), a mesma política.
+- RPZ_BLOCK_PAGE_HOST permite configurar nome DNS de destino; padrão é o
+  host do painel. Valor é validado e não aceita caminho/URL injetado na zona.
+- Ao alterar empresa, o mecanismo já existente marca suas zonas para rebuild;
+  versão e serial avançam conforme conteúdo publicado.
+- Migração preservou as seis empresas atuais em nxdomain. Nenhum cliente
+  foi colocado automaticamente no modo página de bloqueio.
+- Página informativa continua em https://rpz.trevizamnetwork.com.br/bloqueado.
+  Limitação de certificado em HTTPS de terceiros permanece inerente ao TLS;
+  não se promete página sem alerta para qualquer domínio HTTPS/HSTS.
+
+5. Resíduos de laboratório e avisos
+- Refresh de server:15 voltou de 300 para 3600 segundos, igual às demais zonas.
+  Zona foi marcada e republicada em produção: revisão/serial 101.
+- Avisos de versão antiga do Unbound agora orientam revisar pacote, horários
+  e logs, sem afirmar que toda versão antiga é incapaz de atualizar sozinha.
+- Removidos os tooltips que diagnosticavam congelamento só pela versão.
+
+6. Imagens e parada da automação
+- Imagens completas construídas a partir do código e lockfiles:
+  dns-panel-rpz-app:ecosystem-fixes-20261023
+  dns-panel-rpz-web:ecosystem-fixes-20261023
+- compose.staging.yml usa as novas imagens em todos os serviços relevantes;
+  mounts avulsos de controllers/model/views foram removidos.
+- Serviços de segundo plano usam stop_signal: SIGTERM. A imagem PHP-FPM
+  herdava SIGQUIT, inadequado para as shells de automação. Loop também passa
+  a tratar TERM/INT enquanto aguarda o próximo intervalo.
+- Teste isolado confirmou parada com SIGTERM em aproximadamente 0,34s,
+  exit 0. O teste anterior com SIGQUIT confirmou o problema (timeout/137).
+- App PHP-FPM conserva seu sinal normal de encerramento, sem mudar SSH/R2.
+
+Validações
+- 502 testes PHP, 2398 asserções, aprovados em banco vazio usando as migrations
+  reais do repositório, sem fixture de esquema recuperado.
+- Regressões novas cobrem mais de 200 eventos, snapshot real e vencido,
+  correspondência entre zona dinâmica/publicada no modo por empresa,
+  retorno a NXDOMAIN, rollback dos domínios/dirty marker, TEMP limpa,
+  feed inalterado, certificado configurável e refresh padrão.
+- Teste de carga isolado, sem rede e com memory_limit=256M:
+  100000 domínios ativos; segunda carga com 1000 novos e 1000 removidos;
+  100 escritas concorrentes concluídas sem perda; lote aplicado em 0,797s;
+  pico de memória 72 MiB. Script em tests/safety/sqlite_feed_contention.php.
+- Build completo das imagens app/web aprovado, incluindo Composer e assets.
+- Cinco testes Python do extrator aprovados na imagem definitiva, incluindo
+  leitura de PDF e XLSX reais gerados no laboratório.
+- Migrações novas aplicadas em produção após cópia consistente do SQLite
+  em /backups/pre-ecosystem-fixes-20261023.sqlite. Sem envio ao R2.
+- Login HTTPS IPv4 e IPv6 e página de bloqueio: HTTP 200 após publicação.
+- Leitura real da tela confirmou firewall_confirmed=true e seis bloqueios
+  no instante da verificação; quantidade naturalmente varia com ataques.
+- Ciclo real de external:sync concluído com exit 0:
+  Malware 442 ativos (4 novos/12 desativados), Phishing 152625
+  (1299 novos/1346 desativados), Ransomware 1903 (sem alterações),
+  Ameaças Gerais 213814 (2569 novos/633 desativados).
+  ThreatFox respeitou intervalo de 12h e foi pulado.
+  Legado ANATEL: 40749 válidos, 0 novos, 0 reativados.
+- Após ciclo e publicação: zero jobs pendentes, zero zonas dirty;
+  failed_jobs permaneceu em 36. Nenhum retry/flush de falhas antigas.
+
+Instalação reproduzível e operação
+- Novas migrations:
+  2026_10_23_140000_add_rpz_bloqueio_modo_to_empresas_table.php
+  2026_10_23_140100_add_security_ban_state_indexes.php
+- Snapshot: instalar deploy/scripts/dns-panel-rpz-fail2ban-snapshot em
+  /usr/local/sbin (0755), service/timer correspondentes em /etc/systemd/system.
+- Saúde: instalar deploy/scripts/dns-panel-rpz-healthcheck-recovered em
+  /usr/local/sbin (0755), service/timer correspondentes em /etc/systemd/system.
+- systemctl daemon-reload; habilitar os dois timers com enable --now.
+- Preparar variáveis e volumes conforme documentação de recuperação,
+  preservar a APP_KEY e dados existentes. Nunca inicializar volume vazio
+  como substituto do banco recuperado.
+- Código de preparação Contabo fica separado do runtime ativo. Configurações
+  e relatórios históricos versionados descrevem seus respectivos momentos,
+  não substituem compose.staging.yml como referência deste deploy.
+- .env, chaves, certificados, bancos, dumps e arquivos .recovery ficam fora
+  do Git. Verificação dos arquivos novos não encontrou artefatos proibidos
+  nem marcadores de chave privada/credenciais AWS.
+- Nenhum push ao GitHub foi feito nesta etapa; consolidado em commit local.
+
+Reversão e pendências deliberadas
+- Imagens anteriores preservadas. Arquivo de referência de reversão das
+  imagens foi preparado em /tmp/rpz-ecosystem-rollback.yml, sem segredos.
+- Ao reverter app para imagem anterior, suspender o timer novo de saúde
+  até adaptar novamente os caminhos; não reverter a base de dados inteira
+  por causa de um rollback de código. Novas colunas/índices são aditivos.
+- R2 e endurecimento SSH adiados expressamente pelo usuário.
+- Falhas históricas de cloud-init não foram reexecutadas: isso pode reescrever
+  rede/chaves de provisionamento. Porta LLMNR observada não comprova exposição
+  externa; decisão de desativar serviço exige avaliação própria.
+- Política de retenção de auditoria no SQLite não foi inventada nem aplicada;
+  logs de arquivos já possuem rotação, mas registros de negócio são distintos.
+- app.appsflyer.com foi localizado na lista 14, ANATEL — Bloqueios Oficiais,
+  ativo desde 01/09/2026 e sem last_anatel_import_id. Isso não comprova ordem
+  oficial individual. Não foi excluído nem reclassificado sem verificar origem.

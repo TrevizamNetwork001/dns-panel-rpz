@@ -74,11 +74,12 @@ class HealthCheck extends Command
 
     private function checkDisk(): array
     {
-        $total = @disk_total_space('/');
-        $free = @disk_free_space('/');
+        $path = config('health.disk_path', '/');
+        $total = @disk_total_space($path);
+        $free = @disk_free_space($path);
 
-        if (! $total || ! $free) {
-            return [];
+        if ($total === false || $total <= 0 || $free === false) {
+            return [['action' => 'health.disk_unreadable', 'description' => 'Não foi possível consultar o espaço em disco.']];
         }
 
         $usedPercent = round((1 - $free / $total) * 100, 1);
@@ -95,19 +96,20 @@ class HealthCheck extends Command
 
     private function checkCert(): array
     {
-        if (! is_readable(self::CERT_PATH)) {
+        $path = config('health.certificate_path', self::CERT_PATH);
+        if (! is_readable($path)) {
             return [[
                 'action' => 'health.cert_unreadable',
-                'description' => 'Não foi possível ler o certificado TLS para checar a validade ('.self::CERT_PATH.')',
+                'description' => 'Não foi possível ler o certificado TLS para checar a validade.',
             ]];
         }
 
-        $cert = @openssl_x509_parse(file_get_contents(self::CERT_PATH));
+        $cert = @openssl_x509_parse(file_get_contents($path));
 
         if (! $cert || empty($cert['validTo_time_t'])) {
             return [[
                 'action' => 'health.cert_unreadable',
-                'description' => 'Não foi possível interpretar o certificado TLS em '.self::CERT_PATH,
+                'description' => 'Não foi possível interpretar o certificado TLS.',
             ]];
         }
 
@@ -125,19 +127,20 @@ class HealthCheck extends Command
 
     private function checkSiteUp(): array
     {
+        $url = config('health.url', self::HEALTH_URL);
         try {
-            $response = Http::timeout(10)->get(self::HEALTH_URL);
+            $response = Http::connectTimeout(5)->timeout(10)->get($url);
         } catch (\Throwable $e) {
             return [[
                 'action' => 'health.site_down',
-                'description' => 'Site não respondeu em '.self::HEALTH_URL.': '.$e->getMessage(),
+                'description' => 'O endereço de verificação do painel não respondeu.',
             ]];
         }
 
         if (! $response->successful()) {
             return [[
                 'action' => 'health.site_down',
-                'description' => 'Site respondeu com status '.$response->status().' em '.self::HEALTH_URL,
+                'description' => 'O painel respondeu à verificação com status '.$response->status().'.',
             ]];
         }
 

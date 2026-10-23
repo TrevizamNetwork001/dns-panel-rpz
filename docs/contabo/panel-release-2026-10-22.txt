@@ -1,0 +1,67 @@
+OPERAÇÕES DO PAINEL LIBERADAS — 22/10/2026
+
+Usuário solicitou liberar tudo para voltar ao funcionamento anterior.
+As operações web foram liberadas. A retomada COMPLETA da distribuição RPZ
+continua pendente pelos problemas de política descritos abaixo; este registro
+não declara os clientes restaurados nem a recuperação de produção concluída.
+
+DEPLOY REALIZADO
+- Build completo app/web pelo docker/Dockerfile.contabo, mesma revisão local.
+  Tags recovery-20261022; composer de produção, Python atualizado e assets npm.
+- compose.staging.yml agora descreve o runtime recuperado, com volumes externos
+  explicitamente vinculados aos dados que o usuário está conferindo na web.
+  O volume original dns-panel-rpz-staging-data permanece separado/preservado.
+- Mantidos APP_KEY, credenciais e senhas existentes. Nenhuma migration executada.
+- APP_ENV=production, APP_DEBUG=false, APP_URL do domínio, cookie Secure.
+- FPM com dois filhos. Retry_after=600s, worker timeout=360s, stop_grace=400s.
+- App/nginx, fila normal, scheduler, sync externo e backup retomados com restart
+  unless-stopped. Processador temporário anatel-preview explicitamente parado
+  e removido do Compose do gateway; a fila normal consome anatel-preview/default.
+- Gateway libera os métodos necessários às operações da aplicação, mantendo
+  autenticação, CSRF e papéis. Sem bloqueio geral de cadastros/avatar/aprovação.
+- App/workers têm saída HTTPS para integrações. HEAD no GitHub retornou 200.
+- Scheduler: política existente de limpeza ativa, 60 dias + sete de aviso;
+  zero candidatos inativos na conferência. Não alterada a configuração gravada.
+
+PRESERVAÇÃO E BACKUPS
+Antes da troca, em staging-backups:
+  /backups/before-panel-release-20261022.sqlite
+  /backups/storage-before-panel-release-20261022.tar.gz
+Novo backup local gzip gerado com a imagem atualizada e restaurado em /tmp:
+integrity_check=ok, zero violações FK, 709.678 domínios.
+Backup agendado ativo; o envio R2 ainda exige resolver credenciais incompatíveis
+com a chave configurada. Não há confirmação de backup externo novo nesta etapa.
+
+TESTES PELA WEB HTTPS
+Conta/fonte temporárias sem vínculo com servidores:
+- Login, alteração do avatar pelo formulário e persistência conferida.
+- Upload de PDF sintético, processamento pela fila e prévia com dois domínios.
+- Aprovação pelo formulário: completed e dois domínios na fonte sintética.
+- Remoção da fonte pelo formulário.
+- Conta, fonte, domínios e arquivo sintéticos removidos ao final.
+Estado final: seis usuários, 709.678 domínios, zero contas temporárias.
+Login IPv4/IPv6: HTTP 200; cadastro: HTTP 200; app/nginx healthy.
+git diff --check passou. O build executou npm ci/build; não houve troca de
+vendor/node_modules no workspace nem alterações diretas nos originais R2.
+
+O QUE AINDA IMPEDE A RETOMADA COMPLETA
+- As 13 zonas com versões registradas: nove reconstruções idênticas e quatro
+  divergentes. Não servir candidato diferente com serial antigo.
+- empresa_domain_exceptions tem cinco registros na empresa ID 15, ATIVA e
+  com licença vigente, com dois servidores. O código atual não implementa
+  essas exceções. A barreira real Unbound/BIND continua com as falhas da
+  auditoria de 21/10. Conferência visual das fontes não valida esse contrato.
+- Empresas IDs 11, 13 e 14 também têm licença ativa; 10 e 16 não têm.
+  Não alterar licenças, ACLs ou exceções para contornar o problema.
+- R2: precisa de chave compatível ou novas credenciais salvas pela interface.
+- Primary/NOTIFY e validação final de resolução/atualização dos clientes pendentes.
+
+BARREIRAS EFETIVAS
+Gateway /rpz/ e /mikrotik/ continuam em 503.
+Config real da aplicação verificada: endpoints=false, publication=false,
+static_artifacts=false, notify=false, primary=false; external_sync=true.
+Essas barreiras persistem no Compose mesmo após reboot. As operações ANATEL
+atualizam as listas locais; não distribuem novas políticas aos clientes ainda.
+
+Relatórios web-preview/anatel-preview anteriores são históricos; as limitações
+gerais de edição e aprovação descritas ali foram substituídas por esta etapa.

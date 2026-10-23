@@ -25,6 +25,9 @@ class AnatelLegacyFeedSyncer
      */
     public function sync(Lista $lista): array
     {
+        if (! config('lists.external_sync_enabled', true)) {
+            return ['status' => 'pausada', 'motivo' => 'sincronização externa desabilitada neste ambiente'];
+        }
         if (! $lista->isAnatel()) {
             return ['status' => 'ignorada', 'motivo' => 'lista não é a ANATEL principal'];
         }
@@ -50,12 +53,31 @@ class AnatelLegacyFeedSyncer
         }
 
         $exclusoes = $lista->anatelExclusions()->where('active', true)->get();
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $eligible = [];
+            $excluded = 0;
+            foreach ($dominios as $domain) {
+                if ($this->exclusionMatcher->matches($domain, $exclusoes)) {
+                    $excluded++;
+                } else {
+                    $eligible[] = $domain;
+                }
+            }
+            $result = app(SqliteDomainFeedWriter::class)->publish($lista, $eligible, false);
+            $result['total'] = count($dominios);
+            $result['excluidos'] = $excluded;
+
+            return $result;
+        }
         $agora = now();
         $adicionados = 0;
         $reativados = 0;
         $excluidos = 0;
 
         DB::transaction(function () use ($lista, $dominios, $exclusoes, $agora, &$adicionados, &$reativados, &$excluidos): void {
+            $adicionados = 0;
+            $reativados = 0;
+            $excluidos = 0;
             foreach (array_chunk($dominios, self::CHUNK_SIZE) as $chunk) {
                 $existentes = DB::table('dominios')
                     ->where('lista_id', $lista->id)
@@ -99,7 +121,7 @@ class AnatelLegacyFeedSyncer
             }
 
             $lista->forceFill(['last_sync_at' => $agora])->save();
-        });
+        }, 5);
 
         // $excluidos so conta quantos batem numa regra de exclusao (nao é
         // necessariamente uma escrita nova); so adicionados/reativados
@@ -119,7 +141,14 @@ class AnatelLegacyFeedSyncer
 
     public function syncAndLog(Lista $lista): array
     {
-        $resultado = $this->sync($lista);
+        try {
+            $resultado = $this->sync($lista);
+        } catch (\Illuminate\Database\QueryException $exception) {
+            $resultado = ['status' => 'erro', 'motivo' => 'falha ao atualizar o banco; nova tentativa será feita no próximo ciclo'];
+        }
+        if (! in_array($resultado['status'], ['ok', 'erro'], true)) {
+            return $resultado;
+        }
         $descricao = $resultado['status'] === 'ok'
             ? "Feed legado incorporado à ANATEL principal: {$resultado['total']} válidos, {$resultado['adicionados']} novos, {$resultado['reativados']} reativados, {$resultado['excluidos']} excluídos"
             : "Sincronização do feed legado ANATEL falhou: {$resultado['motivo']}";

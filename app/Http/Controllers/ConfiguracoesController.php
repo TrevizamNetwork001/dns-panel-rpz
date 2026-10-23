@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\RunDatabaseBackup;
 use App\Models\AuditLog;
 use App\Models\Lista;
 use App\Models\Setting;
@@ -10,7 +11,6 @@ use App\Services\ServidoresInativosCleaner;
 use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\View\View;
 
 class ConfiguracoesController extends Controller
@@ -143,11 +143,10 @@ class ConfiguracoesController extends Controller
 
     public function runBackupNow(): RedirectResponse
     {
-        $code = Artisan::call('backup:run');
-        $saida = trim(Artisan::output());
-
+        RunDatabaseBackup::dispatch();
         AuditLog::record('backup.manual_triggered', 'Backup manual disparado pela tela de Configurações');
 
-        return back()->with($code === 0 ? 'status' : 'error', ($code === 0 ? 'Backup executado. ' : 'Backup falhou. ').$saida);
+        return back()->with('status', 'Backup enfileirado. Acompanhe a conclusão nos eventos de backup e na auditoria.');
     }
+
 }

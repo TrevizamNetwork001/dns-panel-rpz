@@ -36,6 +36,10 @@ class ServidorIpMatchesCidrTest extends TestCase
     {
         $this->assertFalse(Servidor::ipMatchesCidr('203.0.113.5', ''));
         $this->assertFalse(Servidor::ipMatchesCidr('203.0.113.5', 'nao-e-um-ip/24'));
+        foreach (['', 'garbage', '24junk', '-1', '0.0', '0/24', ' 0'] as $mask) {
+            $this->assertFalse(Servidor::ipMatchesCidr('203.0.113.5', '192.0.2.0/'.$mask));
+        }
+        $this->assertTrue(Servidor::ipMatchesCidr('203.0.113.5', '192.0.2.0/0'));
     }
 
     public function test_ipv4_and_ipv6_do_not_cross_match(): void

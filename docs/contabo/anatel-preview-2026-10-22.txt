@@ -1,0 +1,39 @@
+ANATEL E REMOÇÃO DE FONTES — 22/10/2026
+
+Usuário autorizou importar PDFs ANATEL para testar e liberar apagar fonte.
+Gateway agora permite POST /anatel/imports (até 26 MiB por requisição,
+limite por arquivo existente 20 MiB) e a remoção em /listas/{id}.
+Remoção por POST recebe X-HTTP-Method-Override: DELETE forçado para não
+liberar também a edição da fonte; DELETE nativo também é permitido.
+Autenticação, CSRF, papel admin e regras de exclusão da aplicação continuam
+obrigatórios. A aplicação continua recusando remover fontes externas.
+
+Importação permitida via /anatel, com fila e prévia de domínios. O importador
+síncrono legado /listas/{id}/anatel/imports continua bloqueado, assim como
+aprovação de importações, publicação de lote, edições e entrega RPZ/MikroTik.
+
+Serviço anatel-preview em compose.preview.yml usa a mesma imagem de staging,
+rede isolada sem saída e APENAS os volumes staging-test-data/storage/cache.
+O script docker/anatel-preview-worker.sh move exclusivamente jobs da classe
+ProcessAnatelImport, ainda não reservados, de default para anatel-preview.
+O worker consome apenas essa fila. Não processa BuildRpzZone/NOTIFY, não
+executa scheduler, sync de feeds ou retry dos failed_jobs recuperados.
+Timeout 360s, retry_after configurado 600s, uma tentativa, stop_grace 400s.
+
+Snapshot anterior à liberação em staging-backups:
+/backups/before-anatel-preview-20261022.sqlite.
+Banco original recuperado e backups R2 preservados.
+
+Teste real pelo domínio HTTPS:
+- Conta admin e fonte ANATEL temporárias, sem vínculo com servidores.
+- Login com sessão/CSRF, upload multipart de PDF sintético com dois domínios.
+- Fila processou o PDF: awaiting_approval, dois novos domínios na PRÉVIA.
+- Página da prévia exibiu os dois domínios; nenhuma aprovação executada.
+- Remoção da fonte sintética pelo formulário web validada.
+- Conta, fonte e arquivo sintéticos removidos no finally do teste.
+Script do laboratório: /tmp/rpz-anatel-preview-smoke.py.
+Nenhuma senha real foi consultada, modificada ou exibida.
+
+Este registro substitui parcialmente o escopo de consulta do relatório web:
+agora upload ANATEL e remoção de fontes são exceções explicitamente liberadas.
+Demais bloqueios de publicação e operação de produção permanecem.

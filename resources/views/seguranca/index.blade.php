@@ -95,6 +95,9 @@
                     {{ $bansAtivos->count() > 0 ? 'ameaças ativas' : 'nenhuma ameaça ativa' }}
                 </span>
             </div>
+            @if (! $estadoConfirmado)
+                <p class="security-empty">Exibindo o último estado registrado. A confirmação do Fail2ban está temporariamente indisponível.</p>
+            @endif
             @if ($bansAtivos->isEmpty())
                 <p class="security-empty">Nenhum IP bloqueado no momento.</p>
             @else
@@ -103,7 +106,7 @@
                         <li class="security-event security-event-danger">
                             <strong class="security-action security-mono">{{ $ban->ip_address }}</strong>
                             <div class="security-meta">Jail: <span class="security-mono">{{ $ban->jail }}</span></div>
-                            <div class="security-meta">Bloqueado em <time class="security-mono" datetime="{{ \Illuminate\Support\Carbon::parse($ban->created_at)->toIso8601String() }}">{{ \Illuminate\Support\Carbon::parse($ban->created_at)->format('d/m/Y H:i:s') }}</time></div>
+                            @if ($ban->created_at)<div class="security-meta">Bloqueado em <time class="security-mono" datetime="{{ \Illuminate\Support\Carbon::parse($ban->created_at)->toIso8601String() }}">{{ \Illuminate\Support\Carbon::parse($ban->created_at)->format('d/m/Y H:i:s') }}</time></div>@else<div class="security-meta">Confirmado pelo Fail2ban; horário de início não registrado.</div>@endif
                         </li>
                     @endforeach
                 </ul>

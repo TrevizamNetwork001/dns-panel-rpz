@@ -8,6 +8,8 @@ use App\Models\Lista;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\HttpFoundation\IpUtils;
 
 class ExternalListaSyncer
 {
@@ -22,6 +24,9 @@ class ExternalListaSyncer
      */
     public function sync(Lista $lista): array
     {
+        if (! config('lists.external_sync_enabled', true)) {
+            return ['status' => 'pausada', 'motivo' => 'sincronização externa desabilitada neste ambiente'];
+        }
         if (! $lista->isExterna() || ! $lista->fonte_url) {
             return ['status' => 'ignorada', 'motivo' => 'lista não é externa ou não tem fonte_url configurada'];
         }
@@ -30,7 +35,8 @@ class ExternalListaSyncer
             return ['status' => 'pausada'];
         }
 
-        if (! $this->isPublicFeedUrl($lista->fonte_url)) {
+        $addresses = $this->publicFeedAddresses($lista->fonte_url);
+        if ($addresses === null) {
             return ['status' => 'erro', 'motivo' => 'URL do feed aponta para uma rede local ou reservada'];
         }
 
@@ -40,13 +46,44 @@ class ExternalListaSyncer
         }
 
         try {
+            $maxFeedBytes = max(1, (int) config('lists.external_feed_max_bytes', 134217728));
+            $host = trim(strtolower((string) parse_url($lista->fonte_url, PHP_URL_HOST)), '[]');
+            $port = parse_url($lista->fonte_url, PHP_URL_PORT)
+                ?: (strtolower((string) parse_url($lista->fonte_url, PHP_URL_SCHEME)) === 'https' ? 443 : 80);
+            $options = [
+                // Do not resolve the hostname again after checking its IPs.
+                // Bypass environment proxies, which could resolve it independently.
+                'proxy' => '',
+                'decode_content' => false,
+                'on_headers' => static function (ResponseInterface $response) use ($maxFeedBytes): void {
+                    $encoding = strtolower(trim($response->getHeaderLine('Content-Encoding')));
+                    if ($encoding !== '' && $encoding !== 'identity') {
+                        throw new \UnexpectedValueException('Compressed feeds are not accepted');
+                    }
+                    if ((int) $response->getHeaderLine('Content-Length') > $maxFeedBytes) {
+                        throw new \LengthException('Feed exceeds maximum size');
+                    }
+                },
+                'progress' => static function ($total, $downloaded) use ($maxFeedBytes): void {
+                    if ($total > $maxFeedBytes || $downloaded > $maxFeedBytes) {
+                        throw new \LengthException('Feed exceeds maximum size');
+                    }
+                },
+            ];
+            if ($addresses !== [] && ! filter_var($host, FILTER_VALIDATE_IP)) {
+                $destinations = array_map(static fn ($ip) => str_contains($ip, ':') ? '['.$ip.']' : $ip, $addresses);
+                $options['curl'][CURLOPT_RESOLVE] = [$host.':'.$port.':'.implode(',', $destinations)];
+            }
             $response = Http::connectTimeout(10)
                 ->timeout(30)
                 ->withoutRedirecting()
+                ->withHeaders(['Accept-Encoding' => 'identity'])
+                ->withOptions($options)
                 ->get($lista->fonte_url);
         } catch (\Throwable $e) {
             $lock->release();
-            return ['status' => 'erro', 'motivo' => 'falha ao buscar o feed: '.$e->getMessage()];
+
+            return ['status' => 'erro', 'motivo' => 'falha ao buscar o feed com segurança'];
         }
 
         try {
@@ -77,20 +114,33 @@ class ExternalListaSyncer
             ];
         }
 
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            return app(SqliteDomainFeedWriter::class)->publish($lista, $dominios, true);
+        }
+
         $existentesAtivos = $lista->dominios()->where('ativo', true)->pluck('dominio')->all();
         $paraDesativar = array_diff($existentesAtivos, $dominios);
 
         $agora = now();
         $adicionados = 0;
+        $reativados = 0;
 
-        DB::transaction(function () use ($lista, $dominios, $paraDesativar, $agora, &$adicionados) {
-            $existentes = $lista->dominios()->pluck('dominio')->flip();
+        DB::transaction(function () use ($lista, $dominios, $paraDesativar, $agora, &$adicionados, &$reativados) {
+            // SQLite may retry after a competing writer. Counters describe
+            // the committed attempt, never an earlier rolled-back attempt.
+            $adicionados = 0;
+            $reativados = 0;
 
             foreach (array_chunk($dominios, self::CHUNK_SIZE) as $chunk) {
+                // Fetch only this batch. Loading the whole existing feed as
+                // keyed rows exceeded 256 MiB for the recovered large list.
+                $existentes = $lista->dominios()->whereIn('dominio', $chunk)->pluck('ativo', 'dominio');
                 $rows = [];
                 foreach ($chunk as $dominio) {
                     if (! $existentes->has($dominio)) {
                         $adicionados++;
+                    } elseif (! $existentes->get($dominio)) {
+                        $reativados++;
                     }
                     $rows[] = [
                         'lista_id' => $lista->id,
@@ -110,9 +160,9 @@ class ExternalListaSyncer
             }
 
             $lista->forceFill(['last_sync_at' => $agora])->save();
-        });
+        }, 5);
 
-        if ($adicionados > 0 || $paraDesativar !== []) {
+        if ($adicionados > 0 || $reativados > 0 || $paraDesativar !== []) {
             $this->rpzDirty->markForList($lista->id);
         }
 
@@ -129,7 +179,13 @@ class ExternalListaSyncer
 
     public function syncAndLog(Lista $lista): array
     {
-        $resultado = $this->sync($lista);
+        try {
+            $resultado = $this->sync($lista);
+        } catch (\Illuminate\Database\QueryException $exception) {
+            // Preserve the previous transaction and let the command continue
+            // with other sources. Never expose SQL/domain batches to the UI.
+            $resultado = ['status' => 'erro', 'motivo' => 'falha ao atualizar o banco; tente sincronizar novamente'];
+        }
 
         if ($resultado['status'] === 'ok') {
             AuditLog::create([
@@ -253,39 +309,49 @@ class ExternalListaSyncer
         return $this->normalizer->normalize($value, false);
     }
 
-    private function isPublicFeedUrl(string $url): bool
+    /** @return list<string>|null Null rejects the URL; [] is only for synthetic .example tests. */
+    protected function publicFeedAddresses(string $url): ?array
     {
         $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
         if (! in_array($scheme, ['http', 'https'], true)) {
-            return false;
+            return null;
         }
 
-        $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $host = trim(strtolower((string) parse_url($url, PHP_URL_HOST)), '[]');
         if ($host === '' || $host === 'localhost' || str_ends_with($host, '.local')) {
-            return false;
+            return null;
         }
 
         if (app()->environment('testing') && str_ends_with($host, '.example')) {
-            return true;
+            return [];
         }
 
         $addresses = filter_var($host, FILTER_VALIDATE_IP) ? [$host] : [];
         if ($addresses === []) {
-            foreach (dns_get_record($host, DNS_A | DNS_AAAA) ?: [] as $record) {
+            foreach ($this->feedDnsRecords($host) as $record) {
                 $addresses[] = $record['ip'] ?? $record['ipv6'] ?? '';
             }
         }
 
         if ($addresses === []) {
-            return false;
+            return null;
         }
 
         foreach ($addresses as $address) {
-            if (! filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-                return false;
+            if (! filter_var($address, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)
+                || IpUtils::checkIp($address, [
+                    '100.64.0.0/10', '224.0.0.0/4', '::/96', '::ffff:0:0/96',
+                    '64:ff9b::/96', '64:ff9b:1::/48', '2002::/16', 'ff00::/8',
+                ])) {
+                return null;
             }
         }
 
-        return true;
+        return array_values(array_unique($addresses));
+    }
+
+    protected function feedDnsRecords(string $host): array
+    {
+        return dns_get_record($host, DNS_A | DNS_AAAA) ?: [];
     }
 }

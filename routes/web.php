@@ -10,6 +10,7 @@ use App\Http\Controllers\ConsultaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DominioController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\EmpresaExceptionController;
 use App\Http\Controllers\LicencaController;
 use App\Http\Controllers\ListaController;
 use App\Http\Controllers\MikrotikHostsController;
@@ -72,6 +73,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/anatel/listas/{lista}/batch/publish', [AnatelDashboardController::class, 'publishBatch'])->name('anatel.batch.publish');
         Route::post('/anatel/listas/{lista}/batch/reject', [AnatelDashboardController::class, 'rejectBatch'])->name('anatel.batch.reject');
         Route::resource('empresas', EmpresaController::class)->except(['show']);
+        Route::get('/empresas/{empresa}/excecoes', [EmpresaExceptionController::class, 'index'])->name('empresas.exceptions.index');
+        Route::post('/empresas/{empresa}/excecoes', [EmpresaExceptionController::class, 'store'])->name('empresas.exceptions.store');
+        Route::delete('/empresas/{empresa}/excecoes/{exception}', [EmpresaExceptionController::class, 'destroy'])->name('empresas.exceptions.destroy');
         Route::post('/empresas/{empresa}/rpz-acl-test', [EmpresaController::class, 'testRpzAcl'])->name('empresas.rpz-acl-test');
         Route::resource('licencas', LicencaController::class);
         Route::resource('listas', ListaController::class)->except(['index', 'show']);

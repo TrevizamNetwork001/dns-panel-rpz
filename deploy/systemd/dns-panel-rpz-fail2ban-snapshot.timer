@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh RPZ Fail2ban state every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=dns-panel-rpz-fail2ban-snapshot.service
+
+[Install]
+WantedBy=timers.target

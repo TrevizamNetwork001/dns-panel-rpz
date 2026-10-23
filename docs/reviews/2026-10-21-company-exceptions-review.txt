@@ -1,0 +1,99 @@
+EXCEÇÕES EMPRESARIAIS — DECISÃO DE SEGURANÇA — 21/10/2026
+
+Resultado: implementação funcional interrompida. O gerador atual ignora as
+exceções recuperadas e o candidato simples com PASSTHRU altera bloqueios fora
+do ramo liberado. Não há solução validada para ativação no modelo atual.
+Isso não significa que RPZ seja incapaz de implementar a regra: significa que
+não é seguro aplicar apenas filtragem e duas entradas PASSTHRU na zona atual.
+
+Modelo encontrado
+- O SQLite recuperado possui empresa_domain_exceptions, com empresa_id,
+  dominio, motivo, timestamps e unicidade (empresa_id, dominio). Foram
+  identificadas cinco exceções existentes, pertencentes à mesma empresa.
+- O repositório não possui modelo, migration ou leitura dessa tabela.
+- serverQuery() e companyQuery() unem domínios ativos das listas vinculadas,
+  sem exceção empresarial e sem distinção de prioridade por origem.
+- buildCanonical() emite domínio e *.domínio como CNAME de bloqueio.
+- As exclusões ANATEL existentes pertencem à importação/lista, podendo
+  desativar entradas compartilhadas; não representam exceção empresarial.
+- DomainNormalizer remove www. Isso deve permanecer nos feeds existentes,
+  mas não pode ser reutilizado sem adaptação para exceções: uma exceção para
+  www.exemplo.com.br não pode liberar seu ancestral exemplo.com.br.
+
+Experimento em resolvedores reais
+Baseline:
+  example.com                 CNAME .
+  *.example.com               CNAME .
+Candidato, após remover todos os bloqueios dentro do ramo autorizado:
+  allow.deep.example.com      CNAME rpz-passthru.
+  *.allow.deep.example.com    CNAME rpz-passthru.
+
+O candidato libera corretamente allow.deep.example.com e seus descendentes.
+Porém other.deep.example.com e x.other.deep.example.com deixam de ser
+bloqueados no Unbound e no BIND. deep.example.com também deixa de ser
+bloqueado no BIND. A adição introduz nós intermediários/empty non-terminals
+que mudam a expansão do wildcard, mesmo sem uma regra explícita para os
+irmãos. Estes nomes eram bloqueados no baseline. Logo, não basta eliminar
+domínio exato, eliminar descendentes ou adicionar PASSTHRU exato + wildcard.
+Também não basta confirmar apenas a validade sintática da zona.
+
+Testes adicionados
+- tests/safety/build_company_exception_fixtures.php: usa o gerador real com
+  fixtures em transação numa cópia descartável do banco recuperado. Faz
+  rollback; não resolve versões, não dispara jobs nem publica zonas reais.
+- tests/safety/company_exception_rpz_semantics.py: compara respostas de
+  Unbound/BIND com upstream UDP inteiramente simulado em loopback. Cobre
+  listas compartilhadas entre duas empresas, origens manual/ANATEL/externa,
+  escopos de servidor e empresa, domínio exato, www, descendentes profundos,
+  descendente explicitamente bloqueado, domínio semelhante, ancestral e
+  irmãos afetados por bloqueio herdado.
+- Os testes são uma barreira de segurança e falham intencionalmente com o
+  comportamento atual e o candidato rejeitado. Não são parte da suíte
+  PHPUnit, pois precisam do banco recuperado e de binários de resolvedores.
+- Resultado: 360 verificações, 284 passaram e 76 falharam, sem erros do
+  laboratório. Detalhamento em 2026-10-21-company-exceptions-tests.txt.
+- O controle por outra empresa passou nas 120 verificações. Isso comprova o
+  baseline de isolamento nos cenários sintéticos, não a regra ainda ausente.
+
+Reprodução (apenas ambiente descartável)
+1. Criar backup SQLite via sqlite3.Connection.backup(), abrindo a origem
+   com mode=ro; salvar a cópia como /review/disposable.sqlite no container.
+2. Usar imagem local dns-panel-rpz-app:staging, sem volumes dos serviços e
+   com /review gravável. Montar tests/safety em /safety somente leitura.
+3. Disponibilizar unbound, bind e bind-tools no container de laboratório.
+4. Definir APP_ENV=testing, RPZ_DISPOSABLE_DB=/review/disposable.sqlite e
+   RPZ_SAFETY_OUTPUT=/review. Não fornecer credenciais de produção.
+5. php /safety/build_company_exception_fixtures.php
+6. python3 /safety/company_exception_rpz_semantics.py
+   Saída esperada neste estado: exit 1, failures=76, 360 assertions.
+Os resolvedores escutam apenas em loopback nas portas 15301 e 15302; todas
+as consultas upstream usam o simulador em 127.0.0.1:15300. BIND usa notify no.
+
+Condição para uma implementação posterior
+Será necessário validar uma representação que preserve a política fora do
+ramo liberado. Alternativas a investigar: uma zona de exceções com precedência
+separada (exige integração/configuração dos resolvedores), ou compilação de
+uma zona única que preserve explicitamente os bloqueios herdados nos nós
+intermediários. Ambas precisam de testes reais de equivalência fora das
+exceções, além de tratamento de limites de nomes, canário, CNAME, overrides e
+versionamento. Nenhuma dessas alternativas foi implementada ou aprovada como
+segura nesta auditoria. PASSTHRU não vence uma política anterior já aplicada
+nem um override imposto pelo resolvedor; a ordem externa não é controlada
+pelo banco do painel.
+
+Preservação e diff
+- Origem recuperada aberta somente leitura; SHA-256 antes/depois idêntico.
+- Nenhuma migration executada, nenhuma alteração em credenciais ou APP_KEY.
+- Nenhuma chamada a endpoints reais, publicação de zonas, DNS público ou NOTIFY.
+- Na etapa de exceções, nenhum arquivo funcional foi alterado. As correções
+  posteriores da varredura geral constam no relatório separado de auditoria.
+  Nenhum commit ou push foi realizado.
+- Mudanças anteriores em .dockerignore, .gitignore e compose.staging.yml
+  foram preservadas e não pertencem a esta auditoria.
+- Diff desta auditoria será disponibilizado separadamente para revisão.
+
+Fontes primárias
+https://unbound.docs.nlnetlabs.nl/en/latest/topics/filtering/rpz.html
+https://bind9.readthedocs.io/en/v9.18.34/reference.html#response-policy
+Os documentos definem PASSTHRU e precedência; o efeito colateral de wildcard
+acima foi observado diretamente no laboratório, não inferido dos documentos.

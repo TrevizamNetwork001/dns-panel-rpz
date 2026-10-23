@@ -1,0 +1,43 @@
+Atualização forçada das listas externas — 23/10/2026
+
+Runtime final: dns-panel-rpz-app:feeds-20261023 (compose.staging.yml).
+Imagem web permanece dns-panel-rpz-web:repair-20261022.
+
+Resultados confirmados no banco:
+- Phishing e Golpes: 152567 ativos; 26994 novos e 14570 desativados.
+- Ransomware: 1903 ativos; nenhum novo/removido.
+- Ameaças Gerais: 211791 ativos; 24213 novos e 52514 desativados.
+- Malware e Vírus: fonte antiga URLhaus retorna HTTP 410; 384 ativos anteriores
+  preservados e data de sincronização anterior mantida.
+- Botnets e Controle Remoto: fonte antiga ThreatFox retorna HTTP 410;
+  37365 ativos anteriores preservados e data anterior mantida.
+
+Fontes oficiais consultadas:
+https://urlhaus.abuse.ch/api/
+https://threatfox.abuse.ch/export/
+Ambas agora documentam Auth-Key obrigatório para acessar os datasets.
+Não substituir fontes por agregadores nem remover dados antigos silenciosamente.
+Atualização dessas duas fontes depende de obter/configurar os links autenticados.
+
+Falhas encontradas e correção instalada:
+- Concorrência SQLite interrompia o comando durante uma atualização; transações
+  passam a tentar novamente até cinco vezes, reiniciando contadores por tentativa.
+- Carregar todos os registros existentes como mapa excedia o limite PHP 256 MiB
+  na lista maior. Consultas de existência agora usam o lote atual de 400 domínios.
+- Falha SQL esgotando as tentativas retorna erro resumido e auditado para a lista,
+  permitindo continuar com as demais fontes sem expor consultas/domínios na UI.
+- A execução de recuperação usou 512 MiB temporariamente e transação IMMEDIATE
+  para concluir a atualização antes da instalação da correção permanente.
+
+Validação:
+- 17 testes de sincronização/segurança aprovados, 57 asserções.
+- Feed real de 211791 domínios no banco descartável, HTTP/DNS simulados e
+  rollback final: mesmo resultado com pico 177901568 bytes (~170 MiB), sob
+  memory_limit=256M. Execução anterior exigiu pico 278573056 bytes (~266 MiB).
+- Nenhuma zona com geração pendente e nenhum job pendente após republicação.
+- Login público IPv4 e IPv6: HTTPS 200 após instalação e reload do nginx.
+
+IPv6: acesso HTTPS confirmado. A limitação histórica do NOTIFY/DNS primário
+via IPv6 descrita em docs/reviews/2026-09-29-rpz-review.md permanece; ambos
+continuam desativados. Não confundir login/HTTP IPv6 com esse serviço opcional.
+Novo backup completo continua adiado por solicitação do usuário.

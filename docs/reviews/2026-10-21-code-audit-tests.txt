@@ -1,0 +1,56 @@
+RESULTADOS FINAIS — 21/10/2026
+
+PHPUnit (PHP 8.4.12, SQLite em memória, cópia descartável do código):
+  460 testes, 2.228 assertions, todos passaram.
+  named-checkzone disponível e validação sintática de zonas passou.
+  Cinco testes de RpzNotifyTransportTest excluídos apenas no laboratório
+  para não transmitir NOTIFY UDP. Nenhuma mudança em phpunit.xml do projeto.
+
+Regressões direcionadas após correções:
+  17 testes, 66 assertions, todos passaram.
+  Três testes principais executados antes das correções: três falhas,
+  reproduzindo reativação sem rebuild e aceitação de artefatos inconsistentes.
+
+Python, bibliotecas atualizadas no container descartável:
+  Cinco testes passaram: detecção textual e extração real de PDF e XLSX sintéticos.
+  pdfplumber 0.11.10, pdfminer.six 20260107, openpyxl 3.1.5.
+
+Dependências:
+  composer audit --locked: zero avisos conhecidos depois das atualizações.
+  npm audit: zero vulnerabilidades conhecidas depois das atualizações.
+  pip-audit: zero vulnerabilidades conhecidas no conjunto atualizado.
+  Os avisos Python anteriores correspondiam a dois CVEs distintos com entradas
+  duplicadas no resultado bruto. Os relatórios não comprovam exploração real.
+
+Build e sintaxe:
+  npm ci --ignore-scripts: passou.
+  npm run build: passou na cópia descartável; assets não publicados.
+  php -l: 212 arquivos passaram.
+  Sintaxe de scripts shell e Python: passou.
+  git diff --check: passou.
+
+Barreira de segurança RPZ (deliberadamente separada da suíte de correções):
+  360 verificações em Unbound 1.25.2 e BIND 9.20.29.
+  284 passaram, 76 falharam: regra ausente no gerador (56) e efeitos colaterais
+  do candidato PASSTHRU (20). Nenhum erro de execução do laboratório.
+  A outra empresa passou em todas as 120 verificações usando listas compartilhadas.
+  Essa barreira permanece vermelha e impede ativar as exceções empresariais.
+
+Preservação:
+  Banco recuperado com SHA-256 idêntico antes e depois:
+  8a21ad8cbafa25095fb543781833ff6de3874c9ab42f3fbb32bdac0717cb3312
+  Sem migrations no banco recuperado, alteração de credenciais/APP_KEY,
+  publicação de zonas reais, alteração de DNS público, NOTIFY, commit ou push.
+  Vendor, venv, npm e builds de laboratório ficam apenas sob /tmp ou em
+  containers descartáveis; o ambiente dos serviços existentes não foi atualizado.
+
+Evidências brutas locais (não versionadas):
+  /tmp/rpz-company-exceptions-review/resolver-tests.txt
+  /tmp/rpz-company-exceptions-review/full-audit/regression-before.txt
+  /tmp/rpz-company-exceptions-review/full-audit/phpunit-final.txt
+  /tmp/rpz-company-exceptions-review/full-audit/final-regressions.txt
+  /tmp/rpz-company-exceptions-review/full-audit/python-tests-after.txt
+  /tmp/rpz-company-exceptions-review/full-audit/composer-audit-after.json
+  /tmp/rpz-company-exceptions-review/full-audit/npm-audit-after.json
+  /tmp/rpz-company-exceptions-review/full-audit/python-audit-after.json
+  /tmp/rpz-company-exceptions-review/full-audit/npm-build.txt

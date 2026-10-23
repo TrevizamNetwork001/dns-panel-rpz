@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+umask 077
+root=/opt/dns-panel-rpz
+domain=rpz.trevizamnetwork.com.br
+exec 9>/run/lock/dns-panel-rpz-preview-renew.lock
+flock -n 9 || exit 0
+docker run --rm --cap-drop ALL \
+    -v "$root/.recovery/acme:/var/www/acme" \
+    -v "$root/.recovery/letsencrypt:/etc/letsencrypt" \
+    certbot/certbot@sha256:f70ad0adbb7e117f0fe42a63c553f28ea451edabc0148757b6efcd9735acaa20 \
+    renew --non-interactive --quiet
+source_dir="$root/.recovery/letsencrypt/live/$domain"
+tls_dir="$root/.recovery/preview-tls"
+openssl x509 -in "$source_dir/fullchain.pem" -noout -checkend 0
+# The containing .recovery directory is root-only on the host. The gateway
+# mounts just preview-tls read-only and runs as UID 101 without capabilities.
+test "$(stat -c %a "$root/.recovery")" = 700
+certificate_public=$(openssl x509 -in "$source_dir/fullchain.pem" -pubkey -noout)
+key_public=$(openssl pkey -in "$source_dir/privkey.pem" -pubout)
+test "$certificate_public" = "$key_public"
+install -m 0644 "$source_dir/fullchain.pem" "$tls_dir/certificate.pem"
+install -m 0644 "$source_dir/privkey.pem" "$tls_dir/private-key.pem"
+docker compose -f "$root/compose.preview.yml" exec -T gateway nginx -t -c /etc/nginx/preview-main.conf
+docker compose -f "$root/compose.preview.yml" exec -T gateway nginx -c /etc/nginx/preview-main.conf -s reload

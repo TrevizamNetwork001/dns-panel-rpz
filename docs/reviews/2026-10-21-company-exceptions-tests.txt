@@ -1,0 +1,13 @@
+Auditoria automatizada das exceções empresariais — 21/10/2026
+Unbound 1.25.2 e BIND 9.20.29 (Stable Release) <id:c3d4465>.
+11 fixtures geradas; 8 escopos atuais e 4 candidatos consultados em 2 resolvedores.
+360 verificações DNS: 284 passaram; 76 falharam; 0 erros de execução.
+Código atual: 240 verificações, 56 falhas (exceções da empresa A ignoradas).
+Candidato PASSTHRU: 120 verificações, 20 falhas (bloqueios externos ao ramo liberados).
+Outra empresa: 120 verificações, todas passaram, inclusive com listas compartilhadas.
+Origens: manual, anatel e externa; endpoints por servidor e agregado por empresa.
+Testes de contrato intencionalmente vermelhos; não equivalem a implementação pronta.
+Nenhuma migration, publicação de artefato real, alteração de DNS público ou NOTIFY.
+SQLite recuperado: SHA-256 anterior e posterior idênticos.
+
+SHA-256: 8a21ad8cbafa25095fb543781833ff6de3874c9ab42f3fbb32bdac0717cb3312

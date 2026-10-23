@@ -1,0 +1,92 @@
+VALIDAÇÃO CONTABO — 21/10/2026
+
+OK
+- Compose validado com profiles explícitos, config --no-env-resolution; sem
+  leitura/impressão de segredos, criação de redes/volumes ou startup da proposta.
+- Oito testes de infraestrutura passaram.
+- 466 testes PHP, 2.249 assertions: todos passaram. Incluem seis novos testes de
+  defaults compatíveis e bloqueios de entrega, publicação, feeds, SOA e NOTIFY.
+- Cinco testes Python do extrator passaram, incluindo PDF/XLSX sintéticos.
+- Build JavaScript passou na cópia descartável.
+- Lint PHP: 215 arquivos passaram. Sintaxe shell/Python passou.
+- php-fpm -tt passou: pm.max_children=2, request_terminate_timeout=180s.
+- git diff --check passou.
+- Hashes canônicos/contagens das 16 zonas recuperadas iguais à referência anterior;
+  cálculo em memória, sem versões, publicação de arquivos ou NOTIFY.
+- Backup local e restauração testados APENAS na cópia descartável: gzip íntegro,
+  SQLite integrity_check=ok, 0 violações FK, 709.678 domínios e dump SQL completo
+  idêntico ao da cópia de origem. Nenhum volume real montado nesse teste.
+- SQLite original permanece com integrity_check=ok, 709.678 domínios e SHA-256
+  8a21ad8cbafa25095fb543781833ff6de3874c9ab42f3fbb32bdac0717cb3312.
+- .env.staging e SQLite recuperado: SHA-256 antes/depois idênticos.
+- Os cinco volumes originais continuam existentes; nenhum volume Contabo criado.
+- Somente os dois containers de staging anteriores continuam em execução/healthy,
+  com a publicação de loopback que já existia. Nenhum serviço novo foi iniciado.
+- /proc/swaps continua vazio. Swap não foi configurado.
+
+BLOQUEADO / ATENÇÃO
+- O preflight foi testado somente leitura e recusou corretamente a situação real:
+  2 credenciais R2 incompatíveis com a chave/cifra configuradas; 72 referências
+  privadas ausentes (59 ANATEL + 13 artefatos atuais). Nenhum reparo automático.
+- Volume de backups sem arquivos; o teste de backup não o preencheu.
+- Zero jobs pendentes e 34 failed_jobs, preservados sem retry/flush.
+- Exceções empresariais continuam sem implementação segura; não ativadas.
+- Imagens finais Docker da proposta NÃO foram construídas nem implantadas.
+  O build npm e o parser FPM foram testados separadamente. Falta homologar
+  a construção completa das imagens, certificados/gateway, carga e integração.
+- O gateway IPv4/IPv6 é apenas template; não houve teste TLS externo, binding
+  de portas, firewall ou alteração de DNS. Primary SOA IPv6 ainda não implementado.
+- Casos HTTP legados de importação síncrona e backup manual podem ultrapassar
+  180s; homologar os caminhos via fila/CLI antes de liberá-los.
+
+ISOLAMENTO DOS TESTES
+Código, vendor, node_modules e cópia SQLite somente sob /tmp. Suíte PHP com
+esquema vazio em :memory: e adaptador que substitui migrate:fresh por carga do
+schema fixture; nenhuma migration executada. Testes de transporte NOTIFY UDP
+excluídos (cinco); os outros usam mocks. Não houve NOTIFY nem chamadas a endpoints
+reais de clientes. Nenhuma mudança de chave, credenciais, firewall, DNS ou serviços.
+
+Evidências locais:
+/tmp/rpz-contabo-preparation-zyg23pj5/compose.json
+/tmp/rpz-contabo-preparation-zyg23pj5/test-workspace/phpunit.txt
+/tmp/rpz-contabo-preparation-zyg23pj5/test-workspace/python-tests.txt
+/tmp/rpz-contabo-preparation-zyg23pj5/test-workspace/js-build.txt
+/tmp/rpz-contabo-preparation-zyg23pj5/test-workspace/php-lint.txt
+/tmp/rpz-contabo-preparation-zyg23pj5/test-workspace/backup-test.txt
+/tmp/rpz-contabo-preparation-zyg23pj5/test-workspace/canonical-current.json
+
+ARQUIVOS CRIADOS NESTA ETAPA
+.env.contabo.example
+compose.contabo.yml
+deploy/nginx/rpz-contabo.conf.example
+docker/Dockerfile.contabo
+docker/php-fpm.contabo.conf
+docker/contabo-automation.sh
+docker/contabo-preflight.sh
+docker/contabo-preflight.php
+docs/contabo/preparation.txt
+docs/contabo/recovered-exception-schemas.json
+docs/contabo/validation.txt
+tests/Feature/ContaboPreparationSafetyTest.php
+tests/safety/contabo_readonly_audit.php
+tests/safety/test_contabo_proposal.py
+tests/safety/validate_sqlite_backup.py
+
+ARQUIVOS ALTERADOS NESTA ETAPA
+.env.docker.example
+docs/DOCKER_DEPLOYMENT.md
+config/rpz.php
+config/lists.php
+app/Console/Commands/BuildRpzZones.php
+app/Http/Controllers/RpzController.php
+app/Http/Controllers/MikrotikHostsController.php
+app/Services/RpzZoneBuildService.php
+app/Services/RpzPrimaryResponder.php
+app/Services/RpzPrimaryNotifier.php
+app/Services/ExternalListaSyncer.php
+app/Services/AnatelLegacyFeedSyncer.php
+
+O workspace já continha a auditoria/correções anteriores e alterações prévias em
+.dockerignore, .gitignore e compose.staging.yml. Elas foram preservadas. O diff
+acumulado do Git inclui essas mudanças e não inclui arquivos untracked no --stat.
+Nenhum commit, push ou git add foi feito.

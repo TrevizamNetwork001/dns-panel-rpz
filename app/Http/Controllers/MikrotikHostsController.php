@@ -18,6 +18,9 @@ class MikrotikHostsController extends Controller
 {
     public function show(Request $request, string $identifier, RpzZoneBuilder $builder): Response|StreamedResponse
     {
+        if (! config('rpz.endpoints_enabled', true)) {
+            return response('Entrega de feeds desabilitada neste ambiente.', 503, ['Cache-Control' => 'no-store']);
+        }
         $empresa = Empresa::where('rpz_slug', $identifier)->where('status', 'active')->first();
         if ($empresa !== null) {
             return $this->showCompany($request, $empresa, $builder);

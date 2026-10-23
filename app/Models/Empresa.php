@@ -16,6 +16,7 @@ class Empresa extends Model
         'nome_fantasia',
         'telefone',
         'rpz_slug',
+        'rpz_bloqueio_modo',
         'documento',
         'email_contato',
         'status',

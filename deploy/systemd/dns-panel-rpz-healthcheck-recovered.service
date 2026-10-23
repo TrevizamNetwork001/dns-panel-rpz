@@ -1,0 +1,10 @@
+[Unit]
+Description=Check recovered RPZ disk TLS and HTTPS endpoint
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/dns-panel-rpz-healthcheck-recovered
+TimeoutStartSec=90
+NoNewPrivileges=true

@@ -1,0 +1,76 @@
+Recuperação e liberação do painel — 23/10/2026
+
+Endereço: https://rpz.trevizamnetwork.com.br
+Runtime: compose.staging.yml; não combinar com compose.yml legado.
+App: dns-panel-rpz-app:repair-20261023
+Web: dns-panel-rpz-web:repair-20261022
+
+Escopo autorizado: corrigir exceções por empresa, revisar fluxos e liberar
+as funcionalidades recuperadas. O usuário adiou o novo backup completo.
+Nenhum novo backup completo foi gerado ou agendado. O serviço de backup
+SQLite existente permanece como antes; ele não equivale a backup completo.
+
+Correções principais
+- Interface administrativa de exceções na página de cada empresa.
+- Exceções afetam a empresa e seus servidores; fontes compartilhadas e
+  outras empresas permanecem independentes. WWW não é removido implicitamente.
+- PASSTHRU para domínio/subárvore, com compensação dos nós intermediários
+  para preservar bloqueios de ancestrais/irmãos no BIND e no Unbound.
+  O compilador também fecha lacunas de wildcard preexistentes nas listas.
+  WPAD exato e canário NXDOMAIN preservados.
+- Compilação em SQLite temporário em disco, sem array PHP de milhões de regras.
+- Reconstrução de artefatos ausentes/corrompidos; serial monotônico e validação
+  de conteúdo. --no-publish agora realmente valida sem publicar versões.
+- named-checkzone instalado; limite de 120 segundos para zonas grandes.
+  Timeout reprova a validação; nunca libera arquivo sem validar.
+- Validação do lote de PDFs antes de gravar/enfileirar; concorrência de
+  uploads duplicados não remove o documento da importação vencedora.
+- Credenciais R2 indecifráveis não são tratadas como senha em texto puro.
+- Ação existente de backup SQLite manual transferida para fila para evitar
+  timeout HTTP; novo fluxo de backup completo permanece adiado.
+- Migrações das duas tabelas de exceções recuperadas do esquema histórico.
+
+Evidências
+- Suíte PHP isolada: 489 testes, 2349 asserções, sem falhas.
+  Cinco testes de transporte UDP da suíte principal excluídos nesse laboratório;
+  não representam validação do serviço primário DNS de produção.
+- Após ajuste de timeout: 16 testes de publicação, 44 asserções, sem falhas.
+- Extrator ANATEL Python: 5 testes aprovados.
+- BIND e Unbound reais em rede isolada: 818 verificações DNS, tipos A/AAAA,
+  17 cenários e controle negativo que reproduz a implementação insegura;
+  ambos os testes aprovados (aproximadamente 42 segundos).
+- Auditoria de rotas: 108 rotas, 107 nomeadas, zero destinos ausentes.
+- Banco descartável: instalação/migrações concluídas.
+- Reconstrução isolada das 16 zonas históricas: aproximadamente 42 segundos,
+  pico PHP 26 MiB; maior zona com 455187 domínios e 910425 regras.
+- Runtime final: rpz:build --all --no-publish aprovado para todas as zonas
+  elegíveis; inativas/sem licença são explicitamente ignoradas.
+- 12 artefatos atuais elegíveis publicados, presentes e SHA-256 conferido.
+  Reconciliação final --all retornou noop em todas as 12 zonas elegíveis.
+  server:14 permanece inativo/sem elegibilidade; seu artefato histórico ausente
+  não foi servido nem sua licença/status alterados.
+- HTTPS real: login, avatar, upload PDF, fila, preview, aprovação de dois
+  domínios e exclusão da fonte sintética aprovados.
+- HTTPS real: criar/listar/excluir exceções em empresa temporária aprovado.
+- HTTPS real: RPZ/MikroTik por empresa e por token de servidor aprovados;
+  exceção respeitada, ACL negativa e falsificação de X-Forwarded-For rejeitadas.
+  Empresas, usuários, listas e domínios temporários removidos após os testes.
+- Totais preservados: 6 usuários, 6 empresas, 9 servidores, 8 listas,
+  709678 domínios, 5 exceções históricas por empresa.
+
+Estado operacional
+- ENDPOINTS, PUBLICATION e STATIC_ARTIFACTS habilitados.
+- Bloqueio HTTP 503 do gateway para /rpz e /mikrotik removido.
+- Aplicação/nginx saudáveis; fila, scheduler e sincronização externa ativos.
+- Autenticação, CSRF, licenças e controles de IP continuam aplicáveis.
+- DNS primário UDP/TCP e NOTIFY opcionais permanecem desabilitados.
+  A entrega recuperada e testada é por HTTPS; não se afirma restauração
+  de um serviço DNS primário externo ou de endereços literais do servidor antigo.
+- PDFs históricos ausentes de importações já encerradas não bloqueiam o
+  painel; novos documentos são preservados normalmente.
+- Volume original dns-panel-rpz-staging-data preservado. Trabalho aplicado
+  na cópia recuperada dns-panel-rpz-staging-test-data, não no volume original.
+- Alterações locais não foram commitadas/pushadas ao GitHub nesta etapa.
+
+Limites: testes aprovados não provam ausência absoluta de bugs. O envio R2
+e a nova estratégia de backup completo não foram validados/liberados nesta etapa.

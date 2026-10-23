@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+root=/opt/dns-panel-rpz
+destination=/var/lib/docker/volumes/dns-panel-rpz-staging-storage/_data/app/private/health
+install -d -m 0755 "$destination"
+# Copy only the public certificate; PHP never receives the gateway private key.
+install -m 0644 "$root/.recovery/preview-tls/certificate.pem" "$destination/certificate.pem.tmp"
+mv "$destination/certificate.pem.tmp" "$destination/certificate.pem"
+exec /usr/bin/docker compose -f "$root/compose.staging.yml" exec -T app php artisan health:check

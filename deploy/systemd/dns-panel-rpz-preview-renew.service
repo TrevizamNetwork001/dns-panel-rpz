@@ -1,0 +1,12 @@
+[Unit]
+Description=Renew HTTPS certificate for recovered RPZ preview
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/opt/dns-panel-rpz/.recovery/letsencrypt/renewal/rpz.trevizamnetwork.com.br.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/dns-panel-rpz-preview-renew
+TimeoutStartSec=900
+UMask=0077

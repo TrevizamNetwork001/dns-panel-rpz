@@ -48,4 +48,14 @@ class SettingEncryptedTest extends TestCase
 
         $this->assertNull(Setting::getEncrypted('chave_teste'));
     }
+
+    public function test_ciphertext_from_another_key_is_not_returned_as_a_plaintext_credential(): void
+    {
+        $other = new \Illuminate\Encryption\Encrypter(random_bytes(32), 'AES-256-CBC');
+        $ciphertext = $other->encryptString('secret-held-by-the-old-server');
+        Setting::set('r2_secret_access_key', $ciphertext);
+        $this->assertNull(Setting::getEncrypted('r2_secret_access_key'));
+        $this->assertSame('unavailable', Setting::getEncrypted('r2_secret_access_key', 'unavailable'));
+        $this->assertSame($ciphertext, Setting::get('r2_secret_access_key'));
+    }
 }

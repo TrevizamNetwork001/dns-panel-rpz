@@ -118,6 +118,7 @@ class EmpresaController extends Controller
             'documento' => ['nullable', 'string', 'max:32'],
             'email_contato' => ['nullable', 'email', 'max:255'],
             'status' => ['required', 'in:active,inactive'],
+            'rpz_bloqueio_modo' => ['sometimes', 'required', 'in:nxdomain,redirect'],
         ]);
     }
 }

@@ -41,7 +41,9 @@ return [
             'busy_timeout' => (int) env('DB_BUSY_TIMEOUT', 10000),
             'journal_mode' => env('DB_JOURNAL_MODE', 'WAL'),
             'synchronous' => env('DB_SYNCHRONOUS', 'NORMAL'),
-            'transaction_mode' => 'DEFERRED',
+            // Reserve the SQLite writer before transactional reads, avoiding
+            // WAL snapshot-upgrade failures that bypass busy_timeout.
+            'transaction_mode' => env('DB_TRANSACTION_MODE', 'IMMEDIATE'),
         ],
 
         'mysql' => [

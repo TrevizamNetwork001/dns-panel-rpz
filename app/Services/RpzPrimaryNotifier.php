@@ -14,7 +14,8 @@ class RpzPrimaryNotifier
 
     public function notify(RpzZone $zone): void
     {
-        if (! config('rpz.notify_enabled') || ! config('rpz.static_artifacts_enabled')) {
+        if (! config('rpz.endpoints_enabled', true) || ! config('rpz.publication_enabled', true)
+            || ! config('rpz.notify_enabled') || ! config('rpz.static_artifacts_enabled')) {
             return;
         }
         [$scope, $id] = array_pad(explode(':', $zone->zone_key, 2), 2, null);

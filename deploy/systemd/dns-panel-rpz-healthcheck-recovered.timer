@@ -1,0 +1,11 @@
+[Unit]
+Description=Check recovered RPZ health every 30 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30min
+Persistent=true
+Unit=dns-panel-rpz-healthcheck-recovered.service
+
+[Install]
+WantedBy=timers.target

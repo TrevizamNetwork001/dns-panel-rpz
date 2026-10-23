@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Lista;
+use App\Models\Empresa;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -25,20 +26,27 @@ class RpzZoneBuilder
 
     public function target(string $mode = 'nxdomain'): string
     {
-        return $mode === 'redirect' ? rtrim($this->panelHost(), '.').'.' : '.';
+        if ($mode !== 'redirect') {
+            return '.';
+        }
+        $host = config('rpz.block_page_host') ?: $this->panelHost();
+        $normalized = $this->normalizer->normalize($host, false);
+        if ($normalized === null) {
+            throw new \InvalidArgumentException('Destino da página de bloqueio inválido. Configure somente um nome DNS.');
+        }
+
+        return $normalized.'.';
     }
 
-    /**
-     * Refresh do SOA em segundos. Fixo em 3600s pra toda zona real, exceto
-     * uma unica excecao temporaria: server:15 (DNS-03) e o servidor de
-     * laboratorio do RPZ-UNBOUND-LAB-1 (29/09/2026), isolado com uma unica
-     * lista sintetica (sem conteudo real de bloqueio), usado para testar o
-     * ciclo de refresh do Unbound sem esperar 1h por iteracao. Reverter para
-     * `return 3600;` incondicional ao encerrar o laboratorio.
-     */
+    public function companyTarget(Empresa $empresa): string
+    {
+        return $this->target($empresa->rpz_bloqueio_modo ?? 'nxdomain');
+    }
+
+    /** Refresh uniforme de uma hora; a exceção temporária de laboratório foi encerrada. */
     public function refreshFor(string $zoneKey): int
     {
-        return $zoneKey === 'server:15' ? 300 : 3600;
+        return 3600;
     }
 
     public function listQuery(Lista $lista): Builder
@@ -53,7 +61,9 @@ class RpzZoneBuilder
 
     public function serverQuery(int $servidorId): Builder
     {
-        return DB::table('dominios')
+        $empresaId = DB::table('servidores')->where('id', $servidorId)->value('empresa_id');
+
+        return (new CompanyDomainQuery(DB::connection(), $empresaId === null ? null : (int) $empresaId))->from('dominios')
             ->join('lista_servidor', 'lista_servidor.lista_id', '=', 'dominios.lista_id')
             ->join('listas', 'listas.id', '=', 'lista_servidor.lista_id')
             ->where('lista_servidor.servidor_id', $servidorId)
@@ -66,7 +76,7 @@ class RpzZoneBuilder
 
     public function companyQuery(int $empresaId): Builder
     {
-        return DB::table('dominios')
+        return (new CompanyDomainQuery(DB::connection(), $empresaId))->from('dominios')
             ->join('lista_servidor', 'lista_servidor.lista_id', '=', 'dominios.lista_id')
             ->join('servidores', 'servidores.id', '=', 'lista_servidor.servidor_id')
             ->join('listas', 'listas.id', '=', 'lista_servidor.lista_id')
@@ -173,6 +183,8 @@ class RpzZoneBuilder
      */
     public function buildCanonical(Builder $query, string $zoneHost, string $target, int $refresh = 3600): array
     {
+        $policy = new RpzExceptionPolicy($query instanceof CompanyDomainQuery ? $query->empresaId : null, $zoneHost);
+        $compiler = new RpzPolicyCompiler;
         // 2MB em RAM antes de comecar a gravar em arquivo temporario real
         // (caminho gerenciado pelo proprio PHP, nao previsivel/controlavel
         // pelo usuario). Zonas pequenas/medias (a maioria) nunca tocam
@@ -232,19 +244,45 @@ class RpzZoneBuilder
             }
             $previous = $domain;
 
-            $linha = $domain.' CNAME '.$target."\n";
+            $hasWildcard = $domain !== 'wpad.domain.name' && $this->ownerFitsZone('*.'.$domain, $zoneHost);
+            if ($policy->allows($domain)) {
+                $excludedCount++;
+
+                continue;
+            }
+            $compiler->add($domain, $hasWildcard);
+
+            $lineTarget = $domain === 'blocktest.'.$zoneHost ? '.' : $target;
+            $linha = $domain.' CNAME '.$lineTarget."\n";
             $buffer .= $linha;
             $bufferBytes += strlen($linha);
             $ruleCount++;
 
             // WPAD: bloquear apenas este FQDN, sem ampliar a regra a subdomínios.
-            if ($domain !== 'wpad.domain.name' && $this->ownerFitsZone('*.'.$domain, $zoneHost)) {
+            if ($hasWildcard) {
                 $wildcard = '*.'.$domain.' CNAME '.$target."\n";
                 $buffer .= $wildcard;
                 $bufferBytes += strlen($wildcard);
                 $ruleCount++;
             }
 
+            if ($bufferBytes >= self::RENDER_CHUNK_SIZE) {
+                RpzStream::writeAll($stream, $buffer);
+                hash_update($hashCtx, $buffer);
+                $buffer = '';
+                $bufferBytes = 0;
+            }
+        }
+
+        $extraRules = (function () use ($compiler, $policy, $zoneHost, $target): \Generator {
+            foreach ($compiler->guards($policy->domains(), $zoneHost) as $owner) { yield [$owner, $target]; }
+            foreach ($policy->rules() as $owner => $ruleTarget) { yield [$owner, $ruleTarget]; }
+        })();
+        foreach ($extraRules as [$owner, $ruleTarget]) {
+            $line = $owner.' CNAME '.$ruleTarget."\n";
+            $buffer .= $line;
+            $bufferBytes += strlen($line);
+            $ruleCount++;
             if ($bufferBytes >= self::RENDER_CHUNK_SIZE) {
                 RpzStream::writeAll($stream, $buffer);
                 hash_update($hashCtx, $buffer);
@@ -331,18 +369,14 @@ class RpzZoneBuilder
         yield 'blocktest.'.$host.' CNAME .';
         yield '';
 
-        $previous = null;
-        foreach ($query->cursor() as $row) {
-            $domain = $this->normalizer->normalize((string) $row->dominio, false);
-            if ($domain === null || $domain === $previous || ! $this->ownerFitsZone($domain, $host)) {
-                continue;
+        $canonical = $this->buildCanonical($query, $host, $target);
+        try {
+            rewind($canonical['stream']);
+            while (($line = fgets($canonical['stream'])) !== false) {
+                yield rtrim($line, "\n");
             }
-            $previous = $domain;
-            yield $domain.' CNAME '.$target;
-            // WPAD: bloquear apenas este FQDN, sem ampliar a regra a subdomínios.
-            if ($domain !== 'wpad.domain.name' && $this->ownerFitsZone('*.'.$domain, $host)) {
-                yield '*.'.$domain.' CNAME '.$target;
-            }
+        } finally {
+            fclose($canonical['stream']);
         }
     }
 
@@ -370,13 +404,14 @@ class RpzZoneBuilder
     /** @return \Generator<int, string> */
     public function hostsLines(Builder $query): \Generator
     {
+        $policy = new RpzExceptionPolicy($query instanceof CompanyDomainQuery ? $query->empresaId : null, $this->panelHost());
         yield '# DNS Panel RPZ - feed para MikroTik RouterOS v7 adlist';
         yield '# Gerado em '.now()->toIso8601String();
 
         $previous = null;
         foreach ($query->cursor() as $row) {
             $domain = $this->normalizer->normalize((string) $row->dominio, false);
-            if ($domain === null || $domain === $previous) {
+            if ($domain === null || $domain === $previous || $policy->allows($domain)) {
                 continue;
             }
             $previous = $domain;

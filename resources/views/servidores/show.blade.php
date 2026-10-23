@@ -60,11 +60,7 @@
 
     @if (! $isMikrotik && $servidor->unboundVersionAfetada())
         <div class="alert-error" role="alert">
-            @if (auth()->user()->isAdmin())
-                Este servidor está rodando <strong>Unbound {{ $servidor->unboundVersion() }}</strong>, versão com uma regressão conhecida: a busca inicial da zona funciona, mas a <strong>atualização periódica automática não dispara sozinha</strong> — a lista fica congelada sem avisar até alguém forçar manualmente. Essa versão também tem <strong>falhas de segurança já divulgadas publicamente</strong> (algumas críticas). Corrige atualizando o pacote Unbound pra <strong>1.26.1 ou mais recente</strong> (ver RUNBOOK, "Unbound não atualiza RPZ por HTTPS", e <a href="{{ route('servidores.unbound-seguranca') }}" class="inline-link">detalhes das falhas de segurança</a>).
-            @else
-                O servidor DNS deste endpoint está rodando uma versão do Unbound (<strong>{{ $servidor->unboundVersion() }}</strong>) com uma falha conhecida que impede a atualização automática da lista de bloqueios, além de <strong>falhas de segurança já divulgadas publicamente</strong>. Atualize o Unbound para a versão <strong>1.26.1 ou mais recente</strong>. <a href="{{ route('servidores.unbound-seguranca') }}" class="inline-link">Ver detalhes</a>.
-            @endif
+            Este servidor usa <strong>Unbound {{ $servidor->unboundVersion() }}</strong>, anterior à versão validada nesta instalação (1.26.1). Revise a atualização do pacote e as correções de segurança. A versão sozinha não confirma falha de sincronização: confira os horários das consultas e os logs do DNS. <a href="{{ route('servidores.unbound-seguranca') }}" class="inline-link">Ver detalhes</a>.
         </div>
     @endif
 

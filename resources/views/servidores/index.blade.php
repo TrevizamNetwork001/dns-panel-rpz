@@ -71,7 +71,7 @@
                                                 <span class="status-pill is-warning">IP aguardando liberação</span>
                                             @endif
                                             @if ($servidor->tipo_dns !== 'mikrotik' && $servidor->unboundVersionAfetada())
-                                                <span class="status-pill is-warning" title="Unbound {{ $servidor->unboundVersion() }} não atualiza a zona sozinho — ver detalhes do servidor">Unbound desatualizado</span>
+                                                <span class="status-pill is-warning" title="Unbound {{ $servidor->unboundVersion() }} requer revisão de versão — confira consultas e logs do DNS">Unbound desatualizado</span>
                                             @endif
                                         </div>
                                     @else

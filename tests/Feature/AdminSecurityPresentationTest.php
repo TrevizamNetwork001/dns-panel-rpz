@@ -133,12 +133,12 @@ class AdminSecurityPresentationTest extends TestCase
 
         $this->assertSame($smallCount, count($queries));
         $this->assertLessThan(10, count($queries));
-        $this->assertCount(1, array_filter($queries, fn ($q) => str_contains($q['query'], 'from "security_bans"')));
-        $this->assertCount(200, $response->viewData('bansAtivos'));
+        $this->assertCount(3, array_filter($queries, fn ($q) => str_contains($q['query'], 'from "security_bans"')));
+        $this->assertCount(205, $response->viewData('bansAtivos'));
         $this->assertSame(range(205, 156), $response->viewData('historico')->pluck('id')->all());
         $this->assertSame(range(409, 381, -2), $response->viewData('ultimasFalhasLogin')->pluck('id')->all());
         $this->assertCount(15, $response->viewData('alertasSaude'));
-        $response->assertViewHas('bansUltimas24h', 200)->assertViewHas('loginFalhasUltimas24h', 205);
+        $response->assertViewHas('bansUltimas24h', 205)->assertViewHas('loginFalhasUltimas24h', 205);
         $this->assertDatabaseCount('audit_logs', 410);
         $this->assertDatabaseCount('security_bans', 205);
     }

@@ -18,6 +18,7 @@
     @include('empresas.partials.company-profile')
     @if ($isAdmin)
     <div class="details-grid">
+        <div class="panel details-card-wide"><div class="panel-header"><div><h2>Exceções de bloqueio</h2><p>Domínios liberados somente para esta empresa.</p></div><a href="{{ route('empresas.exceptions.index', $empresa) }}" class="button button-secondary">Gerenciar exceções</a></div></div>
         @if (auth()->user()->isAdmin())
         <div class="panel details-card-wide">
             <div class="panel-header">

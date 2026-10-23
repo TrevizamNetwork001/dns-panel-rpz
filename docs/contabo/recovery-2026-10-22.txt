@@ -1,0 +1,56 @@
+RECUPERAÇÃO — 22/10/2026
+
+Autorização do usuário: continuar a recuperação usando GitHub e os dois
+backups R2; documentos históricos ANATEL não devem impedir a recuperação.
+
+Backups validados por descompactação completa, integrity_check e FK check,
+em cópias temporárias. Nenhum banco dos serviços existentes foi substituído.
+02/10: integrity_check=ok, zero violações FK, 635.417 domínios.
+09/10: integrity_check=ok, zero violações FK, 709.678 domínios.
+O SHA-256 do SQLite de 09/10 coincide com a recuperação anterior:
+8a21ad8cbafa25095fb543781833ff6de3874c9ab42f3fbb32bdac0717cb3312.
+
+DOCUMENTOS ANATEL
+59 registros: 56 completed, dois rejected e um blocked.
+O preflight agora avisa sobre documentos ausentes de importações terminadas,
+sem impedir a inicialização exclusivamente por esses arquivos históricos.
+Importações pending/processing/awaiting_approval continuam exigindo o original.
+Caminhos inválidos continuam bloqueados, inclusive em registros históricos.
+Reprocessar uma importação sem documento exige novo envio do arquivo original.
+Nove verificações passaram em container descartável, sem rede, com SQLite
+fictício em tmpfs. Zonas atuais ausentes continuam sendo erro bloqueante.
+
+RECONSTRUÇÃO DE ZONAS — SOMENTE LABORATÓRIO
+Executado o gerador PHP sobre SQLite somente leitura e imutável, num
+container sem rede. Nenhuma migration, alteração de serial, NOTIFY ou job.
+16 arquivos candidatos gerados. Das 13 zonas com current_version_id:
+- Nove reproduzem exatamente content_hash e file_hash registrados no backup.
+- Quatro divergem e NÃO foram selecionadas para o storage verificado:
+  IDs internos 5, 6, 8 e 15.
+  IDs 5, 6 e 15: versão registrada com 98.481 domínios; gerador atual 98.476.
+  ID 8: versão registrada com 53.132 domínios; gerador atual 61.107.
+- Três zonas não possuem versão atual; os candidatos não são restaurações
+  verificadas de arquivos antigos.
+As divergências exigem investigação; não atribuir causa apenas às contagens.
+Não servir conteúdo diferente usando o serial da versão antiga.
+
+As nove reconstruções idênticas foram organizadas na árvore original de
+storage APENAS sob /tmp/rpz-recovery-20261022/verified-storage.
+Os 16 candidatos e results.json ficam em /tmp/rpz-recovery-20261022.
+O SHA-256 da cópia SQLite permanece idêntico após a reconstrução.
+O teste valida igualdade de bytes/hashes; não substitui teste de resolução
+externa, carga ou homologação de exceções empresariais.
+
+PENDÊNCIAS
+- Investigar as quatro zonas divergentes e testar nova publicação com serial
+  correto somente em cópia, preservando versões/histórico.
+- Credenciais R2 antigas não são descriptografadas pela chave configurada.
+  Recuperar chave compatível ou reconfigurar integração com novas credenciais;
+  não gerar chave ou apagar ciphertext como tentativa de recuperação.
+- Exceções empresariais: implementação segura ainda pendente, conforme auditoria.
+- Construção completa das imagens finais, gateway/TLS e homologação operacional.
+
+Os relatórios de 21/10 são históricos. A exigência de recuperar todos os PDFs
+como condição obrigatória foi substituída pela decisão acima. Os demais
+bloqueios de segurança não foram removidos. Nenhum serviço real foi reiniciado
+ou publicado nesta etapa; nenhuma alteração de DNS, credenciais ou APP_KEY.

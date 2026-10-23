@@ -1,0 +1,47 @@
+PRÉVIA WEB ATIVADA — 22/10/2026
+
+Autorização: usuário solicitou acesso web e indicou o domínio
+rpz.trevizamnetwork.com.br. DNS público já apontava para esta VPS em A/AAAA;
+nenhuma alteração de DNS foi necessária ou executada.
+
+URL: https://rpz.trevizamnetwork.com.br/login
+Backend: containers de staging existentes, com banco de teste recuperado.
+Banco original dns-panel-rpz-staging-data preservado, sem substituição.
+Contas/senhas existentes preservadas. Nenhuma redefinição de senha nesta etapa.
+
+Gateway separado: compose.preview.yml, container sem privilégios UID/GID 101,
+filesystem read-only, cap_drop ALL, 128 MiB, sem acesso aos volumes do banco.
+Bindings IPv4/IPv6 nas portas 80/443; FPM continua privado.
+Porta 80 atende ACME e redireciona a navegação para HTTPS no domínio.
+
+Certificado Let's Encrypt emitido, válido até 20/01/2027.
+Renovação: dns-panel-rpz-preview-renew.timer ativo (duas vezes por dia,
+com atraso aleatório); script valida par certificado/chave, copia para o
+gateway, testa nginx e recarrega. Conta e chaves em .recovery/ (ignorado pelo
+Git e Docker build), diretório pai modo 0700. Gateway recebe somente o
+subdiretório TLS read-only. Nenhum segredo impresso ou versionado.
+
+Verificações feitas a partir do host com validação TLS habilitada:
+- Login HTTPS IPv4 e IPv6: HTTP 200.
+- Formulário e CSS referenciam o domínio HTTPS correto.
+- HTTP: redirecionamento 301 para HTTPS.
+- /rpz/ e /mikrotik/: HTTP 503.
+- POST /listas: HTTP 403; cadastro público bloqueado.
+- Gateway healthy; timer de renovação active.
+A ferramenta de leitura web externa não conseguiu abrir a URL; essa tentativa
+não comprova nem refuta acesso de outro dispositivo. Validar no navegador do
+usuário. Os testes de conectividade acima foram realizados no próprio host.
+
+Escopo: consulta dos dados recuperados. Gateway permite GET/HEAD, login e
+logout; demais escritas bloqueadas. Não ativar automações, distribuição RPZ
+ou tratar esta prévia como homologação de produção.
+O código/imagem de staging existente não foi substituído por este gateway;
+correções locais ainda precisam de build e homologação antes de produção.
+
+Desativação reversível do acesso público, sem apagar volumes:
+docker compose -f compose.preview.yml stop
+systemctl disable --now dns-panel-rpz-preview-renew.timer
+
+Os dois containers de backend mantêm a política de restart anterior (no).
+Após reboot da VPS, iniciar o staging existente antes de usar a prévia;
+este trabalho não altera o ciclo de vida ou inicialização dos volumes originais.

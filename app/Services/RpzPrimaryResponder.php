@@ -33,7 +33,7 @@ class RpzPrimaryResponder
      */
     public function respond(string $packet, string $sourceIp): ?string
     {
-        if (! config('rpz.static_artifacts_enabled')) {
+        if (! config('rpz.endpoints_enabled', true) || ! config('rpz.static_artifacts_enabled')) {
             return null;
         }
         $query = RpzDnsMessage::question($packet);

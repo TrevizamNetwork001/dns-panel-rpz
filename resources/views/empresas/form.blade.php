@@ -56,6 +56,14 @@
                         <option value="inactive" @selected(old('status', $empresa->status) === 'inactive')>Inativa</option>
                     </select>
                 </div>
+                <div class="field-group">
+                    <label for="rpz_bloqueio_modo">Bloqueio na URL RPZ da empresa</label>
+                    <select class="form-control" id="rpz_bloqueio_modo" name="rpz_bloqueio_modo">
+                        <option value="nxdomain" @selected(old('rpz_bloqueio_modo', $empresa->rpz_bloqueio_modo ?? 'nxdomain') === 'nxdomain')>NXDOMAIN (padrão)</option>
+                        <option value="redirect" @selected(old('rpz_bloqueio_modo', $empresa->rpz_bloqueio_modo) === 'redirect')>Página de bloqueio</option>
+                    </select>
+                    <small>Vale para todos os DNS que usam a URL desta empresa. A página funciona em HTTP; sites HTTPS podem apresentar erro de certificado.</small>
+                </div>
             </div>
         </div>
 

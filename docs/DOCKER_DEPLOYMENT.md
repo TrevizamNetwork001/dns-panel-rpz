@@ -1,10 +1,12 @@
 # Implantação Docker do DNS Panel RPZ
 
+> Contabo: a proposta atual é `compose.contabo.yml`, isolada e sem portas. Consulte `docs/contabo/preparation.txt`. Não execute os comandos de implantação deste guia durante a preparação.
+
 ## Arquitetura e auditoria
 
 A imagem `app` usa PHP 8.4-FPM Alpine e instala as extensões exigidas pelo Laravel e pelo código: `bcmath`, `ctype`, `curl`, `dom/xml`, `fileinfo`, `intl`, `mbstring`, `openssl`, `pcntl`, `pdo_sqlite`, `sockets`, `tokenizer` e `zip`, além de OPcache. O build instala as dependências de compilação necessárias para `mbstring` (`oniguruma-dev`), SQLite/PDO (`sqlite-dev`), XML/DOM (`libxml2-dev`) e demais extensões, valida `dom`, `simplexml` e `xml` com `php -m`, e remove o pacote virtual `.build-deps` antes da imagem final. O Composer instala o `composer.lock` com `--no-dev --optimize-autoloader`; `.env`, bancos, uploads e segredos são excluídos do contexto.
 
-O pipeline ANATEL é utilizado por `ProcessAnatelImport`: a mesma imagem inclui Python e `pdfplumber==0.11.7`, com `ANATEL_PYTHON_BIN=/opt/anatel-venv/bin/python`. A fila usa o banco SQLite. O scheduler Laravel executa o RBL a cada seis horas. A sincronização externa e o backup são loops isolados de seis e 24 horas. Eles, a fila e o scheduler pertencem ao profile `cutover` e ficam desligados no preparo.
+O pipeline ANATEL é utilizado por `ProcessAnatelImport`: a mesma imagem inclui Python e as versões fixadas em `docker/requirements-anatel.txt`, com `ANATEL_PYTHON_BIN=/opt/anatel-venv/bin/python`. O instalador manual usa esse mesmo arquivo. A fila usa o banco SQLite. O scheduler Laravel executa as tarefas de `routes/console.php`. A sincronização externa e a verificação de backup usam os intervalos definidos em `compose.yml`. Eles, a fila e o scheduler pertencem ao profile `cutover` e ficam desligados no preparo.
 
 | Serviço | Função | Exposição |
 |---|---|---|
@@ -18,13 +20,13 @@ O pipeline ANATEL é utilizado por `ProcessAnatelImport`: a mesma imagem inclui 
 
 Volumes exclusivos: `dns-panel-rpz-data` (`/data/database.sqlite`, incluindo os arquivos WAL/SHM no mesmo diretório), `dns-panel-rpz-storage`, `dns-panel-rpz-cache` e `dns-panel-rpz-backups`. Não há PostgreSQL, Redis ou FPM publicado. Os logs de containers usam `json-file`, 10 MB × 3; Laravel deve usar `LOG_CHANNEL=stderr`. Os limites somados são adequados a 2 vCPU/4 GB, e somente o inicializador efêmero roda como root.
 
-O healthcheck do FPM usa seu endpoint de ping; o do Nginx atravessa FastCGI e a rota Laravel `/up`. O comando legado `health:check` inspeciona certificado e URL pública e grava no banco, portanto deve ser tratado como automação operacional do host novo, depois do TLS, e não como healthcheck Docker. A fila usa `--timeout=180`; mantenha `DB_QUEUE_RETRY_AFTER=300` ou outro valor seguramente maior que 180 para evitar que um job seja liberado antes de o worker terminar.
+O healthcheck do FPM usa seu endpoint de ping; o do Nginx atravessa FastCGI e a rota Laravel `/up`. O comando legado `health:check` inspeciona certificado e URL pública e grava no banco, portanto deve ser tratado como automação operacional do host novo, depois do TLS, e não como healthcheck Docker. A proposta Contabo usa worker com `--timeout=360`, `DB_QUEUE_RETRY_AFTER=600` e parada graciosa de 400 segundos. O job ANATEL tem timeout de 330 segundos quando o extrator usa 300. Não reduza o retry abaixo dos timeouts dos jobs/worker.
 
 ## Preparação da VPS nova
 
 Instale Docker Engine e o plugin Compose pelos repositórios oficiais da distribuição. Clone esta branch em um diretório dedicado. Não copie o `.env` antigo inteiro. Confirme que `127.0.0.1:8082` está livre e que nenhum projeto IRCENTER usa os nomes `dns-panel-rpz-*`.
 
-Crie o arquivo fora do repositório, por exemplo `/etc/dns-panel-rpz/app.env`, proprietário `root`, modo `0600`. Copie somente os nomes necessários de `.env.docker.example`, gere uma chave com `docker run --rm dns-panel-rpz-app:local php artisan key:generate --show`, preencha segredos sem exibi-los e mantenha `APP_DEBUG=false`. Use-o assim:
+Crie o arquivo fora do repositório, por exemplo `/etc/dns-panel-rpz/app.env`, proprietário `root`, modo `0600`. Copie somente os nomes necessários de `.env.docker.example`, preserve a APP_KEY original já configurada e valide sua compatibilidade com os valores criptografados recuperados, preencha os demais segredos sem exibi-los e mantenha `APP_DEBUG=false`. Use-o assim:
 
 ```bash
 export RPZ_ENV_FILE=/etc/dns-panel-rpz/app.env

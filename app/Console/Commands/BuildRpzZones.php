@@ -52,15 +52,9 @@ class BuildRpzZones extends Command
             return self::SUCCESS;
         }
 
-        if ($noPublish) {
-            $this->warn('--no-publish ainda não tem um caminho separado de "validar sem publicar" no serviço atual; rode sem essa opção ou trate isso como pendência de uma iteração futura.');
-
-            return self::FAILURE;
-        }
-
         $falhas = 0;
         foreach ($zoneKeys as $zoneKey) {
-            $resultado = $service->build($zoneKey);
+            $resultado = $noPublish ? $service->validateOnly($zoneKey) : $service->build($zoneKey);
             $status = $resultado['status'];
             $linha = "{$zoneKey}: {$status}";
             if (isset($resultado['revision'])) {
@@ -68,13 +62,13 @@ class BuildRpzZones extends Command
             }
 
             match ($status) {
-                'published' => $this->info($linha),
+                'published', 'restored', 'validated' => $this->info($linha),
                 'unchanged', 'noop' => $this->line($linha),
                 // skipped_locked/stale_discarded: concorrência normal, nao é erro.
                 // skipped_inactive: servidor/empresa sem status ativo ou sem
                 // licença ativa -- mesmo gate que o endpoint dinâmico já aplica,
                 // não é falha do build.
-                'skipped_locked', 'stale_discarded', 'skipped_inactive' => $this->comment($linha),
+                'skipped_disabled', 'skipped_locked', 'stale_discarded', 'skipped_inactive' => $this->comment($linha),
                 default => (function () use (&$falhas, $linha): void {
                     $falhas++;
                     $this->error($linha);

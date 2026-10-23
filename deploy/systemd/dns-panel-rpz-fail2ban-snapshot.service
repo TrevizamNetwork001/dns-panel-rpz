@@ -1,0 +1,11 @@
+[Unit]
+Description=Publish Fail2ban state for the RPZ security dashboard
+After=fail2ban.service docker.service
+Requires=fail2ban.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/dns-panel-rpz-fail2ban-snapshot
+TimeoutStartSec=30
+NoNewPrivileges=true
+PrivateTmp=true

@@ -79,15 +79,13 @@ class ConfiguracoesR2Test extends TestCase
             ->assertSessionHas('error');
     }
 
-    public function test_manual_backup_button_runs_the_backup_command(): void
+    public function test_manual_backup_button_queues_the_backup_without_waiting_for_the_http_timeout(): void
     {
         $admin = User::factory()->admin()->create();
 
-        // Sem o script rpz-backup (só existe dentro da imagem Docker), o
-        // comando falha graciosamente -- o que importa aqui é confirmar que
-        // a rota dispara o artisan command e registra a auditoria, não o
-        // resultado do script em si (coberto por deploy real).
-        $this->actingAs($admin)->post(route('configuracoes.backup.run'))->assertRedirect();
+        \Illuminate\Support\Facades\Queue::fake();
+        $this->actingAs($admin)->post(route('configuracoes.backup.run'))->assertRedirect()->assertSessionHas('status');
+        \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\RunDatabaseBackup::class);
 
         $this->assertDatabaseHas('audit_logs', ['action' => 'backup.manual_triggered']);
     }

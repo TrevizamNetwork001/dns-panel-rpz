@@ -25,6 +25,9 @@ class RpzController extends Controller
      */
     public function show(Request $request, string $identifier, RpzZoneBuilder $builder, RpzZoneVersioner $versioner): Response|StreamedResponse|BinaryFileResponse
     {
+        if (! config('rpz.endpoints_enabled', true)) {
+            return response('Entrega RPZ desabilitada neste ambiente.', 503, ['Cache-Control' => 'no-store']);
+        }
         $empresa = Empresa::where('rpz_slug', $identifier)->where('status', 'active')->first();
         if ($empresa !== null) {
             return $this->showCompany($request, $empresa, $builder, $versioner);
@@ -188,7 +191,7 @@ class RpzController extends Controller
         }
 
         $host = $builder->panelHost();
-        $target = '.';
+        $target = $builder->companyTarget($empresa);
         $domains = $builder->companyQuery($empresa->id);
         $canonical = $builder->buildCanonical($domains, $host, $target);
         $contentHash = $canonical['content_hash'];
@@ -275,7 +278,8 @@ class RpzController extends Controller
 
         $zone = RpzZone::where('zone_key', $zoneKey)->with('currentVersion')->first();
         $version = $zone?->currentVersion;
-        if ($version === null || $version->file_path === null) {
+        if ($version === null || $version->status !== 'published'
+            || $version->rpz_zone_id !== $zone->id || $version->file_path === null) {
             return null;
         }
 

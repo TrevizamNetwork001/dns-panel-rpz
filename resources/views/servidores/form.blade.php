@@ -90,10 +90,10 @@
                 </div>
 
                 <div class="field-group">
-                    <label for="bloqueio_modo">Modo de bloqueio</label>
+                    <label for="bloqueio_modo">Modo de bloqueio da URL individual</label>
                     <select class="form-control" id="bloqueio_modo" name="bloqueio_modo">
                         <option value="nxdomain" @selected(old('bloqueio_modo', $servidor->bloqueio_modo ?? 'nxdomain') === 'nxdomain')>NXDOMAIN (domínio não existe)</option>
-                        <option value="redirect" @selected(old('bloqueio_modo', $servidor->bloqueio_modo) === 'redirect')>Página de bloqueio (redireciona)</option>
+                        <option value="redirect" @selected(old('bloqueio_modo', $servidor->bloqueio_modo) === 'redirect')>Página de bloqueio (HTTP)</option>
                     </select>
                     <aside class="server-dns-notice"><x-ui-icon name="info" /><span>Página de bloqueio indisponível; use NXDOMAIN. HTTPS pode gerar alerta de certificado. No MikroTik, o Adlist responde com 0.0.0.0.</span></aside>
                 </div>

@@ -1,0 +1,190 @@
+{
+  "empresa_domain_exceptions": {
+    "sql": "CREATE TABLE \"empresa_domain_exceptions\" (\"id\" integer primary key autoincrement not null, \"empresa_id\" integer not null, \"dominio\" varchar not null, \"motivo\" varchar, \"created_at\" datetime, \"updated_at\" datetime, foreign key(\"empresa_id\") references \"empresas\"(\"id\") on delete cascade)",
+    "columns": [
+      [
+        0,
+        "id",
+        "INTEGER",
+        1,
+        null,
+        1
+      ],
+      [
+        1,
+        "empresa_id",
+        "INTEGER",
+        1,
+        null,
+        0
+      ],
+      [
+        2,
+        "dominio",
+        "varchar",
+        1,
+        null,
+        0
+      ],
+      [
+        3,
+        "motivo",
+        "varchar",
+        0,
+        null,
+        0
+      ],
+      [
+        4,
+        "created_at",
+        "datetime",
+        0,
+        null,
+        0
+      ],
+      [
+        5,
+        "updated_at",
+        "datetime",
+        0,
+        null,
+        0
+      ]
+    ],
+    "foreign_keys": [
+      [
+        0,
+        0,
+        "empresas",
+        "empresa_id",
+        "id",
+        "NO ACTION",
+        "CASCADE",
+        "NONE"
+      ]
+    ],
+    "indexes": [
+      {
+        "metadata": [
+          0,
+          "empresa_domain_exceptions_empresa_id_dominio_unique",
+          1,
+          "c",
+          0
+        ],
+        "columns": [
+          [
+            0,
+            1,
+            "empresa_id"
+          ],
+          [
+            1,
+            2,
+            "dominio"
+          ]
+        ]
+      }
+    ],
+    "rows": 5
+  },
+  "lista_domain_exceptions": {
+    "sql": "CREATE TABLE \"lista_domain_exceptions\" (\"id\" integer primary key autoincrement not null, \"lista_id\" integer not null, \"dominio\" varchar not null, \"motivo\" varchar, \"created_at\" datetime, \"updated_at\" datetime, foreign key(\"lista_id\") references \"listas\"(\"id\") on delete cascade)",
+    "columns": [
+      [
+        0,
+        "id",
+        "INTEGER",
+        1,
+        null,
+        1
+      ],
+      [
+        1,
+        "lista_id",
+        "INTEGER",
+        1,
+        null,
+        0
+      ],
+      [
+        2,
+        "dominio",
+        "varchar",
+        1,
+        null,
+        0
+      ],
+      [
+        3,
+        "motivo",
+        "varchar",
+        0,
+        null,
+        0
+      ],
+      [
+        4,
+        "created_at",
+        "datetime",
+        0,
+        null,
+        0
+      ],
+      [
+        5,
+        "updated_at",
+        "datetime",
+        0,
+        null,
+        0
+      ]
+    ],
+    "foreign_keys": [
+      [
+        0,
+        0,
+        "listas",
+        "lista_id",
+        "id",
+        "NO ACTION",
+        "CASCADE",
+        "NONE"
+      ]
+    ],
+    "indexes": [
+      {
+        "metadata": [
+          0,
+          "lista_domain_exceptions_lista_id_dominio_unique",
+          1,
+          "c",
+          0
+        ],
+        "columns": [
+          [
+            0,
+            1,
+            "lista_id"
+          ],
+          [
+            1,
+            2,
+            "dominio"
+          ]
+        ]
+      }
+    ],
+    "rows": 0
+  },
+  "migration_history": [
+    [
+      "2026_10_02_170000_create_empresa_domain_exceptions_table",
+      36
+    ],
+    [
+      "2026_10_02_210000_create_lista_domain_exceptions_table",
+      37
+    ]
+  ]
+}
