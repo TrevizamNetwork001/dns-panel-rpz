@@ -22,7 +22,7 @@ class AuditoriaController extends Controller
         $userFilter = (string) $request->input('usuario', 'all');
         $dataInicio = (string) $request->input('data_inicio', '');
         $dataFim = (string) $request->input('data_fim', '');
-        $ocultarRotina = $request->input('ocultar_rotina', '1') === '1';
+        $ocultarRotina = $request->input('ocultar_rotina', '0') === '1';
         $page = max(1, (int) $request->input('page', 1));
 
         $builder = AuditLog::with(['user', 'empresa'])->orderByDesc('created_at')->orderByDesc('id');

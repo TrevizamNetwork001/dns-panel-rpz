@@ -197,6 +197,13 @@ class AuditLog extends Model
         return $targetId !== null ? "{$label} #{$targetId}" : $label;
     }
 
+    public function displayDescription(): string
+    {
+        return $this->action === 'rpz.endpoint.downloaded'
+            ? 'Lista RPZ entregue com sucesso.'
+            : (string) $this->description;
+    }
+
     public function actorLabel(): string
     {
         if ($this->user !== null) {
@@ -204,6 +211,11 @@ class AuditLog extends Model
         }
         if (in_array($this->action, ['rpz.endpoint.downloaded', 'mikrotik.endpoint.downloaded'], true)) {
             return 'Servidor DNS';
+        }
+        if ($this->action === 'rpz.endpoint.denied') {
+            return str_contains((string) $this->description, '[Teste técnico do painel]')
+                ? 'Teste técnico do painel'
+                : 'Solicitação sem sessão de usuário';
         }
         if (str_starts_with($this->action, 'health.')) {
             return 'Sistema (automático)';
@@ -283,7 +295,7 @@ class AuditLog extends Model
             'mikrotik.endpoint.denied' => 'Acesso negado ao endpoint Mikrotik',
             'mikrotik.endpoint.downloaded' => 'Lista Mikrotik baixada por um servidor',
             'rpz.endpoint.acl_updated' => 'Lista de IPs autorizados do endpoint RPZ atualizada',
-            'rpz.endpoint.denied' => 'Acesso negado ao endpoint RPZ',
+            'rpz.endpoint.denied' => 'Tentativa de download RPZ recusada',
             'rpz.endpoint.downloaded' => 'Servidor consultou a lista RPZ',
             'rpz.endpoint.slug_changed' => 'Identificador (slug) do endpoint RPZ alterado',
 

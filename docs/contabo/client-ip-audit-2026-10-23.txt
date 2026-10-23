@@ -1,0 +1,88 @@
+IP real dos clientes e apresentação da auditoria — 23/10/2026
+
+Escopo
+- Ajustes desta sessão sobre o runtime recuperado descrito em
+  compose.staging.yml e compose.preview.yml. Outras alterações locais anteriores
+  permanecem separadas deste commit; este não representa toda a recuperação.
+- O usuário solicitou documentação e commit local para posterior envio ao GitHub.
+
+Diagnóstico
+- Gateway publicava IPv4/IPv6 numa bridge Docker somente IPv4.
+  O encaminhamento IPv6 para IPv4 chegava ao nginx como 172.19.0.1,
+  causando recusa pela lista de IPs autorizados das empresas.
+- Tentativas IPv4 seguintes eram aceitas, gerando download bem-sucedido.
+- A auditoria escondia downloads por padrão, mas exibia recusas. Isso fazia
+  os registros antigos parecerem o estado atual dos DNS.
+- O agendador estava ativo. Ausência de download não prova ausência de
+  tentativa, nem identifica a causa no Unbound. Configurações apresentadas
+  pelos clientes usam url HTTPS sem primary; DNS primário desabilitado
+  não explica a falha nesse modelo.
+
+Correção de rede aplicada
+- Somente gateway passa a usar network_mode: host, ouvindo nos endereços
+  públicos IPv4/IPv6 explícitos, portas 80/443.
+- Gateway encaminha para 127.0.0.1:8082, publicação já existente do nginx interno.
+- Aplicação, SQLite, filas e demais serviços continuam na rede Docker.
+- X-Forwarded-For é sobrescrito pelo gateway com o endereço da conexão;
+  não se aceita um endereço arbitrário enviado pelo cliente.
+- Master nginx inicia com apenas NET_BIND_SERVICE, CHOWN, SETUID e SETGID;
+  workers usam o usuário nginx da imagem. Filesystem continua somente leitura,
+  temporários em tmpfs e no-new-privileges habilitado.
+- Não liberar 172.19.0.1 nas listas de IP dos clientes. IPv4 público de NAT
+  ou IPv6 real pode aparecer conforme o caminho usado, sujeito à autorização.
+
+Apresentação aplicada
+- Auditoria mostra eventos de rotina por padrão; opção de ocultar permanece.
+- Recusas: “Tentativa de download RPZ recusada”, origem sem sessão e
+  explicação de que o evento não indica o estado atual dos DNS.
+- Downloads no dashboard e auditoria: “Lista RPZ entregue com sucesso.”
+  Descrições técnicas originais continuam no banco; simplificação é visual.
+- Model, controllers de auditoria/dashboard e view são montados somente
+  leitura por compose.staging.yml, sobre a imagem recuperada existente.
+  Em novo build, incorporar esses arquivos à imagem antes de remover mounts.
+
+Evento técnico identificado
+- Uma única linha existente foi anotada no banco: rpz.endpoint.denied,
+  empresa 14, 2026-10-23 07:20:57, origem IPv6 do próprio servidor.
+- Acrescentado “[Teste técnico do painel]” à descrição, preservando ação,
+  horário, IP e descrição original. Foi teste intencional de recusa de IP
+  não autorizado e cabeçalho falsificado, não falha de um cliente SBC.
+- Essa anotação operacional não é migration nem deve ser reaplicada por
+  horário/IP em outros ambientes. Registros anteriores não foram apagados.
+
+Validação
+- nginx -t e docker compose config: aprovados.
+- Login HTTPS IPv4 e IPv6: HTTP 200 após troca do gateway.
+- Teste IPv6 com X-Forwarded-For falsificado: HTTP 403; auditoria registrou
+  o IPv6 verdadeiro do emissor, em vez do endereço forjado ou da bridge.
+- SBC DNS-02: 07:22:33 e 07:56:01, IPv6 terminado em ::a, download registrado.
+- SBC DNS-01: 07:26:22 e 07:56:13, IPv6 terminado em ::6, download registrado.
+- Entregas verificadas no gateway com HTTP 200. Revisão 37 observada;
+  entrega HTTP não prova aplicação da zona dentro do cliente.
+- Compilação Blade aprovada; painel acessível após publicação.
+- AdminAuditPresentationTest e AdminDashboardPresentationTest:
+  17 testes, 308 asserções, aprovados com PHP 8.4.12 / PHPUnit 12.5.33.
+  Execução sem rede, código descartável, SQLite :memory: e fixture apenas
+  de esquema do laboratório de recuperação; sem migrations/dados reais.
+  Vendor do laboratório adapta RefreshDatabase para carregar esse esquema.
+- Arquivos de teste atualizados para rotina visível e descrição simplificada.
+
+Limites e acompanhamento
+- Clientes foram reiniciados e tiveram transferência forçada pelo operador;
+  não é possível atribuir a retomada a apenas uma dessas ações.
+- Confirmar ciclo natural cerca de uma hora após a última intervenção,
+  sem executar novos comandos manuais. Serial pode permanecer igual.
+- Falha database is locked observada no serviço de listas externas é um
+  incidente distinto; nenhuma nova correção de sincronização externa nesta sessão.
+- DNS primário/NOTIFY permanecem desabilitados, conforme runtime recuperado.
+
+Operação e reversão
+- Aplicação: docker compose -f compose.staging.yml up -d --no-deps app
+- Gateway: docker compose -f compose.preview.yml up -d --no-deps gateway
+- Após mudança de views: php artisan view:cache no contêiner app.
+- Para reverter, restaurar em conjunto o compose do gateway, sua configuração
+  nginx e upstream anteriores e recriar somente gateway. A configuração bridge
+  anterior volta a apresentar a limitação de IP IPv6 descrita acima.
+- Configurações anteriores desta sessão foram guardadas temporariamente em
+  /tmp/rpz-client-ip-backup; /tmp não substitui backup permanente.
+- Este commit não inclui chaves, certificados, .env, bancos ou dumps.

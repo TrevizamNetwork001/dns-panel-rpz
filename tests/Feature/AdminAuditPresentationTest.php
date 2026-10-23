@@ -190,7 +190,7 @@ class AdminAuditPresentationTest extends TestCase
             ->assertSeeText('DNS de teste')->assertSeeText('Empresa: Provedor de teste');
     }
 
-    public function test_routine_events_are_hidden_by_default_and_shown_when_unchecked(): void
+    public function test_routine_events_are_visible_by_default_and_hidden_when_checked(): void
     {
         $admin = User::factory()->admin()->create();
         AuditLog::create(['user_id' => $admin->id, 'action' => 'auth.login', 'description' => 'Login', 'created_at' => now()]);
@@ -199,7 +199,11 @@ class AdminAuditPresentationTest extends TestCase
         AuditLog::create(['user_id' => null, 'action' => 'backup.r2_uploaded', 'description' => 'Backup', 'created_at' => now()]);
 
         $default = $this->actingAs($admin)->get(route('auditoria.index'))->assertOk();
-        $default->assertViewHas('totalFiltered', 1)->assertViewHas('ocultarRotina', true)
+        $default->assertViewHas('totalFiltered', 4)->assertViewHas('ocultarRotina', false)
+            ->assertSeeText('Servidor consultou a lista RPZ');
+
+        $hidden = $this->get(route('auditoria.index', ['ocultar_rotina' => '1']))->assertOk();
+        $hidden->assertViewHas('totalFiltered', 1)->assertViewHas('ocultarRotina', true)
             ->assertSeeText('Login realizado')
             ->assertDontSeeText('Verificação do sistema: tudo normal')
             ->assertDontSeeText('Servidor consultou a lista RPZ')

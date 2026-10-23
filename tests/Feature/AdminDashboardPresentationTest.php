@@ -59,7 +59,8 @@ class AdminDashboardPresentationTest extends TestCase
             ->assertSee("Logout de {$admin->email}")
             ->assertDontSee('<strong>Logout</strong>', false)
             ->assertSee('<strong>Zona RPZ baixada</strong>', false)
-            ->assertSee('Endpoint RPZ empresarial baixado (244.493 domínios)')
+            ->assertSee('Lista RPZ entregue com sucesso.')
+            ->assertDontSee('Endpoint RPZ empresarial baixado (244.493 domínios)')
             ->assertDontSee('<strong>Auditoria</strong>', false);
     }
 

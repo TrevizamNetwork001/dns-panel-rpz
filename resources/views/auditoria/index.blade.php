@@ -104,7 +104,7 @@
                 Ocultar rotina (sync, backup, healthcheck)
             </label>
             <button type="submit" class="button button-primary">Aplicar</button>
-            @if ($query !== '' || $bucketFilter !== 'all' || $categoryFilter !== 'all' || $userFilter !== 'all' || $dataInicio !== '' || $dataFim !== '' || ! $ocultarRotina)
+            @if ($query !== '' || $bucketFilter !== 'all' || $categoryFilter !== 'all' || $userFilter !== 'all' || $dataInicio !== '' || $dataFim !== '' || $ocultarRotina)
                 <a href="{{ route('auditoria.index') }}" class="button button-secondary">Limpar</a>
             @endif
         </form>
@@ -146,13 +146,16 @@
                         <div class="audit-content">
                             <strong class="audit-action" title="{{ $log->action }}">{{ $actionLabel }}</strong>
                             <div class="audit-meta">
-                                <span>Quem executou: <strong>{{ $actor }}</strong></span>
+                                <span>{{ $log->action === 'rpz.endpoint.denied' ? 'Origem' : 'Quem executou' }}: <strong>{{ $actor }}</strong></span>
                                 @if ($target)<span class="audit-context">{{ $target }}</span>@endif
                                 @if ($empresaNome)<span class="audit-context">Empresa: {{ $empresaNome }}</span>@endif
                                 <span class="audit-context">Categoria: {{ $categoryLabel }}</span>
                             </div>
+                            @if ($log->action === 'rpz.endpoint.denied')
+                                <p class="audit-description">{{ str_contains((string) $log->description, '[Teste técnico do painel]') ? 'Teste de acesso realizado pelo próprio painel; a recusa era esperada.' : 'Esta tentativa foi recusada porque o IP de origem não correspondeu aos IPs autorizados da empresa.' }} Este evento registra apenas essa tentativa, não o estado atual dos DNS.</p>
+                            @endif
                             @if ($log->description)
-                                <details class="audit-details"><summary>Ver detalhes</summary><div class="audit-description">{{ $log->description }}</div></details>
+                                <details class="audit-details"><summary>Ver detalhes</summary><div class="audit-description">{{ $log->displayDescription() }}</div></details>
                             @endif
                             <span class="audit-sr-only">Severidade: {{ $severity }}</span>
                         </div>

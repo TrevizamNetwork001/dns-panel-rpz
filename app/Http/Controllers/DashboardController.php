@@ -168,17 +168,7 @@ class DashboardController extends Controller
 
     private static function atividadeDescricao(AuditLog $log): string
     {
-        $descricao = $log->description ?? '';
-
-        if ($log->action !== 'rpz.endpoint.downloaded') {
-            return $descricao;
-        }
-
-        return preg_replace_callback(
-            '/(\d+)(?= domínios\b)/u',
-            fn (array $matches): string => number_format((int) $matches[1], 0, ',', '.'),
-            $descricao,
-        ) ?? $descricao;
+        return $log->displayDescription();
     }
 
     /**
