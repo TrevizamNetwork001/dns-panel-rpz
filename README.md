@@ -520,3 +520,24 @@ Lista completa: `php artisan route:list`.
 ## 🎨 Identidade visual
 
 CSS em `public/assets/app.css` — subconjunto **copiado literalmente** (não reimplementado) do `app.css` real do IRCENTER: tokens de cor/tema dark-light, shell (sidebar/topbar), `.panel`, `.data-table`, `.status-pill`, formulários, dropdown de conta (`.account-menu`), seletor de avatar (`.avatar-picker`). Cache-busting automático via `?v={mtime}` no `<link>` — não precisa de hard refresh depois de mudanças no CSS.
+
+
+### Auditoria dos RPZ publicados
+
+`php artisan rpz:verify company:11` (ou `server:15`) confere a integridade do
+arquivo publicado, regras CNAME, canário e limites DNS sem modificar dados.
+Sem chave, verifica todas as zonas cadastradas. Retorna 0 se todas passaram e
+1 quando há falha ou nenhuma zona; chave inválida retorna 2. As páginas de
+servidor Unbound e empresa também oferecem diagnóstico local com
+`list_auth_zones`, consultas A/AAAA e `stats_noreset`. Os contadores do Unbound
+são globais: não são métricas por empresa. [Procedimento e validação](docs/contabo/rpz-diagnosticos-unbound-2026-10-26.txt).
+
+
+### Origem de download independente da zona RPZ
+
+Use `RPZ_FEED_BASE_URL=https://feeds.trevizamnetwork.com.br` para gerar URLs
+RPZ em uma origem HTTPS fora do nome lógico da zona; não altere `APP_URL`
+para isso. A origem deve ter DNS, TLS e proxy para os endpoints `/rpz/*.zone`,
+preservando as ACL. Sem essa variável, as URLs seguem usando a origem atual.
+No ambiente recuperado, feeds já está ativo em IPv4/IPv6; clientes existentes
+precisam trocar somente `url:` no Unbound. [Migração e validação](docs/contabo/rpz-feeds-2026-10-26.txt).

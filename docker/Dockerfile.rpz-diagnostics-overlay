@@ -1,0 +1,12 @@
+ARG BASE_IMAGE=dns-panel-rpz-app:rpz-company-primary-20261023
+FROM ${BASE_IMAGE}
+USER root
+COPY --from=composer:2.8 /usr/bin/composer /tmp/rpz-composer
+COPY --chown=www-data:www-data app/Services/RpzArtifactInspector.php /var/www/html/app/Services/
+COPY --chown=www-data:www-data app/Console/Commands/VerifyRpzArtifacts.php /var/www/html/app/Console/Commands/
+COPY --chown=www-data:www-data resources/views/partials/rpz-diagnostics.blade.php /var/www/html/resources/views/partials/
+COPY --chown=www-data:www-data resources/views/servidores/show.blade.php /var/www/html/resources/views/servidores/
+COPY --chown=www-data:www-data resources/views/empresas/show.blade.php /var/www/html/resources/views/empresas/
+RUN php /tmp/rpz-composer dump-autoload --no-dev --no-scripts --classmap-authoritative --no-interaction \
+    && rm /tmp/rpz-composer
+USER www-data

@@ -1,0 +1,113 @@
+Auditoria do feed legado ANATEL — 26/10/2026
+
+Solicitação
+Comparar os domínios do feed antigo com os RPZ já publicados; desativar a
+consulta ao feed caso todos estejam presentes. Documentar os resultados.
+O usuário esclareceu que DNS-DEMO é apenas teste e pediu verificar se o
+limite de tamanho poderia ser aumentado ou o código adaptado para aceitar.
+
+Ambiente e origem do log
+Runtime Docker dns-panel-rpz-staging, aplicação em uso no host.
+Lista principal: id 14, ANATEL — Bloqueios Oficiais, origem anatel.
+SyncExternalListas chama AnatelLegacyFeedSyncer no comando external:sync.
+config/anatel.php contém URL padrão mesmo sem configuração explícita:
+https://trevizamnetwork.com.br/dns/lista_bloqueios.txt
+O serviço incorpora a fonte antiga de forma aditiva. Esta execução é
+independente do upload de PDFs realizado no painel. Excluídos no log conta
+correspondências com exclusões ativas, não exclusões novas de registros.
+
+Método
+Consulta HTTP da fonte com o cliente do Laravel, sem executar sincronização.
+Normalização pelo mesmo parseFeed(..., unbound_local_zone) do sincronizador.
+Comparação dos nomes com os registros da lista 14, aplicando o mesmo
+AnatelExclusionMatcher às exclusões ativas. Nenhum domínio foi inserido,
+reativado ou desativado por esta auditoria.
+Leitura linha por linha dos arquivos das versões publicadas referenciadas
+por rpz_zones.current_version_id, verificando presença de CNAME de bloqueio.
+Recalculado SHA-256 de cada artefato disponível contra file_hash persistido.
+A primeira tentativa usou file() e excedeu a memória PHP de 256 MiB; a
+repetição usou SplFileObject e concluiu sem elevar o limite do contêiner.
+A comparação verifica artefatos no painel, não instalação em cada cliente.
+
+Resultado do feed e do banco
+Horário e SHA-256 completos constam do JSON de evidências anexo.
+40.749 domínios reconhecidos no feed.
+40 correspondem às regras de exclusão ativas; relação completa no JSON.
+40.709 elegíveis já existem e estão ativos na ANATEL principal.
+Zero elegíveis ausentes do banco. Zero elegíveis inativos.
+A fonte externa não contém domínios elegíveis que faltem importar no banco.
+
+Resultado do RPZ
+Seis servidores vinculados à ANATEL com arquivos disponíveis:
+server:8, server:9, server:10, server:11, server:12 e server:15.
+Cada arquivo contém exatamente 40.705 dos 40.709 elegíveis, com hash válido.
+As quatro ausências são as mesmas em todos os seis arquivos.
+Os arquivos empresariais company:11, company:13, company:14 e company:15
+apresentam o mesmo resultado, também com SHA-256 válido.
+DNS-03 (server:15): versão 689, serial 126 na captura.
+company:11: versão 691, serial 99 na captura.
+
+server:6 e server:13 não assinam a lista 14: suas diferenças não são falhas
+na incorporação da ANATEL. server:14 corresponde ao DNS-DEMO, esclarecido
+pelo usuário como teste. Seu banco referencia versão 8, mas o arquivo
+rpz/8/versions/8.zone não foi encontrado na auditoria. Não foi reconstruído
+nem desativado; o cadastro estava active e sem last_synced_at.
+O JSON inclui essas zonas para preservar a evidência sem ocultar diferenças.
+
+Quatro entradas que não cabem no RPZ
+São nomes ASCII/Punycode de 253 caracteres, com rótulos de até 63 caracteres.
+Individualmente passam no normalizador; acrescentar o sufixo
+.rpz.trevizamnetwork.com.br resulta em 280 caracteres no nome de registro.
+RpzZoneBuilder::ownerFitsZone exige até 253 caracteres no nome completo;
+esta verificação preserva a validade do arquivo publicado.
+A RFC 1035, seções 2.3.4 e 3.1, limita nomes DNS a 255 octetos no formato de
+rede, incluindo os octetos de comprimento e a raiz; em apresentação ASCII
+isso equivale a até 253 caracteres sem ponto final.
+Referência: https://www.rfc-editor.org/rfc/rfc1035.html#section-3.1
+Não é um limite de armazenamento que possa ser ampliado numa configuração.
+Mesmo encurtar a zona não acomoda um domínio que já utiliza 253 caracteres.
+Os quatro nomes completos estão em missing_sample das zonas no JSON anexo.
+
+Validação isolada
+Imagem local dns-panel-rpz-block-lab:20261023, --network none, sem volumes
+do runtime; montagem somente leitura dos arquivos temporários de teste.
+named-checkzone aceitou a zona de controle com valid.example (serial 1).
+Uma zona com o mesmo cabeçalho e os quatro nomes reais falhou nas quatro
+linhas: ran out of space; zone not loaded due to errors.
+Saída integral: anatel-limite-rpz-validacao-2026-10-26.txt.
+O ensaio usa o validador DNS named-checkzone; não prova instalação nem
+bloqueio no Unbound dos clientes. O limite decorre do formato DNS.
+
+Decisão e pendências
+Nenhuma configuração ativa ou código de produção foi modificado.
+A consulta ao feed permanece ativa: a condição literal de todos os nomes
+no RPZ não se confirmou. Foi solicitada decisão sobre desativar a fonte
+apesar das quatro exceções técnicas; o esclarecimento sobre DNS-DEMO não
+foi tratado como autorização para ignorar as quatro entradas longas.
+Manter a consulta ao feed não corrige o limite; todos os elegíveis já estão
+no banco e a fonte pode futuramente adicionar ou reativar outros domínios.
+Não foi aumentada a constante nem truncado/substituído nenhum nome:
+truncar muda o alvo, e bloquear um ancestral ampliaria o bloqueio.
+Uma alternativa para os quatro nomes exatos é uma regra local-zone do
+Unbound fora do RPZ, distribuída e validada separadamente nos clientes.
+Essa alternativa não foi implementada, pois envolve a configuração local
+dos resolvedores e não torna os nomes representáveis nesta zona RPZ.
+
+Desativação específica, quando autorizada
+Definir ANATEL_LEGACY_FEED_URL como string vazia no ambiente dos processos
+que executam external:sync; o serviço já retorna ignorada antes de HTTP
+quando a URL está vazia. Ausência da variável não basta: há URL padrão.
+Persistir a variável no Compose efetivamente usado, recriar somente os
+processos necessários e conferir configuração carregada/cache do Laravel.
+Para novas imagens, remover também a URL padrão de config/anatel.php.
+Preservar a ANATEL principal, seus domínios, as exclusões, vínculos e PDFs,
+e manter EXTERNAL_SYNC_ENABLED para as demais fontes externas.
+Verificar sem consultar a fonte: AnatelLegacyFeedSyncer::sync deve retornar
+ignorada / feed legado não configurado e não gerar novo log de sincronizado.
+Não executar external:sync completo apenas para testar: ele atualiza as
+outras listas. Não apagar domínios já incorporados. Um rollback específico
+restaura somente a URL caso se decida voltar a consumir a fonte antiga.
+
+Artefatos de evidência
+anatel-feed-legado-auditoria-2026-10-26.json
+anatel-limite-rpz-validacao-2026-10-26.txt

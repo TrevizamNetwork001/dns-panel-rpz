@@ -7,7 +7,7 @@
         $isAdmin = auth()->user()->isAdmin();
         $servidoresUtilizados = $empresa->servidores->count();
         $capacidadeLicencaAtiva = $empresa->licencas->filter->isValid()->sum('max_servidores');
-        $rpzUrl = $empresa->rpz_slug ? url('/rpz/'.$empresa->rpz_slug.'.zone') : null;
+        $rpzUrl = $empresa->rpzEndpointUrl();
         $rpzHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
         $rpzZonefile = '/var/lib/unbound/'.$rpzHost.'.zone';
         $rpzConfig = "rpz:\n    name: \"{$rpzHost}\"\n    zonefile: \"{$rpzZonefile}\"\n    url: \"{$rpzUrl}\"\n    # rpz-log: yes\n    # rpz-log-name: \"dns-panel-rpz\"";
@@ -64,6 +64,9 @@
                     <button type="button" class="button button-secondary" data-company-copy="company-rpz-config">Copiar configuração Unbound</button>
                     <small>Requer o módulo <code>respip</code>. O <code>zonefile</code> é relativo ao diretório/chroot do Unbound; use caminho absoluto se a instalação exigir.</small>
                 </div>
+            @endif
+            @if ($rpzUrl)
+                @include('partials.rpz-diagnostics', ['diagnosticZone' => $rpzHost, 'copyAttribute' => 'data-company-copy'])
             @endif
             <h3 style="margin-top:18px">IPs autorizados</h3>
             @forelse ($rpzAllowedIps as $ip)<code style="display:block">{{ $ip->ip_cidr }}</code>@empty<p>Nenhuma ACL ativa; a URL curta nega todo acesso.</p>@endforelse

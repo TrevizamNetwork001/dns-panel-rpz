@@ -73,7 +73,7 @@ class RpzPrimaryResponder
      * O nome da zona perguntado (qname) e sempre o mesmo texto literal pra
      * todo mundo (ex: rpz.trevizamnetwork.com.br) -- quem diferencia qual
      * zona logica (server:<id> ou company:<id>) e o IP de origem. So cobre
-     * server:<id> nesta primeira versao; company:<id> fica pra depois.
+     * server:<id> por padrao; mapeamento explicito seleciona company:<id>.
      *
      * IMPORTANTE: NAO reusa Servidor::ipAllowed() aqui de proposito -- esse
      * metodo libera qualquer IP quando ip_restriction_enabled=false (regra
@@ -103,7 +103,12 @@ class RpzPrimaryResponder
             return null;
         }
 
-        return RpzZone::where('zone_key', 'server:'.$servidor->id)->with('currentVersion')->first();
+        $companyIds = array_map('strval', config('rpz.primary_company_server_ids', []));
+        $zoneKey = in_array((string) $servidor->id, $companyIds, true)
+            ? 'company:'.$servidor->empresa_id
+            : 'server:'.$servidor->id;
+
+        return RpzZone::where('zone_key', $zoneKey)->with('currentVersion')->first();
     }
 
     private function buildSoaResponse(

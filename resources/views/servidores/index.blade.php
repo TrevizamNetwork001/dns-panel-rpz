@@ -82,7 +82,7 @@
                                         <div class="endpoint-status-stack">
                                             <span class="status-pill server-status-pill {{ $estadoClasse }}"><x-ui-icon name="dot" size="14" />{{ $estadoLabel }}</span>
                                             @if ($servidor->tipo_dns !== 'mikrotik' && $servidor->unboundVersionAfetada())
-                                                <span class="status-pill is-warning" title="Atualize o Unbound para 1.26.1 ou mais recente — ver detalhes do servidor">Precisa atualizar</span>
+                                                <span class="status-pill is-warning" title="Revise a atualização para Unbound 1.26.2 ou os patches da distribuição — ver detalhes do servidor">Precisa atualizar</span>
                                             @endif
                                         </div>
                                     @endif

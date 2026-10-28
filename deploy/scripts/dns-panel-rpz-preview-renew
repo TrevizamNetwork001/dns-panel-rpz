@@ -13,6 +13,8 @@ docker run --rm --cap-drop ALL \
 source_dir="$root/.recovery/letsencrypt/live/$domain"
 tls_dir="$root/.recovery/preview-tls"
 openssl x509 -in "$source_dir/fullchain.pem" -noout -checkend 0
+openssl x509 -in "$source_dir/fullchain.pem" -noout -checkhost "$domain"
+openssl x509 -in "$source_dir/fullchain.pem" -noout -checkhost feeds.trevizamnetwork.com.br
 # The containing .recovery directory is root-only on the host. The gateway
 # mounts just preview-tls read-only and runs as UID 101 without capabilities.
 test "$(stat -c %a "$root/.recovery")" = 700

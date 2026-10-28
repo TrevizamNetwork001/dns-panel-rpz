@@ -2,6 +2,79 @@
 
 Histórico das mudanças por data, agrupadas por área. Os commits ficam no branch `feat/dockerize-rpz` (PR nº 1 para o `master`). Este arquivo começa em 17/09/2026; o que veio antes está no histórico do git.
 
+## 26/10/2026
+
+### Origem de download RPZ separada: feeds
+
+- Ativado `https://feeds.trevizamnetwork.com.br` em IPv4/IPv6, com certificado válido para feeds e painel e renovação preservada. Gateway feeds expõe somente os arquivos RPZ, mantendo licença e ACL por IP.
+- Painel passa a gerar URLs pelo `RPZ_FEED_BASE_URL`; nome das zonas, seriais, arquivos existentes e URLs antigas preservados. Imagem `rpz-feeds-20261026` aplicada apenas ao app.
+- 34 testes PHP / 195 asserções e três testes de bootstrap com Unbound real aprovados. HTTPS público confirmado nas duas famílias; teste externo sem ACL foi negado. Primeira busca em cliente após trocar a URL ainda aguarda evidência. [Procedimento, testes e rollback](contabo/rpz-feeds-2026-10-26.txt).
+
+
+### Investigação da primeira busca RPZ
+
+- Reproduzida em laboratório falha de primeira busca quando o hostname da URL coincide com o nome da zona; a integração atual usa essa combinação. Com hostname distinto, download automático ocorreu em cerca de 0,061 s. Nenhuma mudança ativa aplicada; logs do cliente ainda solicitados. [Evidências e correção recomendada](contabo/rpz-primeira-busca-2026-10-26.txt).
+
+
+### Diagnóstico RPZ compatível com Unbound
+
+- Encerramento validado pelo usuário: DNS da União (empresa 13, servidor 8) recebeu `company:13` revisão 58 às 12:01:21 e informou serial 58 carregado às 12:01:23; 93.139 domínios, canário A/AAAA com NXDOMAIN e contador RPZ de 78.425 ações. Revisão 59 do histórico pertence à zona individual; não indica atraso na empresarial. Evidência e limites registrados no relatório abaixo.
+
+- Adicionado `php artisan rpz:verify [zone_key]`: auditoria somente de leitura de versão, arquivo publicado, SHA-256, tamanho, regras, canário e limites DNS, com códigos de saída para automação.
+- Telas do servidor Unbound e da empresa oferecem comandos para conferir serial local, testar A/AAAA e consultar contadores sem zerá-los; orientações para logs temporários e interpretação das evidências.
+- 18 testes PHP / 67 asserções e integração isolada com Unbound real aprovados para NXDOMAIN, redirecionamento, exceções, logs e contadores. Imagem `rpz-diagnostics-20261026` aplicada somente ao serviço app. [Detalhes, testes e rollback](contabo/rpz-diagnosticos-unbound-2026-10-26.txt).
+
+
+### Auditoria da fonte legada ANATEL
+
+- Comparados 40.749 nomes do feed com a lista ANATEL 14 e os artefatos RPZ publicados: 40 excluídos por regras ativas, 40.709 elegíveis já ativos no banco e 40.705 presentes em cada RPZ verificado que assina ANATEL, exceto DNS-DEMO (teste).
+- Quatro nomes de 253 caracteres excedem o limite DNS ao receber o sufixo RPZ (280 caracteres). Zona de controle aprovada e zona com as quatro entradas rejeitada por named-checkzone em laboratório isolado. Elevar a constante não produz RPZ válido.
+- Fonte mantida ativa enquanto se decide a desativação com essas exceções; nenhum domínio, configuração ativa ou código de produção alterado. Relatório, evidências e procedimento: [auditoria ANATEL](contabo/anatel-feed-legado-2026-10-26.txt).
+
+## 23/10/2026
+
+Estado final e roteiro de retomada: [Unbound/RPZ e DNS-03](contabo/retomada-2026-10-23-unbound-rpz.txt).
+As etapas abaixo são históricas; a resposta SOA externa IPv4/IPv6 e a busca
+periódica da revisão 88 foram comprovadas depois das pendências intermediárias.
+NOTIFY continua sem ACK. Alterações locais ainda sem commit/push.
+
+### Validação do ciclo automático do DNS-03
+
+- Após desativação do domínio de teste, artefato empresarial publicado com serial/revisão 88 e sem `teste-rpz.example.com`.
+- Painel confirmou requisição do DNS-03 às 19:41:03 de 23/10/2026 (Brasília), company:11, revisão 88, Unbound 1.26.2, no ciclo esperado após a sondagem de 18:41. Sem nova intervenção manual informada pelo cliente.
+- Confirma a busca automática da revisão nova; instalação no cliente depende da evidência local. NOTIFY permanece sem ACK e não é validado por esse resultado.
+
+### DNS-03 com URL empresarial — correspondência SOA e NOTIFY
+
+- Adicionado mapeamento explícito `RPZ_PRIMARY_COMPANY_SERVER_IDS=15`: sondagens dos IPs autorizados do DNS-03 selecionam `company:11`, correspondente à URL empresarial configurada pelo cliente. Sem fallback para serial individual se o artefato empresarial estiver ausente.
+- NOTIFY empresarial envia somente aos servidores mapeados da mesma empresa e incluídos no piloto; a publicação individual deixa de enviar avisos ao cliente mapeado. Demais clientes preservam o comportamento anterior.
+- Publicado `dns-panel-rpz-app:rpz-company-primary-20261023` nos serviços recuperados; overlay em `docker/Dockerfile.rpz-company-primary-overlay`. Listeners root precisam de DAC_OVERRIDE além de NET_BIND_SERVICE para acessar os volumes restritos de www-data; painel e workers seguem com as capabilities anteriores.
+- 13 testes / 37 asserções aprovados em banco descartável. Validação no runtime: SOA empresarial serial 86 corresponde ao artefato publicado para IPv4 e IPv6 autorizados; login HTTPS 200. Teste NOTIFY empresarial: `unconfirmed`, três tentativas, sem ACK. Isso não comprova bloqueio nem instalação no cliente.
+- Pendente evidência externa do cliente: dig via IPv4/IPv6 e serial instalado. Arquivo histórico mostrado pelo cliente tinha serial 114; conferir o serial atual antes de concluir a recuperação automática após restauração do banco.
+
+### Primário RPZ IPv4/IPv6 com nome estável
+
+- Publicados listeners separados em `213.199.47.105:53/udp` e `[2a02:c207:2368:3678::1]:53/udp`, imagem `dns-panel-rpz-app:rpz-dualstack-20261023`. Rede do host preserva IP de origem, inclusive IPv6, para a ACL; bind restrito aos IPs públicos, sem interferir no systemd-resolved local. Contêineres com filesystem somente leitura, capabilities limitadas a NET_BIND_SERVICE e DAC_OVERRIDE para os volumes restritos.
+- `RpzPrimaryServe` seleciona AF_INET/AF_INET6 conforme o bind, restringe o socket IPv6 a IPv6 e encerra sem esperar novos pacotes ao receber SIGTERM/SIGINT. Receita incremental versionada em `docker/Dockerfile.rpz-primary-overlay`.
+- Nome escolhido: `primary-rpz.trevizamnetwork.com.br`; A `213.199.47.105`, AAAA `2a02:c207:2368:3678::1`, DNS sem proxy. Ambos conferidos no resolvedor público, incluindo consulta de saída via IPv6. Cliente usa esse hostname em `primary:` e mantém a URL HTTPS. Em migrações, atualizar A/AAAA, manter o antigo serviço durante a transição/TTL e validar a permissão de NOTIFY no destino.
+- Validação isolada: 17 testes PHPUnit / 61 asserções (responder/ACL IPv6, NOTIFY e segurança Unbound); 2 testes reais de socket UDP IPv4/IPv6 aprovados, incluindo origem e SIGTERM; listeners de produção ativos e login HTTPS 200. A resposta SOA pela rede externa ainda depende do teste no DNS-03 autorizado. NOTIFY permanece restrito ao servidor 15 e enviado por IPv4; não foi afirmada validação externa de NOTIFY IPv6.
+
+### Restauração do primário RPZ para o DNS-03
+
+- Reativado `rpz-primary` no compose recuperado: `213.199.47.105:53/udp` encaminha ao listener 5353. Usa os volumes e imagem atuais; não executa init ou migrations.
+- NOTIFY reativado apenas para servidor 15 (DNS-03 / Speed Fiber), por IPv4, reproduzindo o escopo do piloto anterior. Cliente precisa substituir o primary antigo e revisar a permissão do novo IP para NOTIFY; nenhum acesso remoto ao cliente foi feito.
+- Validação: listener iniciado; resposta SOA para o IP autorizado anuncia serial publicado 103, refresh 3600 e retry 600; IP de documentação não autorizado rejeitado pelo responder; login HTTPS 200 e aplicação saudável. Falta confirmar consulta UDP desde o cliente e ACK do NOTIFY; funcionamento externo ainda não declarado validado.
+- Cliente havia mostrado serial 114 em arquivo histórico; houve nova busca HTTPS às 16:37:16 (Brasília), revision 86. Conferir serial efetivamente instalado antes de concluir a recuperação automática; revision do painel não é o serial SOA. União usa zona empresarial e continua fora deste piloto.
+
+### Segurança do Unbound — referência 1.26.2
+
+- Página `/unbound-seguranca` revisada com as cinco CVEs corrigidas em 21/10/2026: CVE-2026-97206, CVE-2026-50106, CVE-2026-96405, CVE-2026-109125 e CVE-2026-35501. Inclui gravidade, condições de exposição e ligação ao anúncio oficial.
+- Avisos de versão passam a usar 1.26.2 como referência upstream; 1.26.1 passa a exigir revisão. A detecção continua pelo User-Agent da busca RPZ, sem acesso remoto ao DNS.
+- Corrigida a associação indevida entre versão antiga e interrupção de sincronização. O texto esclarece backports da distribuição e não trata o selo como confirmação de vulnerabilidade.
+- Corrigida a contagem descritiva da 1.26.1: a CVE-2026-33278 foi corrigida na 1.25.1. Orientação de atualização passa a exigir conferência do pacote disponível e da versão em execução.
+- Fonte: https://nlnetlabs.nl/projects/unbound/security-advisories/ e https://community.nlnetlabs.nl/t/unbound-1-26-2-released/3495 .
+- Validação local: sintaxe PHP, compilação Blade e verificação direta dos limites de versão aprovadas em contêiner isolado, sem rede ou volumes de produção. Na primeira validação, PHPUnit não estava disponível na imagem. Mais tarde as dependências locais foram encontradas e os testes de versão/página passaram na seleção de 17 testes / 61 asserções registrada acima. Publicado em `compose.staging.yml` com a imagem `dns-panel-rpz-app:unbound-security-20261023`, derivada da imagem PHP 8.4.27 anterior e contendo apenas o model e as três views alteradas. Imagem anterior preservada. Aplicação e nginx saudáveis; serviços auxiliares ativos; login HTTPS 200 e página autenticada HTTP 200 com as cinco CVEs conferidas. Sem migrations.
+
 ## 02/10/2026
 
 ### Backups SQLite e Cloudflare R2

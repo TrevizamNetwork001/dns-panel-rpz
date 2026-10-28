@@ -1,0 +1,223 @@
+PONTO DE RETOMADA — Unbound, RPZ e DNS-03 Speed Fiber
+
+Fechamento: 23/10/2026 20:06, America/Sao_Paulo (24/10 na Europa/Berlin).
+Horários de testes abaixo são de Brasília, salvo indicação contrária.
+Solicitação: documentar o trabalho para o usuário descansar e retomar depois.
+
+RESULTADO PRINCIPAL
+
+A sondagem automática e a busca de nova versão pelo DNS-03 foram comprovadas.
+NOTIFY imediato NÃO foi validado: avisos chegaram ao cliente após liberação
+do firewall de borda, mas não houve ACK observado. Não confundir as duas coisas.
+Não afirmar que todos os clientes foram corrigidos: o piloto é o servidor 15.
+
+AMBIENTE ATUAL
+
+Projeto: /opt/dns-panel-rpz
+Painel: https://rpz.trevizamnetwork.com.br
+Compose ativo: compose.staging.yml + gateway compose.preview.yml.
+Não combinar com compose.yml legado, que contém o IP antigo da hospedagem.
+
+Imagem app/workers/listeners: dns-panel-rpz-app:rpz-company-primary-20261023
+Imagem nginx: dns-panel-rpz-web:ecosystem-fixes-20261023
+Imagem gateway: dns-panel-rpz-web:staging
+App/nginx/gateway saudáveis na consulta final; serviços auxiliares ativos.
+Fila de jobs vazia. Não houve migrations nesta sessão.
+
+Nome estável: primary-rpz.trevizamnetwork.com.br (criado pelo usuário).
+A:    213.199.47.105
+AAAA: 2a02:c207:2368:3678::1
+Registros públicos conferidos e consultas SOA externas do cliente aprovadas
+nos dois protocolos. DNS sem proxy. IP antigo: 108.181.224.210.
+
+Serviços rpz-primary e rpz-primary-v6: UDP/53, binds nos respectivos IPs
+públicos, rede do host para preservar origem IPv6, filesystem somente leitura.
+Executam como root com NET_BIND_SERVICE e DAC_OVERRIDE; esta última é
+necessária para ler os volumes restritos pertencentes ao usuário www-data.
+A primeira validação detectou erro de acesso ao banco sem essa capability;
+a correção foi aplicada e a correspondência SOA foi validada no runtime.
+Não há recursão, AXFR/IXFR ou listener TCP implementado pelo primário próprio.
+A transferência real da zona continua via HTTPS.
+
+Configuração efetiva compartilhada:
+  RPZ_NOTIFY_ENABLED=true
+  RPZ_NOTIFY_SERVER_IDS=15
+  RPZ_PRIMARY_COMPANY_SERVER_IDS=15
+  RPZ_NOTIFY_IPV6_ENABLED=false
+  RPZ_PRIMARY_ENABLED=false no runtime geral; true nos dois listeners.
+compose.staging.yml sobrepõe variáveis ainda falsas em .env.staging.
+Não imprimir .env ou tokens para conferir essas flags; consultar config().
+
+DNS-03 E CORRESPONDÊNCIA DE ZONA
+
+Servidor painel: id 15, DNS-03, empresa id 11, SPEED FIBER CONNECTION LTDA ME.
+IPs autorizados: 45.239.157.243 e 2804:4ff0::243.
+O hostname de terminal DNS-01 não identifica sozinho o cadastro do painel:
+o usuário opera clientes diferentes com o mesmo hostname de sistema.
+
+Configuração informada pelo usuário:
+  rpz:
+      name: "rpz.trevizamnetwork.com.br"
+      primary: "primary-rpz.trevizamnetwork.com.br"
+      zonefile: "/var/lib/unbound/rpz.trevizamnetwork.com.br.zone"
+      url: "https://rpz.trevizamnetwork.com.br/rpz/speed-fiber-connection-ltda-me.zone"
+
+A URL empresarial corresponde a company:11, não server:15. As duas zonas
+podem ter seriais diferentes mesmo com conteúdo igual. Corrigimos o primário
+e o NOTIFY com mapeamento explícito do servidor 15 para a zona empresarial.
+Não inferir o escopo só pelo nome DNS: ele é igual nas várias zonas lógicas.
+Sem artefato empresarial publicado, o mapeamento não cai para serial individual.
+NOTIFY empresarial exige empresa correspondente, servidor ativo/licenciado,
+mapeamento empresarial e presença no piloto. Publicação individual não avisa
+um servidor mapeado à zona empresarial. Outros clientes não foram incluídos.
+
+EVIDÊNCIAS DO TESTE AUTOMÁTICO
+
+1. Cliente antigo mostrou arquivo de 12/10, serial 114, primary IP antigo.
+   Depois houve busca manual da zona empresarial e o cliente mostrou 86.
+   Portanto, o 114 histórico não é o estado final. Não elevar seriais sem
+   comparar o estado realmente instalado no resolvedor.
+2. dig IPv4 e IPv6 do DNS-03 responderam NOERROR/AA, serial 86; o Unbound
+   também listou serial 86 carregado. Unbound atualizado pelo usuário à 1.26.2.
+3. Usuário cadastrou teste-rpz.example.com na lista compartilhada
+   "Segurança — Malware / C2 / IoT". O teste afetou as zonas dos clientes
+   vinculados a essa lista; não era lista exclusiva do laboratório.
+4. Publicação empresarial 87 confirmada com o domínio presente. Busca às
+   17:26:21 foi MANUAL (auth_zone_transfer); não usar como prova automática.
+5. Processo cliente foi reiniciado pelo usuário: PID 1073 passou a 1183,
+   início 17:41:01. Não há SSH do agente no cliente; comandos locais foram
+   executados pelo usuário e saídas fornecidas nesta conversa.
+6. Às 18:41:01 o log do cliente mostrou task_probe automático, resolução
+   A/AAAA do primary, SOA por IPv6 e IPv4, resposta serial 87 e reagendamento
+   "timeout in 3600 seconds". Houve timeout inicial/retransmissão, depois
+   resposta nos dois caminhos. Sem serial novo, não há novo download HTTPS.
+7. Usuário desativou o domínio às 19:06:42. A fila processou todas as zonas
+   da lista compartilhada; não chamar espera de publicação de falha de DNS.
+   Confirmamos publicação 88, dirty=false e domínio ausente no artefato.
+8. Às 19:41:03 o painel registrou nova solicitação do DNS-03, company:11,
+   revision 88, User-Agent unbound/1.26.2, no ciclo previsto. Nenhum novo
+   comando manual informado pelo usuário entre a desativação e essa busca.
+   Isso comprova busca automática da versão nova. Para prova estrita da
+   instalação em memória, ainda cabe coletar list_auth_zones serial 88.
+
+Estado final do teste: teste-rpz.example.com permanece cadastrado INATIVO.
+Arquivo publicado está sem esse domínio. Não foi excluído nem reativado.
+Serial/revisão empresarial final observado: 88.
+
+NOTIFY — PENDÊNCIA REAL
+
+Captura no host confirmou envio IPv4 de 213.199.47.105 para 45.239.157.243:53,
+com porta de ORIGEM variável. Antes da liberação de firewall de borda, nada
+aparecia na captura do cliente. Usuário fez uma liberação; depois mostrou:
+  18:06:39.998219  213.199.47.105.35938 > 45.239.157.243.53  NOTIFY
+  18:06:40.999158  mesma transação retransmitida
+  18:06:43.001501  mesma transação retransmitida
+Checksum do pacote correto no cliente. Não apareceu resposta nessa captura.
+Não interpretar checksum "bad" no envio local como corrupção sem considerar
+offload: a captura receptora mostrou checksum válido.
+Última auditoria no fechamento: NOTIFY company:11 serial 88, unconfirmed,
+3 tentativas, sem resposta correspondente. Não é ACK nem prova de instalação.
+
+ACLs mostradas pelo cliente já continham os IPs novos com allow_snoop.
+Essa permissão é mais ampla que o necessário; a recomendação inicial do
+agente foi corrigida. Não adicionar mais allow_snoop sem necessidade.
+Unbound 1.26.2 aceita allow-notify dentro de rpz, inclusive hostname.
+Os primários de primary/url já são autorizados como NOTIFY por padrão.
+ACL geral deny/refuse é verificada antes da autorização específica da zona;
+allow-notify não contorna automaticamente uma ACL geral que recuse a origem.
+Aceitação pelo firewall local, escuta/interface e processamento/resposta do
+Unbound ainda não foram isolados. Não há causa definitiva para falta de ACK.
+
+Próxima investigação, se solicitada:
+- Preservar a evidência de refresh automático; não voltar a diagnosticá-lo
+  como quebrado a partir da ausência de download sem mudança de serial.
+- No cliente, capturar entradas E saídas durante um aviso coordenado e conferir
+  ss -lunp 'sport = :53', regras/counters de firewall local e logs NOTIFY.
+- Como o pacote já chegou à interface, não atribuir tudo novamente ao firewall
+  de borda. Tampouco concluir que a ACL é a causa sem verificar o processo.
+- Para teste de aplicação imediata, mudar conteúdo de teste, confirmar novo
+  artefato/serial e observar busca sem auth_zone_transfer/restart.
+- Não habilitar NOTIFY para outros clientes como efeito colateral do piloto.
+
+LOGS E ERROS DE INTERPRETAÇÃO A EVITAR
+
+unbound-control verbosity 4 altera a variável global de execução.
+get_option verbosity consulta a configuração e pode continuar mostrando 1;
+isso NÃO prova que a mudança de verbosidade falhou ou que o processo reiniciou.
+Usar PID/systemctl para verificar reinícios. O nível 3 não exibe todos os
+agendamentos; nível 4 exibe "auth zone ... timeout in ... seconds".
+Cliente terminou com verbosity 4 em execução, sem restauração confirmada.
+Ao encerrar diagnóstico, o usuário pode retornar a 1 com:
+  unbound-control verbosity 1
+Não há agente conectado ao cliente para executar isso remotamente.
+
+Relógio atual conferido: America/Sao_Paulo, RTC UTC, NTP ativo/sincronizado.
+Logs históricos tinham horários fora de ordem e filtros por --since retornavam
+eventos antigos; não diagnosticar alteração de relógio como causa comprovada.
+Saída -o short-monotonic ajudou a localizar o reinício real.
+Erro de bind do IPv6 2804:4ff0::243 ocorreu em tentativas anteriores de startup;
+depois o processo iniciou e fez tráfego IPv6. Não é prova de falha atual.
+
+UNIÃO E FASTNET
+
+União: empresa 13, servidor 8 (DNS-01-RECURSIVE), URL empresarial, sem primary
+no bloco mostrado. Houve busca 09:30:27 por IPv6 na 1.26.1 e busca manual
+16:08:34 por IPv6 na 1.26.2. Não comprovamos ciclo automático pós-atualização
+nem generalizamos a validação do DNS-03 para a União.
+Fastnet: empresa 15, servidores 11 (DNS-01) e 12 (DNS-02). URL empresarial,
+sem primary no bloco mostrado. Serial 34 publicado/carregado no DNS-01.
+Acessos 14:02/15:02/16:02 foram observados, mas o usuário alertou que fez
+buscas manuais; não tratá-los como prova de refresh automático. DNS-01 passou
+a 1.26.2 na saída fornecida. Esse diagnóstico não foi concluído separadamente.
+
+SEGURANÇA UNBOUND E ALTERAÇÕES DE CÓDIGO
+
+Página /unbound-seguranca publicada com as cinco CVEs da 1.26.2 (21/10):
+CVE-2026-97206, CVE-2026-50106, CVE-2026-96405, CVE-2026-109125,
+CVE-2026-35501. Referência de versão mudou de 1.26.1 para 1.26.2.
+Texto distingue exposição/configuração/backports e sincronização RPZ.
+Não afirmar que todo servidor anterior à referência tem falha de sincronização.
+
+Código alterado nesta sessão:
+- Servidor.php e views: referência/avisos de versão e página de segurança.
+- RpzPrimaryServe.php: IPv4/IPv6 separados, validação de bind e SIGTERM/SIGINT
+  sem reiniciar recvfrom bloqueado (defeito encontrado pelos testes de socket).
+- RpzPrimaryResponder.php, RpzPrimaryNotifier.php e config/rpz.php:
+  mapeamento explícito empresarial e NOTIFY compatível com esse escopo.
+- compose.staging.yml: listeners, imagens e flags descritos acima.
+- Dois Dockerfiles overlay em docker/ para reproduzir camadas incrementais.
+- Testes e documentação atualizados. RUNBOOK.md e docs/CHANGELOG.md têm detalhes.
+
+Validação executada, sem somar suítes sobrepostas:
+- 17 testes PHPUnit / 61 asserções: responder, NOTIFY, versão e página Unbound.
+- 2 testes reais UDP (IPv4/IPv6), origem preservada e encerramento SIGTERM.
+- Após ajuste empresarial: 13 testes / 37 asserções, sem falhas.
+- Sintaxe PHP, Blade, git diff --check, saúde e HTTPS login 200.
+- Consultas SOA externas IPv4/IPv6 e teste de refresh/download descritos acima.
+Não foi rodada a suíte PHP inteira nesta sessão.
+Dependências de testes locais foram encontradas depois em
+/tmp/rpz-php8427-validation/vendor; imagem de produção não contém PHPUnit.
+Testes executaram em contêiner sem rede externa e banco descartável, não no
+banco de produção. Não rodar RefreshDatabase contra volumes do painel.
+
+GIT, BACKUP E LIMITES
+
+Alterações desta sessão continuam SEM COMMIT e SEM PUSH. Último commit visto
+no início: 93a14c1 (backup completo e validação isolada).
+Não executar git reset/clean nem sobrescrever o trabalho local.
+scripts/full-backup.py já tinha alteração anterior à sessão: PRAGMA
+journal_mode=DELETE após snapshot SQLite. Foi preservada, não é parte do
+ajuste RPZ. No início, quatro testes Python passaram e a pasta de full-backups
+estava vazia. Não foi criado, agendado ou enviado backup completo nesta sessão.
+Imagens anteriores foram preservadas; não houve limpeza/destruição de volumes.
+Nenhuma mensagem Telegram foi enviada pelo agente durante estes testes.
+Regras/configurações no DNS dos clientes foram editadas pelo usuário.
+
+FONTES TÉCNICAS CONSULTADAS
+
+https://community.nlnetlabs.nl/t/unbound-1-26-2-released/3495
+https://nlnetlabs.nl/projects/unbound/security-advisories/
+https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html#rpz-options
+https://github.com/NLnetLabs/unbound/blob/release-1.26.2/daemon/worker.c
+https://github.com/NLnetLabs/unbound/blob/release-1.26.2/services/authzone.c
+https://github.com/NLnetLabs/unbound/blob/release-1.26.2/daemon/remote.c

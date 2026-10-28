@@ -1,0 +1,11 @@
+ARG BASE_IMAGE=dns-panel-rpz-app:rpz-diagnostics-20261026
+FROM ${BASE_IMAGE}
+USER root
+COPY --from=composer:2.8 /usr/bin/composer /tmp/rpz-composer
+COPY --chown=www-data:www-data app/Services/RpzFeedUrl.php /var/www/html/app/Services/
+COPY --chown=www-data:www-data app/Models/Empresa.php app/Models/Servidor.php /var/www/html/app/Models/
+COPY --chown=www-data:www-data config/rpz.php /var/www/html/config/
+COPY --chown=www-data:www-data resources/views/empresas/show.blade.php /var/www/html/resources/views/empresas/
+RUN php /tmp/rpz-composer dump-autoload --no-dev --no-scripts --classmap-authoritative --no-interaction \
+    && rm /tmp/rpz-composer
+USER www-data

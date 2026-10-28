@@ -19,16 +19,31 @@ class RpzPrimaryNotifier
             return;
         }
         [$scope, $id] = array_pad(explode(':', $zone->zone_key, 2), 2, null);
-        if ($scope !== 'server' || ! in_array((string) $id, array_map('strval', config('rpz.notify_server_ids', [])), true)) {
-            return;
-        }
-        $server = Servidor::with(['allowedIps' => fn ($q) => $q->where('status', 'active'), 'empresa'])
-            ->where('status', 'active')->find((int) $id);
+        $pilotIds = array_map('strval', config('rpz.notify_server_ids', []));
+        $companyIds = array_map('strval', config('rpz.primary_company_server_ids', []));
         $version = $zone->currentVersion;
-        if ($server === null || $server->empresa?->status !== 'active' || ! $server->empresa->possuiLicencaAtiva()
-            || $version === null || $version->status !== 'published') {
+        if ($version === null || $version->status !== 'published' || $version->rpz_zone_id !== $zone->id) {
             return;
         }
+        $servers = Servidor::with(['allowedIps' => fn ($q) => $q->where('status', 'active'), 'empresa'])
+            ->where('status', 'active')->whereIn('id', $pilotIds);
+        if ($scope === 'server' && ! in_array((string) $id, $companyIds, true)) {
+            $servers->where('id', (int) $id);
+        } elseif ($scope === 'company') {
+            $servers->where('empresa_id', (int) $id)->whereIn('id', $companyIds);
+        } else {
+            return;
+        }
+        foreach ($servers->get() as $server) {
+            if ($server->empresa?->status === 'active' && $server->empresa->possuiLicencaAtiva()) {
+                $this->notifyServer($zone, $server);
+            }
+        }
+    }
+
+    private function notifyServer(RpzZone $zone, Servidor $server): void
+    {
+        $version = $zone->currentVersion;
         $destinations = [];
         foreach ($server->allowedIps as $rule) {
             $ip = $this->hostAddress(trim((string) $rule->ip_cidr));

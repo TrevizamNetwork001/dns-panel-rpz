@@ -1,0 +1,187 @@
+Diagnóstico RPZ baseado na implementação oficial do Unbound — 26/10/2026
+
+Objetivo e referência
+Aproveitar services/rpz.c do Unbound para melhorar compatibilidade e diagnóstico
+do painel. Foi usado como referência de comportamento, sem copiar o código C.
+Fontes consultadas:
+https://github.com/NLnetLabs/unbound/blob/master/services/rpz.c
+https://unbound.docs.nlnetlabs.nl/en/latest/topics/filtering/rpz.html
+https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound-control.html
+https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html
+
+O painel já gerava NXDOMAIN, CNAME de redirecionamento e RPZ-PASSTHRU para
+exceções empresariais. Esses recursos foram preservados; não foi criado um
+segundo mecanismo de políticas nem alterado o Unbound dos clientes.
+
+Implementação
+1. Novo comando de consulta: php artisan rpz:verify [zone_key]
+   Exemplos:
+   php artisan rpz:verify company:11
+   php artisan rpz:verify server:15
+   php artisan rpz:verify
+   Sem argumento, percorre todas as zonas cadastradas, inclusive históricas,
+   sem versão e de teste. Nesses casos a falha é reportada, não ocultada.
+   Retorno: 0 se todas passaram, 1 se houver falha/nenhuma zona, 2 se a
+   chave não tiver o formato server:ID ou company:ID (inteiro positivo).
+
+   RpzArtifactInspector lê a versão publicada e o arquivo correspondente:
+   - Confere associação da versão à zona, status published e caminho esperado.
+   - Confere disponibilidade do arquivo, SHA-256 e tamanho persistidos.
+   - Conta regras CNAME contra rule_count + canário fixo do cabeçalho.
+   - Confere canário blocktest.<zona> com CNAME . (NXDOMAIN).
+   - Detecta nomes de registros acima de 253 caracteres e rótulos acima de 63.
+   - Resume regras NXDOMAIN, PASSTHRU e CNAME de redirecionamento.
+   Faz uma leitura sequencial, sem carregar o arquivo inteiro em memória.
+   Os números representam regras, incluindo curingas e regras auxiliares,
+   não quantidade de domínios únicos. O canário fixo não entra no resumo.
+   É específico para os artefatos CNAME emitidos pelo gerador do painel;
+   não é parser universal de zonefiles nem substitui named-checkzone.
+   Não consulta fontes externas, altera registros, repara arquivos, publica
+   versões, agenda tarefas, envia NOTIFY ou acessa os clientes.
+
+2. Bloco "Conferir o RPZ no Unbound" nas páginas do servidor Unbound e da
+   distribuição empresarial, com botão para copiar os comandos:
+   unbound-control list_auth_zones
+   dig @127.0.0.1 blocktest.<zona> A +noall +comments +answer
+   dig @127.0.0.1 blocktest.<zona> AAAA +noall +comments +answer
+   unbound-control stats_noreset
+   As instruções explicam serial local/expiração, controle remoto, ativação
+   opcional de extended-statistics em server: e logs temporários em rpz:.
+   A página de servidor MikroTik não recebe comandos do Unbound.
+   As instruções não executam comandos remotos nem habilitam logs sozinhas.
+
+   Nomes confirmados no Unbound de laboratório:
+   num.rpz.action.rpz-nxdomain
+   num.rpz.action.rpz-passthru
+   num.rpz.action.rpz-local-data
+   Os contadores são globais do resolvedor, não separados por empresa/zona.
+   stats_noreset preserva os valores. Estatísticas estendidas precisam estar
+   habilitadas; contadores zerados podem ser omitidos por configuração.
+   O log "rpz: applied [nome] ..." identifica a regra/ação da consulta.
+   rpz-log deve ser usado temporariamente para diagnóstico, como já orientado.
+
+Limites da evidência
+Auditoria de arquivo confirma integridade no painel. A consulta HTTP do
+cliente confirma entrega; list_auth_zones informa a versão local; consultas
+A/AAAA e logs mostram comportamento nos casos testados. Nenhum desses
+estados foi convertido automaticamente em "instalado/aplicado" no painel.
+Não foi implementada coleta automática de logs/estatísticas dos clientes.
+Não foram adicionados bloqueios por IP/NS: não há fonte/política desse tipo
+no modelo atual. Os quatro nomes longos da auditoria ANATEL continuam fora
+do formato RPZ; limites do DNS e a sincronização do feed não foram alterados.
+
+Testes
+18 testes PHP / 67 asserções, PHP 8.4.27, PHPUnit 12.5.33, banco descartável:
+- RpzArtifactInspectorTest: bytes reais, imutabilidade, corrupção, arquivo
+  ausente, versão cruzada, caminho indevido, falta de canário e nome longo.
+- RpzDiagnosticsPresentationTest: telas de servidor/empresa e exclusão MikroTik.
+- RpzStatusCommandTest e RpzZoneBuilderCanonicalTest: regressões do estado e
+  gerador de zonas.
+A primeira execução não conseguiu gravar no cache do laboratório; repetida
+como root somente no contêiner descartável, sem montar dados de produção.
+
+Teste de integração: rpz_diagnostics_semantics.py.
+Fixtures geradas pelo RpzZoneBuilder atual com SQLite em memória, sem dados
+reais. Dois modos: NXDOMAIN e redirecionamento. Unbound real 1.25.2 da imagem
+local dns-panel-rpz-block-lab:20261023, rede externa desabilitada, upstream
+sintético em loopback. Exercitados A/AAAA, bloqueio exato/curinga, exceção
+exata/subdomínio, canário, serial 7, logs e contadores. Duas leituras de
+stats_noreset preservaram todos os contadores RPZ. Resultado: aprovado.
+O teste usa a implementação disponível no laboratório, não uma compilação
+da branch master nem valida todas as versões do Unbound.
+O laboratório torna test. transparente para evitar NXDOMAIN da zona
+reservada no teste de canário e inclui controle negativo unblocked.test.
+A primeira leitura confirmou que os contadores reais incluem o prefixo
+rpz- no nome da ação; teste e orientação foram corrigidos antes de publicar.
+O helper de testes de exceções ganhou opção diagnostics, desabilitada por
+padrão; a leitura do manifesto agora ocorre apenas na classe que o utiliza.
+
+git diff --check e compilação Python concluídos sem erros.
+
+Publicação
+Imagem incremental: dns-panel-rpz-app:rpz-diagnostics-20261026.
+Receita: docker/Dockerfile.rpz-diagnostics-overlay.
+Base: dns-panel-rpz-app:rpz-company-primary-20261023.
+Inclui apenas comando, serviço de auditoria e as três views de diagnóstico;
+regera o autoload authoritative para registrar as novas classes.
+Compose efetivo: compose.staging.yml, override somente no serviço app.
+Build usa as imagens locais e --network=none para os passos de construção.
+Antes da publicação, imagem nova leu volumes ativos em modo somente leitura:
+company:11 serial 99, OK, 772.973 regras NXDOMAIN, 0 PASSTHRU, 0 redirects.
+As duas views foram comparadas com as ativas antes da publicação: diferenças
+restritas aos includes do novo bloco de diagnóstico.
+Aplicação: docker compose -f compose.staging.yml up -d --no-deps --no-build app
+Demais serviços/imagens preservados. Sem migrações ou rebuild de zonas.
+Os diagnósticos passam a estar disponíveis no painel; nada foi instalado
+nos DNS dos clientes.
+
+Reprodução dos testes
+Copiar fontes para diretório descartável e montar dependências de teste;
+usar a imagem PHP local sem rede externa e phpunit.xml com SQLite :memory:.
+Executar as quatro classes PHP listadas acima.
+Para integração, montar a cópia em /var/www/html e saída descartável em
+/review. Na imagem PHP com dependências executar:
+php tests/safety/build_rpz_diagnostic_fixture.php
+O script força DB sqlite :memory: e migra somente esse banco efêmero.
+Na imagem de laboratório com Unbound, dig e Python executar:
+RPZ_SAFETY_OUTPUT=/review python3 tests/safety/rpz_diagnostics_semantics.py
+Os dois contêineres devem usar --network none; os testes usam só loopback.
+
+Rollback
+No serviço app de compose.staging.yml, restaurar image para
+ dns-panel-rpz-app:rpz-company-primary-20261023
+remover o override build desse serviço (herdar novamente o bloco runtime)
+e executar o mesmo up --no-deps --no-build app. Não há dados ou migrations
+para reverter. Manter as alterações anteriores e as imagens dos outros
+serviços. Nenhum commit/push foi feito nesta etapa.
+
+Verificação após publicação
+app executando rpz-diagnostics-20261026, healthcheck healthy.
+Login HTTPS https://rpz.trevizamnetwork.com.br/login retornou 200.
+rpz:verify company:11: serial 99, OK, 772.973 regras NXDOMAIN.
+rpz:verify server:15: serial 126, OK, 772.973 regras NXDOMAIN.
+PASSTHRU e redirecionamento: zero nesses dois artefatos ativos na captura;
+ambas as ações foram exercitadas nas fixtures sintéticas do laboratório.
+Os serviços rpz-primary IPv4/IPv6, scheduler, backup, queue, external-sync e
+nginx mantiveram imagens anteriores; somente app foi recriado nesta etapa.
+
+Encerramento — validação externa do cliente União Networks
+Em 26/10/2026, o usuário forneceu a saída executada como root no DNS-01 e
+confirmou o encerramento desta etapa após a conferência.
+Cadastro identificado: Uniao Networks Telecom Ltda-Me, empresa 13;
+servidor cadastrado DNS-01-RECURSIVE, id 8. O hostname do terminal é DNS-01.
+
+Evidência do servidor do cliente:
+- list_auth_zones: rpz.trevizamnetwork.com.br., serial 58, carregada desde
+  26/10/2026 12:01:23 no horário apresentado pelo Unbound.
+- dig @127.0.0.1 blocktest.rpz.trevizamnetwork.com.br A: NXDOMAIN.
+- A mesma consulta em AAAA: NXDOMAIN.
+- stats_noreset: num.rpz.action.rpz-nxdomain=78425.
+  Trata-se de consultas/ações acumuladas, não domínios únicos nem consultas
+  necessariamente atribuíveis apenas à União se houver outras zonas locais.
+- Estatísticas estendidas já disponíveis na saída; não foi necessário
+  instruir sua ativação neste servidor.
+
+Conferência somente de leitura no painel:
+- company:13, versão empresarial publicada: revisão/serial 58, publicada
+  em 26/10/2026 11:40:37 (UTC-03).
+- server:8, versão individual: revisão/serial 59, publicada às 11:39:55.
+- ServerSyncLog do servidor 8 às 12:01:21 (15:01:21 UTC): zone_key=company:13,
+  revision=58, dominios_count=93139.
+- Consultas anteriores: company:13 revisão 57 às 11:01:18 e 10:01:15.
+
+Conclusão
+O DNS consultou a versão empresarial 58 com 93.139 domínios e informou o
+mesmo serial carregado dois segundos depois. O número 59 do histórico
+corresponde à zona individual: as revisões são independentes por zona.
+A suspeita inicial de atraso foi descartada após identificar a origem
+empresarial da consulta. Atualização e bloqueio do canário em A/AAAA estão
+validados para este servidor da União, com ações RPZ registradas.
+O teste do canário não representa teste individual dos 93.139 domínios.
+Não é uma validação automática de todos os clientes, nem confirmação de ACK
+de NOTIFY. Nenhuma alteração foi feita no DNS do cliente nesta conferência.
+
+Etapa de melhorias e diagnóstico RPZ encerrada a pedido do usuário.
+A fonte legada ANATEL permanece no estado descrito na auditoria separada;
+este encerramento não executa sua desativação nem altera o limite DNS.
+Documentação atualizada, sem commit/push nesta etapa.

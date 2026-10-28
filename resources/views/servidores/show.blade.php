@@ -60,7 +60,7 @@
 
     @if (! $isMikrotik && $servidor->unboundVersionAfetada())
         <div class="alert-error" role="alert">
-            Este servidor usa <strong>Unbound {{ $servidor->unboundVersion() }}</strong>, anterior à versão validada nesta instalação (1.26.1). Revise a atualização do pacote e as correções de segurança. A versão sozinha não confirma falha de sincronização: confira os horários das consultas e os logs do DNS. <a href="{{ route('servidores.unbound-seguranca') }}" class="inline-link">Ver detalhes</a>.
+            Este servidor usa <strong>Unbound {{ $servidor->unboundVersion() }}</strong>, anterior à referência de segurança upstream (1.26.2). Revise a atualização do pacote e as correções de segurança. O número da versão não identifica patches da distribuição nem confirma falha de sincronização: confira os horários das consultas e os logs do DNS. <a href="{{ route('servidores.unbound-seguranca') }}" class="inline-link">Ver detalhes</a>.
         </div>
     @endif
 
@@ -309,6 +309,7 @@ systemctl restart unbound</pre>
                 <div style="margin:0 0 14px"><button type="button" class="button button-secondary" data-endpoint-copy="rpz-transfer-command" aria-live="polite">Copiar</button></div>
                 <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">O botão copia o comando; a execução acontece no DNS do cliente. É necessário ter o <code>unbound-control</code> habilitado. Se o nome no bloco <code>rpz:</code> foi personalizado, use esse nome no comando.</p>
                 <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">O retorno <code>ok</code> indica que a busca foi solicitada. Aguarde o download e atualize esta página para conferir a última consulta e a quantidade de domínios no histórico. Esse registro confirma a consulta ao painel; confira também os logs do Unbound para confirmar que a zona foi carregada.</p>
+                @include('partials.rpz-diagnostics', ['diagnosticZone' => $rpzZoneName, 'copyAttribute' => 'data-endpoint-copy'])
                 <details style="color:var(--text-muted);font-size:11px;line-height:1.6">
                     <summary style="cursor:pointer;margin-bottom:10px">Se o comando apresentar erro</summary>
                     <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">Se aparecer erro de conexão ou de controle desabilitado, confira a configuração local do <code>unbound-control</code>. Se a zona não for encontrada, consulte os nomes configurados:</p>

@@ -1,0 +1,4 @@
+# Reuse the validated runtime without rebuilding unrelated dependencies.
+ARG BASE_IMAGE=dns-panel-rpz-app:unbound-security-20261023
+FROM ${BASE_IMAGE}
+COPY --chown=www-data:www-data app/Console/Commands/RpzPrimaryServe.php /var/www/html/app/Console/Commands/RpzPrimaryServe.php
