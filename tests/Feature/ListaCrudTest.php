@@ -95,6 +95,6 @@ class ListaCrudTest extends TestCase
         }
 
         $response->assertStatus(200);
-        $response->assertSee('Domínios (50.000)');
+        $response->assertSee('50.000')->assertDontSee('dominio-teste-');
     }
 }

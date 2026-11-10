@@ -27,6 +27,18 @@
     .admin-compact-actions .button { min-height: 31px; padding: 0 9px; font-size: 10px; color: var(--cyan); }
     .admin-compact-actions .admin-compact-edit { width: 31px; padding: 0; color: var(--text-soft); }
     .admin-compact-actions .actions-menu-toggle { width: 27px; height: 31px; }
+    .page-content.admin-refined .admin-endpoints-compact .admin-compact-actions { gap: 6px; }
+    .page-content.admin-refined .admin-endpoints-compact .admin-compact-actions .admin-compact-edit,
+    .page-content.admin-refined .admin-endpoints-compact .admin-compact-actions .actions-menu-toggle {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 30px; height: 30px; min-height: 30px; padding: 0;
+        border: 1px solid transparent; border-radius: 7px; background: transparent;
+        color: var(--text-muted); box-shadow: none;
+    }
+    .page-content.admin-refined .admin-endpoints-compact .admin-compact-actions .admin-compact-edit:hover,
+    .page-content.admin-refined .admin-endpoints-compact .admin-compact-actions .actions-menu-toggle:hover {
+        background: var(--surface-soft); border-color: var(--border); color: var(--text);
+    }
     @media (max-width: 1000px) { .admin-endpoints-compact .table-responsive { overflow-x: auto; } .admin-endpoints-compact .admin-compact-table { min-width: 900px; } }
     @media (max-width: 600px) {
         .admin-endpoints-compact .page-heading { align-items: flex-start; flex-direction: column; }

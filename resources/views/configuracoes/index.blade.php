@@ -7,14 +7,15 @@
     <div class="admin-settings">
         <div class="page-heading page-heading-compact">
             <div>
-                <h1>Configurações</h1>
+                @if(auth()->user()->isAdmin())<div class="page-eyebrow"><x-ui-icon name="settings" size="14" />Administração</div>@endif
+            <h1>Configurações</h1>
                 <p>Integrações e ajustes gerais do painel.</p>
             </div>
         </div>
 
         <nav class="settings-tabs" role="tablist" aria-label="Configurações ADMIN">
             @foreach (['geral' => 'Geral', 'notificacoes' => 'Notificações', 'seguranca' => 'Segurança', 'integracoes' => 'Integrações', 'backup' => 'Backup'] as $tab => $label)
-                <button type="button" id="settings-tab-{{ $tab }}" class="settings-tab {{ $tab === 'geral' ? 'is-active' : '' }}" role="tab" aria-selected="{{ $tab === 'geral' ? 'true' : 'false' }}" aria-controls="settings-panel-{{ $tab }}" tabindex="{{ $tab === 'geral' ? '0' : '-1' }}" data-settings-tab="{{ $tab }}">{{ $label }}</button>
+                <button type="button" id="settings-tab-{{ $tab }}" class="settings-tab {{ $tab === 'geral' ? 'is-active' : '' }}" role="tab" aria-selected="{{ $tab === 'geral' ? 'true' : 'false' }}" aria-controls="settings-panel-{{ $tab }}" tabindex="{{ $tab === 'geral' ? '0' : '-1' }}" data-settings-tab="{{ $tab }}"><x-ui-icon name="{{ match($tab){'geral'=>'settings','notificacoes'=>'activity','seguranca'=>'shield','integracoes'=>'link',default=>'server'} }}" size="15" />{{ $label }}</button>
             @endforeach
         </nav>
 
@@ -34,8 +35,8 @@
                     <div><h2>Limpeza de servidores inativos</h2><p>Remove servidores que pararam de consultar a zona RPZ</p></div>
                     <span class="settings-status {{ $limpeza['ativo'] ? 'is-enabled' : '' }}">{{ $limpeza['ativo'] ? 'Ativa' : 'Inativa' }}</span>
                 </div>
-                <p class="settings-copy">Todo dia às 03:30 o painel procura servidores sem consultar a zona há mais de {{ $limpeza['dias'] }} dias (servidor que nunca consultou conta desde o cadastro). Primeiro ele <strong>avisa</strong> pelo Telegram e pela Auditoria; só remove se, passado o prazo de aviso, o servidor continuar parado. Se voltar a consultar antes, o aviso é cancelado.</p>
-                <p class="settings-note">Hoje há {{ $limpeza['candidatos'] }} servidor(es) além do prazo de {{ $limpeza['dias'] }} dias. Ao ativar, eles serão apenas avisados no primeiro ciclo. Simulação sem alterar nada: <code>php artisan servidores:limpar-inativos --dry-run</code></p>
+                <p class="settings-copy">A verificação acontece diariamente às <strong>03:30</strong>. O painel identifica servidores sem consultar a zona RPZ há mais de <strong>{{ $limpeza['dias'] }} dias</strong>.</p>
+                <ol class="settings-steps"><li><strong>Aviso:</strong> registra na Auditoria e avisa pelo Telegram.</li><li><strong>Espera:</strong> aguarda o prazo configurado abaixo. Se o servidor voltar a consultar, cancela o aviso.</li><li><strong>Remoção:</strong> remove o servidor somente se ele continuar inativo após o prazo.</li></ol><p class="settings-callout">Hoje há {{ $limpeza['candidatos'] }} servidor(es) além do prazo de {{ $limpeza['dias'] }} dias. Ao ativar, eles serão apenas avisados no primeiro ciclo. </p><details class="settings-help"><summary>Como o prazo é calculado e como simular</summary><p>Para servidores que nunca consultaram, o prazo conta desde o cadastro.</p><p>Simulação sem alterar nada: <code>php artisan servidores:limpar-inativos --dry-run</code></p></details>
                 <form id="settings-limpeza-save" class="settings-form" action="{{ route('configuracoes.limpeza-servidores.update') }}" method="POST">
                     @csrf
                     @method('PUT')
@@ -154,9 +155,10 @@
                     <div><h2>Backup externo (Cloudflare R2)</h2><p>Backup semanal do SQLite comprimido em .bak.gz</p></div>
                     <span class="settings-status {{ $r2['ativo'] ? 'is-enabled' : '' }}">{{ $r2['ativo'] ? 'Ativo' : 'Inativo' }}</span>
                 </div>
-                <p class="settings-copy">Este fluxo guarda somente o banco SQLite, com compressão gzip e retenção local de 14 dias. O envio ao R2 depende de credenciais válidas. Este arquivo não inclui os arquivos enviados nem as configurações do servidor.</p>
+                <p class="settings-copy">Salva uma cópia comprimida do <strong>banco SQLite</strong>. O envio ao R2 depende de credenciais válidas.</p>
                 @if($r2['ativo'] && (!$r2['access_key_id'] || !$r2['secret_access_key']))<p class="settings-note">Preencha credenciais R2 válidas para retomar o envio externo. As credenciais antigas foram preservadas para recuperação.</p>@endif
 
+                <p class="settings-callout"><strong>Escopo do backup:</strong> banco de dados, com retenção local de 14 dias. Arquivos enviados e configurações do servidor não estão incluídos.</p>
                 <form id="settings-r2-save" class="settings-form" action="{{ route('configuracoes.r2.update') }}" method="POST">
                     @csrf
                     @method('PUT')
@@ -190,7 +192,7 @@
                         <div class="field-group">
                             <label for="keep_days">Retenção no R2 (dias)</label>
                             <input type="number" class="form-control settings-mono" id="keep_days" name="keep_days" value="{{ $r2['keep_days'] }}" min="1" max="365">
-                            <small class="settings-note">Após cada envio confirmado, ao atingir 10 backups, mantém os 5 mais recentes. A retenção por dias também preserva pelo menos os 5 mais recentes. Padrão: 30 dias.</small>
+                            <small class="settings-note">Padrão: 30 dias. A limpeza preserva pelo menos os 5 backups mais recentes. Ao atingir 10 backups, um envio confirmado dispara a redução para os 5 mais recentes.</small>
                         </div>
                     </div>
                 </form>

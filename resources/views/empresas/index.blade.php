@@ -38,6 +38,7 @@
     <div class="admin-companies-compact">
     <div class="page-heading page-heading-compact">
         <div>
+            @if(auth()->user()->isAdmin())<div class="page-eyebrow"><x-ui-icon name="building" size="14" />Gestão de empresas</div>@endif
             <h1>Empresas</h1>
             <p>{{ $empresas->total() }} cadastradas · {{ $empresasAtivas }} ativas</p>
         </div>

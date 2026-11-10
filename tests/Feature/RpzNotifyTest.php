@@ -101,4 +101,23 @@ class RpzNotifyTest extends TestCase
         $this->assertSame('unchanged', $result['status']);
         Queue::assertNotPushed(NotifyRpzZone::class);
     }
+
+    public function test_company_notify_only_targets_mapped_pilot_servers_of_that_company(): void
+    {
+        $serverZone = $this->published();
+        config(['rpz.primary_company_server_ids' => [(string) $serverZone->servidor_id]]);
+        app(RpzZoneBuildService::class)->build('company:'.Servidor::findOrFail($serverZone->servidor_id)->empresa_id);
+        $company = RpzZone::where('zone_key', 'company:'.Servidor::findOrFail($serverZone->servidor_id)->empresa_id)->firstOrFail();
+        $this->mock(RpzNotifyTransport::class)->shouldReceive('send')->once()
+            ->with('127.0.0.1', $company->zone_name)
+            ->andReturn(['status' => 'acknowledged', 'attempts' => 1, 'error' => null]);
+        $notifier = app(RpzPrimaryNotifier::class);
+        $notifier->notify($serverZone);
+        $notifier->notify($company);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'rpz.notify.acknowledged', 'target_id' => $serverZone->servidor_id]);
+        config(['rpz.notify_server_ids' => []]);
+        $notifier->notify($company);
+        config(['rpz.notify_server_ids' => [(string) $serverZone->servidor_id], 'rpz.primary_company_server_ids' => []]);
+        $notifier->notify($company);
+    }
 }

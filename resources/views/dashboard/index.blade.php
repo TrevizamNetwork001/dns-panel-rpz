@@ -67,69 +67,7 @@
         </div>
     </div>
 
-    <div class="dashboard-grid">
-        <div class="panel">
-            <div class="panel-header">
-                <h2>Fontes de bloqueio</h2>
-                <a href="{{ route('listas.index') }}" class="inline-link">Ver todas as fontes</a>
-            </div>
-            @if ($listas->isEmpty())
-                <div class="empty-state"><span>Nenhuma fonte cadastrada ainda.</span></div>
-            @else
-                <div class="table-responsive dashboard-sources-table-wrap">
-                    <table class="data-table dashboard-sources-table">
-                        <colgroup>
-                            <col class="source-name-column">
-                            <col class="source-type-column">
-                            <col class="source-scope-column">
-                            <col class="source-count-column">
-                            <col class="source-updated-column">
-                            <col class="source-status-column">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Tipo</th>
-                                <th>Escopo</th>
-                                <th>Ativos</th>
-                                <th>Última atualização</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($listas->take(4) as $lista)
-                                @php
-                                    $tipo = $lista->isAnatel() ? 'Catálogo' : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'));
-                                    $tipoClasse = match ($tipo) {
-                                        'Externa' => 'is-info',
-                                        'Própria' => 'is-active',
-                                        default => 'is-violet',
-                                    };
-                                    $ultimaAtualizacao = $lista->last_sync_at ?? $lista->updated_at;
-                                    $fonteAtiva = $lista->status === 'active';
-                                @endphp
-                                <tr>
-                                    <td class="source-name-cell"><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a></td>
-                                    <td><span class="status-pill status-pill-normal-case {{ $tipoClasse }}">{{ $tipo }}</span></td>
-                                    <td>{{ $lista->empresa?->nome ?? 'Global' }}</td>
-                                    <td class="table-mono">{{ number_format($lista->dominios_ativos_count, 0, ',', '.') }}</td>
-                                    <td class="table-mono">{{ \App\Http\Controllers\DashboardController::relativoPt($ultimaAtualizacao) }}</td>
-                                    <td>
-                                        <span class="status-pill status-pill-normal-case status-pill-dot @if($fonteAtiva) is-active @else is-inactive @endif">
-                                            {{ $fonteAtiva ? 'Atualizada' : 'Inativa' }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                @if ($listas->count() > 4)
-                    <p class="dashboard-table-footer">Mostrando 4 de {{ $listas->count() }} fontes</p>
-                @endif
-            @endif
-        </div>
-
+    <div class="dashboard-grid dashboard-grid-servers">
         <div class="panel">
             <div class="panel-header">
                 <h2>Estado dos endpoints</h2>

@@ -57,7 +57,7 @@
         </div>
         <div class="company-edit">
             @if ($isAdmin)
-            <a href="{{ route('empresas.edit', $empresa) }}" class="button button-secondary"><x-ui-icon name="pencil" />Editar empresa</a>
+            <a href="{{ route('empresas.edit', $empresa) }}" class="button {{ $isAdmin ? 'button-primary' : 'button-secondary' }}"><x-ui-icon name="pencil" />Editar empresa</a>
             @else
             <button type="button" class="button button-secondary" disabled aria-describedby="company-edit-help">Editar empresa</button>
             <small id="company-edit-help">Edição disponível para administradores.</small>

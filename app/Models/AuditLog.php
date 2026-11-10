@@ -59,6 +59,14 @@ class AuditLog extends Model
     {
         $action = strtolower($action);
 
+        if (in_array($action, ['auth.login', 'auth.logout', 'auth.password_changed', 'security.ip_unbanned'], true)) {
+            return 'info';
+        }
+
+        if ($action === 'user.password_reset') {
+            return 'warning';
+        }
+
         if (str_contains($action, 'auth') || str_contains($action, 'login') || str_contains($action, 'security')) {
             if (str_contains($action, 'fail') || str_contains($action, 'throttle') || str_contains($action, 'invalid') || str_contains($action, 'unauthorized')) {
                 return 'danger';

@@ -1,0 +1,5 @@
+FROM dns-panel-rpz-app:servers-actions-20261110 AS app
+COPY --chown=www-data:www-data public/assets/app.css /var/www/html/public/assets/
+
+FROM dns-panel-rpz-web:security-design-20261110 AS web
+COPY public/assets/app.css /var/www/html/public/assets/

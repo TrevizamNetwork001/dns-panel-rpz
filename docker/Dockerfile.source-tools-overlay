@@ -1,0 +1,4 @@
+FROM dns-panel-rpz-app:consolidated-workflows-20261110
+COPY --chown=www-data:www-data resources/views/listas/rpz-preview.blade.php resources/views/listas/admin-show.blade.php /var/www/html/resources/views/listas/
+COPY --chown=www-data:www-data resources/views/listas/partials/admin-detail-styles.blade.php resources/views/listas/partials/source-tools-styles.blade.php /var/www/html/resources/views/listas/partials/
+COPY --chown=www-data:www-data resources/views/anatel/history.blade.php resources/views/anatel/exclusions.blade.php /var/www/html/resources/views/anatel/

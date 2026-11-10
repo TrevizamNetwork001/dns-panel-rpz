@@ -13,15 +13,26 @@ class AuditLogBucketTest extends TestCase
         $this->assertSame('danger', AuditLog::bucket('security.unauthorized_access'));
     }
 
-    public function test_successful_auth_actions_are_warning(): void
+    public function test_successful_auth_actions_are_info(): void
     {
-        $this->assertSame('warning', AuditLog::bucket('auth.login'));
-        $this->assertSame('warning', AuditLog::bucket('auth.logout'));
+        $this->assertSame('info', AuditLog::bucket('auth.login'));
+        $this->assertSame('info', AuditLog::bucket('auth.logout'));
+        $this->assertSame('info', AuditLog::bucket('auth.password_changed'));
+        $this->assertSame('info', AuditLog::bucket('AUTH.LOGIN'));
     }
 
     public function test_security_ban_events_are_warning(): void
     {
         $this->assertSame('warning', AuditLog::bucket('security.ip_banned'));
+    }
+
+    public function test_ended_bans_are_info_but_unknown_security_events_remain_warning(): void
+    {
+        $this->assertSame('info', AuditLog::bucket('security.ip_unbanned'));
+        $this->assertSame('warning', AuditLog::bucket('security.new_event'));
+        $this->assertSame('warning', AuditLog::bucket('user.password_reset'));
+        $this->assertSame('danger', AuditLog::bucket('auth.throttled'));
+        $this->assertSame('danger', AuditLog::bucket('auth.invalid_password'));
     }
 
     public function test_ip_management_actions_are_info(): void

@@ -1,0 +1,4 @@
+ARG BASE_IMAGE=dns-panel-rpz-app:rpz-dualstack-20261023
+FROM ${BASE_IMAGE}
+COPY --chown=www-data:www-data config/rpz.php /var/www/html/config/rpz.php
+COPY --chown=www-data:www-data app/Services/RpzPrimaryResponder.php app/Services/RpzPrimaryNotifier.php /var/www/html/app/Services/

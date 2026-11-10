@@ -60,7 +60,7 @@
 
     @if (! $isMikrotik && $servidor->unboundVersionAfetada())
         <div class="alert-error" role="alert">
-            Este servidor usa <strong>Unbound {{ $servidor->unboundVersion() }}</strong>, anterior à versão validada nesta instalação (1.26.1). Revise a atualização do pacote e as correções de segurança. A versão sozinha não confirma falha de sincronização: confira os horários das consultas e os logs do DNS. <a href="{{ route('servidores.unbound-seguranca') }}" class="inline-link">Ver detalhes</a>.
+            Este servidor usa <strong>Unbound {{ $servidor->unboundVersion() }}</strong>, anterior à referência de segurança upstream (1.26.2). Revise a atualização do pacote e as correções de segurança. O número da versão não identifica patches da distribuição nem confirma falha de sincronização: confira os horários das consultas e os logs do DNS. <a href="{{ route('servidores.unbound-seguranca') }}" class="inline-link">Ver detalhes</a>.
         </div>
     @endif
 
@@ -99,7 +99,7 @@
         <dialog id="endpoint-lists" class="endpoint-drawer" aria-labelledby="endpoint-lists-title">
             <div class="panel-header endpoint-drawer-heading"><div class="endpoint-card-title"><x-ui-icon name="link" size="27" /><div><h2 id="endpoint-lists-title">Listas vinculadas</h2><p class="endpoint-detail-note">{{ $servidor->listas->count() }} listas vinculadas a este servidor</p></div></div><button type="button" class="endpoint-dismiss" data-close-dialog aria-label="Fechar listas"><x-ui-icon name="x" size="20" /></button></div>
             @if (session('status'))<div class="alert-success" style="margin:0 0 14px">{{ session('status') }}</div>@endif
-            @if ($listasDisponiveis->isNotEmpty())
+            @if (! auth()->user()->isAdmin() && $listasDisponiveis->isNotEmpty())
                 <form action="{{ route('servidores.listas.attach', [$servidor, '__lista__']) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px" onsubmit="this.action = this.action.replace('__lista__', this.lista_id.value); return this.lista_id.value !== '';">
                     @csrf
                     <select name="lista_id" class="form-control" style="flex:1" required>
@@ -110,6 +110,10 @@
                     </select>
                     <button type="submit" class="button button-secondary"><x-ui-icon name="plus" size="16" />Vincular</button>
                 </form>
+            @endif
+            @if (auth()->user()->isAdmin())
+                <p class="endpoint-detail-note">Para alterar os vínculos, use a edição do servidor.</p>
+                <a href="{{ route('servidores.edit', $servidor) }}#fontes-habilitadas-panel" class="button button-secondary">Editar vínculos</a>
             @endif
             @if ($servidor->listas->isEmpty())
                 <div class="empty-state"><span>Nenhuma fonte vinculada ainda.</span></div>
@@ -129,11 +133,13 @@
                                         <span class="status-pill status-pill-normal-case {{ auth()->user()->isAdmin() && $lista->isExterna() ? 'is-info' : ($lista->empresa_id ? 'is-active' : 'is-muted') }}">{{ $tipoFonte }}</span>
                                     </td>
                                     <td>
+                                        @unless (auth()->user()->isAdmin())
                                         <form action="{{ route('servidores.listas.detach', [$servidor, $lista]) }}" method="POST">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover esta fonte do endpoint?')">Remover</button>
                                         </form>
+                                        @endunless
                                     </td>
                                 </tr>
                             @endforeach
@@ -309,6 +315,7 @@ systemctl restart unbound</pre>
                 <div style="margin:0 0 14px"><button type="button" class="button button-secondary" data-endpoint-copy="rpz-transfer-command" aria-live="polite">Copiar</button></div>
                 <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">O botão copia o comando; a execução acontece no DNS do cliente. É necessário ter o <code>unbound-control</code> habilitado. Se o nome no bloco <code>rpz:</code> foi personalizado, use esse nome no comando.</p>
                 <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">O retorno <code>ok</code> indica que a busca foi solicitada. Aguarde o download e atualize esta página para conferir a última consulta e a quantidade de domínios no histórico. Esse registro confirma a consulta ao painel; confira também os logs do Unbound para confirmar que a zona foi carregada.</p>
+                @include('partials.rpz-diagnostics', ['diagnosticZone' => $rpzZoneName, 'copyAttribute' => 'data-endpoint-copy'])
                 <details style="color:var(--text-muted);font-size:11px;line-height:1.6">
                     <summary style="cursor:pointer;margin-bottom:10px">Se o comando apresentar erro</summary>
                     <p style="color:var(--text-muted);font-size:11px;line-height:1.6;margin:0 0 10px">Se aparecer erro de conexão ou de controle desabilitado, confira a configuração local do <code>unbound-control</code>. Se a zona não for encontrada, consulte os nomes configurados:</p>

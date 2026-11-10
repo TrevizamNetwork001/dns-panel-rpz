@@ -84,4 +84,34 @@ class RpzPrimaryResponderTest extends TestCase
         config(['rpz.static_artifacts_enabled' => false]);
         $this->assertNull(app(RpzPrimaryResponder::class)->respond($this->dnsQuery(), '127.0.0.1'));
     }
+
+    public function test_ipv6_source_requires_an_active_matching_acl(): void
+    {
+        $zone = $this->published();
+        $rule = Servidor::findOrFail($zone->servidor_id)->allowedIps()->create([
+            'ip_cidr' => '2001:db8::15/128',
+            'status' => 'active',
+        ]);
+        $responder = app(RpzPrimaryResponder::class);
+        $reply = $responder->respond($this->dnsQuery(), '2001:0db8:0:0:0:0:0:15');
+        $this->assertNotNull($reply);
+        $this->assertSame($zone->currentVersion->serial, unpack('Nserial', substr($reply, -20, 4))['serial']);
+        $this->assertNull($responder->respond($this->dnsQuery(), '2001:db8::16'));
+        $rule->update(['status' => 'pending']);
+        $this->assertNull($responder->respond($this->dnsQuery(), '2001:db8::15'));
+    }
+
+    public function test_company_mapping_uses_the_company_published_serial_without_server_fallback(): void
+    {
+        $serverZone = $this->published();
+        config(['rpz.primary_company_server_ids' => [(string) $serverZone->servidor_id]]);
+        $responder = app(RpzPrimaryResponder::class);
+        $this->assertNull($responder->respond($this->dnsQuery(), '127.0.0.1'));
+        app(RpzZoneBuildService::class)->build('company:'.Servidor::findOrFail($serverZone->servidor_id)->empresa_id);
+        $company = RpzZone::where('zone_key', 'company:'.Servidor::findOrFail($serverZone->servidor_id)->empresa_id)->firstOrFail();
+        $company->currentVersion->update(['serial' => 456]);
+        $reply = $responder->respond($this->dnsQuery(), '127.0.0.1');
+        $this->assertNotNull($reply);
+        $this->assertSame(456, unpack('Nserial', substr($reply, -20, 4))['serial']);
+    }
 }

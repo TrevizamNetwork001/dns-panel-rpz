@@ -1,0 +1,2 @@
+FROM dns-panel-rpz-app:sidebar-clean-20261110
+COPY --chown=www-data:www-data resources/views/listas/form.blade.php /var/www/html/resources/views/listas/

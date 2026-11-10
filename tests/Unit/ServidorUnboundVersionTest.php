@@ -29,14 +29,14 @@ class ServidorUnboundVersionTest extends TestCase
 
     public function test_known_affected_versions_are_flagged(): void
     {
-        foreach (['1.13.1', '1.17.0', '1.22.0', '1.26.0'] as $versao) {
+        foreach (['1.13.1', '1.17.0', '1.22.0', '1.26.0', '1.26.1'] as $versao) {
             $this->assertTrue($this->servidor("unbound/{$versao}")->unboundVersionAfetada(), "esperava {$versao} marcada como afetada");
         }
     }
 
-    public function test_1_26_1_and_later_are_not_flagged(): void
+    public function test_1_26_2_and_later_are_not_flagged(): void
     {
-        foreach (['1.26.1', '1.26.2', '1.27.0', '2.0.0'] as $versao) {
+        foreach (['1.26.2', '1.27.0', '2.0.0'] as $versao) {
             $this->assertFalse($this->servidor("unbound/{$versao}")->unboundVersionAfetada(), "esperava {$versao} NÃO afetada");
         }
     }

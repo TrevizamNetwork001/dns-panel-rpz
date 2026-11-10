@@ -36,7 +36,7 @@ class ListaShowIsolamentoTest extends TestCase
             ->assertDontSeeText('Empresa Concorrente SA');
     }
 
-    public function test_client_servers_panel_is_compact_and_admin_keeps_the_wide_one(): void
+    public function test_client_servers_panel_is_compact_and_admin_uses_management_shortcuts(): void
     {
         [, $lista, $cliente] = $this->catalogoComDoisClientes();
 
@@ -45,7 +45,8 @@ class ListaShowIsolamentoTest extends TestCase
 
         $admin = User::factory()->admin()->create();
         $html = $this->actingAs($admin)->get(route('listas.show', $lista))->assertOk()->getContent();
-        $this->assertSame(1, preg_match('/details-card-wide"?>\s*<div class="panel-header"><h2>Endpoints RPZ vinculados/', $html));
+        $this->assertStringContainsString('Gerenciar vínculos', $html);
+        $this->assertStringNotContainsString('Endpoints RPZ vinculados', $html);
     }
 
     public function test_client_does_not_get_the_history_button_nor_the_anatel_pdf_panel(): void
@@ -61,15 +62,15 @@ class ListaShowIsolamentoTest extends TestCase
             ->assertDontSeeText('A importação é incremental');
     }
 
-    public function test_admin_still_sees_every_server_with_its_company(): void
+    public function test_admin_has_links_instead_of_repeated_server_listing(): void
     {
         [, $lista] = $this->catalogoComDoisClientes();
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)->get(route('listas.show', $lista))->assertOk()
-            ->assertSeeText('Endpoints RPZ vinculados')
-            ->assertSeeText('meu-dns')->assertSeeText('dns-do-concorrente')
-            ->assertSeeText('Empresa Concorrente SA')
+            ->assertSeeText('Gerenciar vínculos')
+            ->assertDontSeeText('meu-dns')->assertDontSeeText('dns-do-concorrente')
+            ->assertDontSeeText('Empresa Concorrente SA')
             ->assertSee(route('anatel.exclusions', $lista), false)
             ->assertSee('href="'.route('listas.historico', $lista).'"', false)
             ->assertSeeText('ANATEL / PDF');

@@ -112,6 +112,8 @@ def create(directory):
             with closing(sqlite3.connect((mounts['/data'] / 'database.sqlite').as_uri() + '?mode=ro', uri=True)) as source:
                 with closing(sqlite3.connect(work / 'database.sqlite')) as snapshot:
                     source.backup(snapshot)
+                    # A standalone snapshot must not depend on WAL/SHM sidecars.
+                    snapshot.execute('PRAGMA journal_mode=DELETE')
             counts = database_info(work / 'database.sqlite')
             pack(mounts['/var/www/html/storage'], work / 'storage.tar')
             tracked = subprocess.check_output(['git', '-C', str(ROOT), 'ls-files', '-z']).decode().split('\0')

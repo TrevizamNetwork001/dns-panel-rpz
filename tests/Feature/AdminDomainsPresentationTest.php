@@ -56,16 +56,10 @@ class AdminDomainsPresentationTest extends TestCase
             'origem' => 'admin',
         ]));
 
-        $response->assertOk()
-            ->assertSee('admin-domains-pagination')
-            ->assertSee('Página 1')
-            ->assertSee('Próxima')
-            ->assertSee('origem=admin&amp;page=2', false)
-            ->assertDontSee('Previous')
-            ->assertDontSee('Showing')
-            ->assertDontSee('Página 2');
+        $response->assertRedirect(route('dominios.index', ['fonte_id' => $lista->id]));
+        $this->get($response->headers->get('Location'))->assertOk()
+            ->assertSee('Próxima')->assertSee('fonte_id='.$lista->id, false);
 
-        $this->assertCount(50, $response->viewData('dominios')->items());
     }
 
     public function test_admin_source_summary_and_actions_match_real_domain_state(): void

@@ -37,6 +37,7 @@
     <div class="admin-users-compact">
     <div class="page-heading page-heading-compact">
         <div>
+            @if(auth()->user()->isAdmin())<div class="page-eyebrow"><x-ui-icon name="lock" size="14" />Gestão de acessos</div>@endif
             <h1>Usuários</h1>
             <p>{{ $usuarios->total() }} cadastrados</p>
         </div>

@@ -1,0 +1,144 @@
+Nova origem HTTPS de download RPZ — feeds — 26/10/2026
+
+Objetivo
+Corrigir a dependência circular reproduzida na primeira busca do Unbound:
+nome da zona igual ao hostname da URL de download. O usuário criou os registros
+DNS solicitados e informou "feito"; concluída a preparação e publicação.
+
+DNS público confirmado por consulta a 1.1.1.1
+feeds.trevizamnetwork.com.br A 213.199.47.105
+feeds.trevizamnetwork.com.br AAAA 2a02:c207:2368:3678::1
+Consulta realizada com dig no contêiner de laboratório, pois o host não tem dig.
+
+HTTPS e gateway
+Certificado Let's Encrypt existente ampliado para os dois nomes:
+- rpz.trevizamnetwork.com.br
+- feeds.trevizamnetwork.com.br
+Mesma linhagem: .recovery/letsencrypt/live/rpz.trevizamnetwork.com.br.
+Emissão webroot HTTP-01 com os dois domínios, sem criar uma segunda linhagem.
+Validade publicada: 26/10/2026 15:44:29 UTC a 24/01/2027 15:44:28 UTC.
+Chave privada não incluída nesta documentação.
+
+Gateway ativo usa deploy/nginx/rpz-preview.conf, montado em compose.preview.yml.
+HTTP dos dois nomes aceita o desafio ACME e redireciona para HTTPS do próprio
+host. Novo vhost feeds em 443, IPv4/IPv6, permite somente os caminhos RPZ
+/rpz/<identificador>.zone; demais caminhos retornam 404, inclusive /login.
+Proxy usa o mesmo backend e preserva o IP real do cliente pelos cabeçalhos já
+utilizados no gateway. Licença, status e ACL continuam sendo verificados pela
+aplicação, sem exceções novas nem liberações de IPs de teste.
+Nginx -t aprovado antes dos reloads; não foi reiniciado o gateway.
+
+Renovação
+O timer dns-panel-rpz-preview-renew.timer continua ativo. A mesma linhagem
+renovará o certificado com os dois nomes. O script versionado
+ deploy/scripts/dns-panel-rpz-preview-renew
+foi atualizado e instalado no caminho já usado pelo serviço:
+ /usr/local/sbin/dns-panel-rpz-preview-renew
+Agora verifica os dois nomes com openssl -checkhost antes de publicar o
+certificado renovado. Arquivo instalado e versionado conferidos com cmp.
+O certificado segue sendo publicado em .recovery/preview-tls.
+Não foi executado um ciclo de renovação de staging/dry-run; houve emissão
+real bem-sucedida, conferência do certificado publicado e do timer ativo.
+A primeira consulta TLS imediatamente após o sinal de reload atingiu a
+configuração anterior; a repetição após o reload completar passou nos dois
+protocolos, com verificação TLS normal (sem -k).
+
+Aplicação
+Nova configuração opcional RPZ_FEED_BASE_URL. Ativa no Compose recuperado:
+ RPZ_FEED_BASE_URL=https://feeds.trevizamnetwork.com.br
+APP_URL permanece https://rpz.trevizamnetwork.com.br.
+RpzFeedUrl centraliza a criação de URLs de download por slug e token.
+Se a configuração não estiver definida, preserva a geração anterior.
+Se definida, exige origem HTTPS sem caminho/credenciais/query/fragmento e
+rejeita hostname igual ou descendente do nome da zona para evitar regressão.
+Empresa::rpzEndpointUrl e Servidor::legacyRpzEndpointUrl usam esse serviço.
+A página empresarial agora usa o método centralizado, como já fazia a tela
+do servidor. Endpoints e URLs MikroTik não foram alterados.
+O termo legacy do método do servidor designa o identificador por token;
+novas URLs de token também usam feeds quando configurado.
+
+Imagem incremental: dns-panel-rpz-app:rpz-feeds-20261026.
+Receita: docker/Dockerfile.rpz-feeds-overlay.
+Base: dns-panel-rpz-app:rpz-diagnostics-20261026.
+Somente app foi recriado com compose.staging.yml --no-deps --no-build.
+Nenhuma migração, rebuild de zona, troca de serial ou alteração no Unbound
+dos clientes foi executada nesta publicação.
+
+Validação
+34 testes PHP / 195 asserções aprovados em banco descartável:
+RpzFeedUrlTest, RpzDiagnosticsPresentationTest,
+AdminEndpointsPresentationTest e RpzEndpointTest.
+Cobrem origem nova/fallback, nomes de zona estáveis, URLs MikroTik preservadas,
+rejeição de origem circular/HTTP, snippets, ACL e acesso ao endpoint no host
+feeds. Os testes de autorização usam registros sintéticos no banco de teste.
+
+Três testes com Unbound real 1.25.2, rede externa desabilitada e HTTP/DNS
+sintéticos em loopback: tests/safety/rpz_startup_semantics.py.
+- Nome igual à origem: reproduz falha de lookup, nenhuma busca HTTP.
+- Nome distinto: baixa e salva automaticamente, sem auth_zone_transfer.
+- Arquivo previamente salvo: pode iniciar sem redownload nos primeiros 4 s.
+Fixtures: build_rpz_diagnostic_fixture.php, SQLite em memória.
+Esse ensaio isola bootstrap/DNS usando HTTP; TLS público foi conferido
+separadamente com curl normal em ambos os protocolos.
+
+Pós-publicação no runtime:
+- URL gerada para a União:
+  https://feeds.trevizamnetwork.com.br/rpz/uniao-networks-telecom-ltda-me.zone
+- Nome da zona permanece rpz.trevizamnetwork.com.br.
+- rpz:verify company:13: serial 58, OK; 186.283 regras NXDOMAIN sem canário.
+- URL real da União por curl -4 e curl -6 a partir do host: 403, esperado,
+  pois o IP de origem do teste não está autorizado como DNS desse cliente.
+  Confirma roteamento e recusa por ACL; não comprova download autorizado.
+- Caminho inexistente .zone: 404 em IPv4 e IPv6, TLS validado.
+- feeds/login: 404. Painel original /login: 200. App saudável.
+- Script de renovação instalado confere com o arquivo versionado; timer ativo.
+- git diff --check, sh -n do script e compilação Python sem erros.
+
+Migração dos clientes
+A alteração no painel não reescreve os arquivos unbound.conf instalados.
+Copiar a nova URL de cada cliente no painel e alterar SOMENTE url: no bloco
+rpz:. Preservar name:, zonefile:, módulos, Hiperlocal e controle remoto.
+Exemplo da União:
+ rpz:
+     name: "rpz.trevizamnetwork.com.br"
+     zonefile: "/var/lib/unbound/rpz.trevizamnetwork.com.br.zone"
+     url: "https://feeds.trevizamnetwork.com.br/rpz/uniao-networks-telecom-ltda-me.zone"
+Validar com unbound-checkconf antes de recarregar/reiniciar em janela adequada.
+Em DNS novo sem arquivo local, a primeira busca deve ocorrer automaticamente.
+Em DNS com arquivo já salvo, reutilizar a cópia e aguardar o temporizador não
+significa falha. Não apagar zonefiles de produção só para forçar o teste.
+O intervalo publicado continua uma hora; auth_zone_transfer antecipa a busca.
+Para validar em cliente: log de inicialização/download, list_auth_zones com
+serial da zona empresarial correta e testes A/AAAA do canário.
+ACL de saída IPv4/IPv6 deve estar cadastrada para cada família utilizada.
+Origem antiga permanece disponível para evitar quebra de instalações atuais.
+
+Pendência externa
+Ainda não recebida a validação de primeira busca no DNS de um cliente com a
+nova URL. A validação anterior da União (serial 58 e canário A/AAAA) utilizou
+a origem antiga; não deve ser apresentada como prova da nova primeira busca.
+
+Backup e rollback
+Snapshot protegido em .recovery/feeds-rollout-20261026, antes das alterações:
+configuração do gateway, script de renovação, Compose e par TLS anterior.
+Para reverter apenas a geração de novas URLs: restaurar imagem do app para
+rpz-diagnostics-20261026, Dockerfile correspondente e remover
+RPZ_FEED_BASE_URL do Compose; recriar somente app. Manter certificado ampliado
+e vhost feeds disponíveis para clientes que já tiverem migrado.
+Não restaurar certificado antigo enquanto feeds for usado: ele não cobre o
+novo nome. Não retirar feeds do DNS/HTTPS antes de migrar de volta os clientes.
+URLs antigas e novas usam as mesmas zonas/ACL. Não é necessário reverter dados.
+Sem commit/push nesta etapa; alterações anteriores preservadas.
+
+Validação externa posterior — consulta automática da União
+Conferência em 26/10/2026 às 15:12:58 (UTC-03): registrada nova consulta do
+servidor 8 à company:13 às 14:54:17 (17:54:17 UTC), revisão 58, 93.139 domínios,
+User-Agent unbound/1.26.2. O gateway confirma host feeds.trevizamnetwork.com.br,
+origem IPv6 2804:712c::253, resposta HTTP 200 concluída às 17:54:18 UTC,
+4.858.997 bytes. O reinício informado pelo usuário ocorreu às 13:54:16:
+a busca chegou uma hora e um segundo depois, compatível com o ciclo automático.
+Não houve comando manual solicitado nesta janela; usuário havia concordado
+em acompanhar sem auth_zone_transfer. Download pela nova origem confirmado.
+Isso substitui a pendência de comprovar uma consulta do cliente à nova URL;
+ainda não é ensaio de primeira instalação sem arquivo local nem uma nova
+leitura do serial instalado no cliente após esse download.

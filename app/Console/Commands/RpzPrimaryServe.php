@@ -28,15 +28,30 @@ class RpzPrimaryServe extends Command
         $bind = (string) config('rpz.primary_bind');
         $port = (int) config('rpz.primary_port');
 
-        $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+        $ipv6 = filter_var($bind, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false;
+        if (! $ipv6 && filter_var($bind, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false) {
+            $this->error('RPZ_PRIMARY_BIND deve ser um endereco IPv4 ou IPv6 literal.');
+
+            return self::FAILURE;
+        }
+        $socket = socket_create($ipv6 ? AF_INET6 : AF_INET, SOCK_DGRAM, SOL_UDP);
         if ($socket === false) {
             $this->error('Nao foi possivel criar o socket UDP: '.socket_strerror(socket_last_error()));
 
             return self::FAILURE;
         }
 
+        // Separate listeners preserve the source address used by the RPZ ACL.
+        if ($ipv6 && ! socket_set_option($socket, IPPROTO_IPV6, IPV6_V6ONLY, 1)) {
+            $this->error('Nao foi possivel restringir o listener a IPv6.');
+            socket_close($socket);
+
+            return self::FAILURE;
+        }
+
         if (! @socket_bind($socket, $bind, $port)) {
             $this->error("Nao foi possivel fazer bind em {$bind}:{$port}: ".socket_strerror(socket_last_error($socket)));
+            socket_close($socket);
 
             return self::FAILURE;
         }
@@ -47,8 +62,9 @@ class RpzPrimaryServe extends Command
         if (function_exists('pcntl_signal')) {
             pcntl_async_signals(true);
             $parar = function () use (&$rodando): void { $rodando = false; };
-            pcntl_signal(SIGTERM, $parar);
-            pcntl_signal(SIGINT, $parar);
+            // Interrupt recvfrom instead of restarting it while shutting down.
+            pcntl_signal(SIGTERM, $parar, false);
+            pcntl_signal(SIGINT, $parar, false);
         }
 
         while ($rodando) {

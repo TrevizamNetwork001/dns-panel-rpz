@@ -36,16 +36,6 @@ class DashboardController extends Controller
         $totalDominios = Dominio::count();
         $totalDominiosAtivos = Dominio::where('ativo', true)->count();
 
-        $listas = Lista::with('empresa')
-            ->withCount([
-                'dominios',
-                'dominios as dominios_ativos_count' => function ($query) {
-                    $query->where('ativo', true);
-                },
-            ])
-            ->orderByDesc('dominios_count')
-            ->get();
-
         $servidores = Servidor::with('empresa')
             ->orderByRaw('last_synced_at IS NULL, last_synced_at DESC')
             ->take(10)
@@ -75,7 +65,6 @@ class DashboardController extends Controller
             'totalListasTotal',
             'totalDominios',
             'totalDominiosAtivos',
-            'listas',
             'servidores',
             'resumoEndpoints',
             'atividadeRecente',
@@ -282,6 +271,32 @@ class DashboardController extends Controller
             : ($licencas->first()?->unavailableSummary() ?? 'Sem licença ativa');
 
         $graficoAtualizacoes = $this->atualizacoesPorDia($servidorIds);
+        $dnsSelecionado = request()->query('dns');
+        $dnsSelecionado = is_string($dnsSelecionado) && $servidorIds->containsStrict((int) $dnsSelecionado)
+            ? (int) $dnsSelecionado : null;
+        $coresDns = ['#0891b2', '#e87924', '#a855f7', '#16a34a', '#e11d48', '#6366f1'];
+        $seriesDns = $servidores->sortBy('id')->values()->map(function ($servidor) use ($coresDns) {
+            return [
+                'id' => $servidor->id,
+                'nome' => $servidor->nome,
+                'cor' => $coresDns[$servidor->id - 1] ?? 'hsl('.round(fmod($servidor->id * 137.508, 360), 3).', 65%, 48%)',
+                'pontos' => [],
+            ];
+        });
+        $contagensDns = $servidorIds->isEmpty() ? collect() : ServerSyncLog::query()
+            ->whereIn('servidor_id', $servidorIds)
+            ->where('created_at', '>=', now()->subDays(29)->startOfDay())
+            ->selectRaw('servidor_id, date(created_at) as dia, count(*) as total')
+            ->groupBy('servidor_id', 'dia')->get()->groupBy('servidor_id');
+        $seriesDns = $seriesDns->map(function ($serie) use ($contagensDns, $graficoAtualizacoes) {
+            $totais = $contagensDns->get($serie['id'], collect())->pluck('total', 'dia');
+            $serie['pontos'] = array_map(fn ($ponto) => [
+                'data' => $ponto['data'],
+                'total' => (int) ($totais[$ponto['data']->toDateString()] ?? 0),
+            ], $graficoAtualizacoes);
+
+            return $serie;
+        });
 
         $periodoInicio = now()->subDays(29)->startOfDay();
         $logsPeriodo = $servidorIds->isEmpty() ? collect() : ServerSyncLog::query()
@@ -305,6 +320,8 @@ class DashboardController extends Controller
 
         return view('dashboard.cliente', compact(
             'graficoAtualizacoes',
+            'seriesDns',
+            'dnsSelecionado',
             'empresa',
             'totalServidores',
             'totalListas',

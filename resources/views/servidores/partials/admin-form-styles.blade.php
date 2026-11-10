@@ -39,8 +39,10 @@
     .admin-endpoint-form .checkbox-label > div { min-width: 0; overflow-wrap: anywhere; }
     .admin-endpoint-form .checkbox-label strong { color: var(--text); font-size: 12px; font-weight: 600; }
     .admin-endpoint-form .checkbox-label small { color: var(--text-soft); font-size: 10px; line-height: 1.5; }
-    .admin-endpoint-form > form > .form-actions { grid-column: 1 / -1; position: sticky; bottom: 12px; z-index: 5; justify-content: flex-end; flex-wrap: wrap; padding: 16px 20px; margin: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 30px rgb(0 0 0 / 12%); }
-    .admin-endpoint-form .form-actions .button { min-height: 42px; padding: 0 20px; font-size: 12px; }
+    .page-content.admin-refined .admin-endpoint-form > form > .form-actions { grid-column: 1 / -1; position: static; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 16px 0 0; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+    .page-content.admin-refined .admin-endpoint-form .form-actions .button { min-height: 36px; padding: 7px 14px; font-size: 12px; }
+    .page-content.admin-refined .admin-endpoint-form .form-actions .button svg { width: 14px; height: 14px; flex-shrink: 0; }
+
     html:not([data-theme="light"]) .admin-endpoint-form { --surface: #061b29; --surface-soft: #0b2130; --border: #234151; --border-soft: #173444; --text-soft: #adc5d9; --text-muted: #88a5ba; --cyan: #00cbee; --green: #00dba0; }
     @media (max-width: 1050px) { .admin-endpoint-form > form { grid-template-columns: minmax(0, 1fr); } }
     @media (max-width: 600px) {
@@ -49,6 +51,6 @@
         .admin-endpoint-form .form-panel { padding: 18px; }
         .admin-endpoint-form .form-grid { grid-template-columns: minmax(0, 1fr); }
         .admin-endpoint-form #fontes-selecionadas-count { margin-left: 0; width: auto; }
-        .admin-endpoint-form > form > .form-actions { bottom: 8px; padding: 12px; }
+        .page-content.admin-refined .admin-endpoint-form > form > .form-actions { padding-top: 14px; }
     }
 </style>

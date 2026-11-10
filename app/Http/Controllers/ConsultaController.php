@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Dominio;
 use App\Models\Lista;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -12,8 +13,12 @@ use Illuminate\View\View;
 
 class ConsultaController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        if (Auth::user()->isAdmin()) {
+            return redirect()->route('dominios.index', $request->only(['dominio', 'fonte_id', 'status', 'page']));
+        }
+
         return view('consulta.index', $this->buscarResultados($request));
     }
 

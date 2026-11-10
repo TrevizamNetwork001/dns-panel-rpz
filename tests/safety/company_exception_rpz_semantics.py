@@ -17,7 +17,7 @@ import time
 import unittest
 
 OUTPUT = Path(os.environ.get('RPZ_SAFETY_OUTPUT', '/review'))
-MANIFEST = json.loads((OUTPUT / 'manifest.json').read_text())
+MANIFEST_PATH = OUTPUT / 'manifest.json'
 ALLOWED = ['exemplo.com.br', 'www.exemplo.com.br', 'a.b.exemplo.com.br',
            'ads.exemplo.com.br', 'allow.deep.example.com',
            'www.allow.deep.example.com', 'x.y.allow.deep.example.com']
@@ -47,7 +47,7 @@ class FakeUpstream:
 
 
 class Resolver:
-    def __init__(self, engine, zone):
+    def __init__(self, engine, zone, diagnostics=False):
         self.engine = engine
         self.temp = tempfile.TemporaryDirectory(prefix='rpz-semantics-')
         self.root = Path(self.temp.name)
@@ -70,6 +70,15 @@ forward-zone:
 rpz:
  name: "policy.test"
  zonefile: "{self.root}/policy.zone"
+'''
+            if diagnostics:
+                config = config.replace('server:\n', 'server:\n extended-statistics: yes\n statistics-inhibit-zero: no\n local-zone: "test." transparent\n', 1)
+                config += f''' rpz-log: yes
+ rpz-log-name: "safety-synthetic"
+remote-control:
+ control-enable: yes
+ control-interface: "{self.root}/control.sock"
+ control-use-cert: no
 '''
             command = ['unbound', '-d', '-c']
         else:
@@ -113,6 +122,7 @@ zone "policy.test" {{type primary; file "policy.zone"; notify no;}};
 class CompanyExceptionSafety(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.manifest = json.loads(MANIFEST_PATH.read_text())
         cls.upstream = FakeUpstream()
         cls.checks = 0
 
@@ -127,7 +137,7 @@ class CompanyExceptionSafety(unittest.TestCase):
         return (status[1] if status else 'NO_RESPONSE', records)
 
     def test_current_generator_company_exception_contract(self):
-        for key, meta in sorted(MANIFEST.items()):
+        for key, meta in sorted(self.manifest.items()):
             allowed = meta.get('allowed', ALLOWED if meta['company'] == 'A' else [])
             probes = list(dict.fromkeys(allowed + meta.get('probes', ALLOWED + BLOCKED)))
             zone = OUTPUT / (key + '.zone')

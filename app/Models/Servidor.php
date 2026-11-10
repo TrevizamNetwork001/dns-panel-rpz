@@ -85,7 +85,7 @@ class Servidor extends Model
     }
 
     /**
-     * Sinaliza versões anteriores à referência validada nesta instalação.
+     * Sinaliza versões anteriores à referência de segurança upstream revisada.
      * É um aviso de revisão, não diagnóstico de falha de atualização:
      * versões antigas também podem atualizar normalmente (ver RUNBOOK).
      */
@@ -93,12 +93,12 @@ class Servidor extends Model
     {
         $versao = $this->unboundVersion();
 
-        return $versao !== null && version_compare($versao, '1.26.1', '<');
+        return $versao !== null && version_compare($versao, '1.26.2', '<');
     }
 
     public function legacyRpzEndpointUrl(): string
     {
-        return url('/rpz/'.$this->token.'.zone');
+        return \App\Services\RpzFeedUrl::make($this->token);
     }
 
     public function preferredRpzEndpointUrl(): string

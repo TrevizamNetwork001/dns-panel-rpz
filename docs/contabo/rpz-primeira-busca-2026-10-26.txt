@@ -1,0 +1,67 @@
+Investigação da primeira busca automática do RPZ — 26/10/2026
+
+Relato: usuário informa que precisa antecipar manualmente a busca tanto em
+DNS novos quanto já cadastrados. Ainda não foi fornecido log de inicialização
+de um cliente que apresente o problema; foi solicitado journalctl e bloco rpz.
+
+Achado no modelo atual
+As duas views de integração usam name="rpz.trevizamnetwork.com.br" e URL
+https://rpz.trevizamnetwork.com.br/rpz/<identificador>.zone.
+O hostname usado para obter a zona coincide com o nome da própria zona.
+A documentação oficial alerta contra dependência circular para resolução do
+hostname da origem de transferência:
+https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html
+(seções auth-zone e RPZ, opções primary/url).
+
+Reprodução isolada
+Imagem dns-panel-rpz-block-lab:20261023, Unbound 1.25.2, --network none,
+servidor HTTP local e, no segundo ensaio, DNS upstream sintético em loopback.
+Nenhuma consulta ao endpoint ativo ou alteração de dados/clientes.
+Janela observada: primeiros quatro segundos de cada inicialização.
+
+1. URL por IP loopback, arquivo da zona inexistente: uma requisição HTTP,
+   primeira após cerca de 0,216 segundo; arquivo local criado automaticamente.
+2. Mesma URL por IP, arquivo da zona previamente salvo: nenhuma requisição
+   nos quatro segundos observados. Isso não demonstra que nunca atualiza;
+   há carregamento da cópia e agendamento segundo temporizadores.
+3. Zona policy.example.net, URL http://policy.example.net:18080/policy.zone,
+   arquivo inexistente: nenhuma requisição HTTP, nenhum arquivo criado;
+   log: "policy.example.net.: failed lookup, cannot transfer from master
+   policy.example.net". Mensagem repetida durante a janela observada.
+4. Mesma zona e conteúdo, URL http://download.example.net:18080/policy.zone,
+   arquivo inexistente: uma requisição, cerca de 0,061 segundo após iniciar,
+   arquivo criado. Ambos os hostnames tinham resposta A=127.0.0.1 no upstream
+   sintético; o hostname foi a variável alterada entre os cenários 3 e 4.
+
+Conclusão e limites
+Foi reproduzida falha de primeira busca com a combinação que consta do modelo
+atual e sucesso ao separar hostname da origem e nome da zona. É um defeito
+reproduzível do desenho da integração. Ainda não há log do cliente para
+atribuir todas as ocorrências relatadas exclusivamente a essa causa.
+O ensaio não valida HTTPS, permissões, IPv6, licença ou ACL dos clientes.
+O padrão funciona automaticamente em laboratório quando não há dependência
+circular; cron/comandos manuais não deveriam ser necessários no primeiro uso.
+
+Correção recomendada
+Separar a origem de download e o nome da zona. Preferir hostname HTTPS fora
+da zona RPZ, com DNS, certificado válido e virtual host do gateway configurados.
+Preservar o nome atual das zonas para evitar quebrar zonefiles e integrações
+instaladas; oferecer a nova origem de forma compatível nas URLs do painel.
+Alterações no snippet, por si sós, não atualizam o unbound.conf dos clientes.
+Não trocar simplesmente HTTPS por IP: o certificado precisa corresponder à
+origem. Não renomear todas as zonas publicadas sem plano de migração.
+Não generalizar o primário piloto para outros clientes: o mapeamento de
+company:11 é específico ao servidor 15 e deve ser preservado.
+
+Estado
+Nenhuma alteração em configuração ativa, código de produção, zonas, DNS
+público ou clientes nesta investigação. Correção não aplicada ainda.
+A validação anterior da União permanece: versão empresarial 58 carregada e
+bloqueio em A/AAAA funcionam; isso não comprovava primeira busca no restart.
+
+
+Atualização posterior no mesmo dia
+Após o usuário criar o DNS de feeds, a correção foi publicada no gateway e
+no painel. O estado "não aplicada" acima é histórico desta investigação.
+Situação atual, testes, migração e pendência de validação no cliente:
+rpz-feeds-2026-10-26.txt.

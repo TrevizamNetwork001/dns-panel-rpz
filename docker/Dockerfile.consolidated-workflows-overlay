@@ -1,0 +1,7 @@
+FROM dns-panel-rpz-app:source-form-20261110
+COPY --chown=www-data:www-data app/Http/Controllers/AnatelImportController.php app/Http/Controllers/ConsultaController.php app/Http/Controllers/DominioController.php app/Http/Controllers/ListaController.php /var/www/html/app/Http/Controllers/
+COPY --chown=www-data:www-data resources/views/listas/admin-show.blade.php resources/views/listas/admin-historico.blade.php resources/views/listas/form.blade.php /var/www/html/resources/views/listas/
+COPY --chown=www-data:www-data resources/views/listas/partials/admin-detail-styles.blade.php /var/www/html/resources/views/listas/partials/
+COPY --chown=www-data:www-data resources/views/dominios/busca.blade.php /var/www/html/resources/views/dominios/
+COPY --chown=www-data:www-data resources/views/servidores/show.blade.php /var/www/html/resources/views/servidores/
+COPY --chown=www-data:www-data resources/views/empresas/show.blade.php /var/www/html/resources/views/empresas/

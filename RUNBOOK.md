@@ -1,5 +1,11 @@
 # Runbook de incidentes — DNS Panel RPZ
 
+> Retomada de 23/10/2026 (fechamento em 24/10 na Europa): consulte
+> [estado consolidado de Unbound/RPZ e DNS-03](docs/contabo/retomada-2026-10-23-unbound-rpz.txt).
+> Refresh e busca da revisão 88 comprovados; NOTIFY ainda sem ACK. Esse registro
+> prevalece sobre os estados intermediários/históricos das seções de migração.
+
+
 Guia rápido pra quando algo dá errado em produção (`rpz.trevizamnetwork.com.br`). Comandos assumem SSH no servidor `paineldns`, dentro de `/opt/dns-panel-rpz`.
 
 > **Desde a migração para Docker (set/2026):** a aplicação roda inteira em containers (`docker compose`, ver [`compose.yml`](compose.yml)). Não há mais PHP nem php-fpm instalado no host — todo `artisan` roda via `docker compose exec app php artisan ...`. Só ficam no host: nginx de borda (TLS), Certbot, fail2ban e os timers systemd de healthcheck/renovação de certificado. Detalhes completos em [`deploy/README.md`](deploy/README.md).
@@ -447,3 +453,134 @@ O teste de conexão escreve, lê, exclui e verifica a exclusão de um objeto tem
 Deploy desta mudança aplicado somente a `app` e `backup`, com reinício do nginx. Imagem anterior preservada como `dns-panel-rpz-app:before-backup-weekly-20261002`; nova imagem `dns-panel-rpz-app:backup-weekly-20261002` (também `:local`). Não há migrações.
 
 Validação: 19 testes / 45 asserções; restauração de SQLite de teste; teste R2 real com remoção do temporário; checksum SHA-256 remoto igual ao local; integridade do SQLite real descompactado retornou `ok`; renderização da tela; app/nginx saudáveis e `/login` com HTTP 200. Primeiro gzip: 25.691.513 bytes. Limpeza autorizada removeu 28 backups, preservando cinco; uso final consultado: 409.257.337 bytes.
+
+
+## Primário RPZ após migração para Contabo — 23/10/2026
+
+O runtime recuperado usa `compose.staging.yml`. O primário SOA atende UDP/53
+em IPv4 e IPv6, com listeners separados e rede do host para preservar a origem.
+Não oferece recursão nem AXFR: verifica a versão publicada e a autorização do IP.
+A transferência do arquivo continua pela URL HTTPS do cliente.
+
+Registro DNS, sem proxy, criado e conferido:
+
+| Tipo | Nome | Destino |
+| --- | --- | --- |
+| A | primary-rpz.trevizamnetwork.com.br | 213.199.47.105 |
+| AAAA | primary-rpz.trevizamnetwork.com.br | 2a02:c207:2368:3678::1 |
+
+No bloco `rpz:` do DNS-03, substituir somente o primary antigo:
+
+```conf
+primary: "primary-rpz.trevizamnetwork.com.br"
+```
+
+Manter `name`, `zonefile` e `url` existentes. Validar com `unbound-checkconf`
+antes de reiniciar. Do próprio cliente autorizado, testar os dois caminhos:
+
+```bash
+dig -4 @primary-rpz.trevizamnetwork.com.br rpz.trevizamnetwork.com.br SOA +norecurse +time=3 +tries=1
+dig -6 @primary-rpz.trevizamnetwork.com.br rpz.trevizamnetwork.com.br SOA +norecurse +time=3 +tries=1
+```
+
+IP desconhecido, não autorizado ou ambíguo não recebe resposta. Não usar uma
+consulta originada de outro computador como prova de indisponibilidade.
+O painel não registra cada sondagem SOA como download: sem alteração de serial,
+a ausência de novo acesso HTTPS é esperada nesse modo. Conferir SOA/serial e
+instalação da zona para distinguir sondagem de transferência.
+
+NOTIFY permanece no piloto do servidor 15, por IPv4. Na configuração do cliente,
+revisar permissões específicas que ainda referenciem o IP antigo. O hostname
+estável no primary não elimina automaticamente IPs literais em outras ACLs.
+Ao migrar novamente, atualizar A/AAAA, disponibilizar o serviço e preservar o
+servidor anterior durante a transição DNS/TTL; validar resolução/cache dos
+clientes e seriais monotônicos, especialmente ao restaurar banco antigo.
+
+Imagem: `dns-panel-rpz-app:rpz-dualstack-20261023`, derivada da imagem anterior
+com `docker/Dockerfile.rpz-primary-overlay`. Os serviços `rpz-primary` e
+`rpz-primary-v6` compartilham banco/storage atuais; sem migrations na ativação.
+Testes de socket: `python3 tests/safety/test_rpz_primary_dualstack.py` na raiz
+com PHP/dependências instalados, em ambiente isolado. Histórico de validação
+em `docs/CHANGELOG.md`.
+
+
+### DNS-03 usando URL empresarial (mesmo dia)
+
+A URL empresarial da Speed Fiber usa `company:11`, enquanto a antiga URL por
+servidor usa `server:15`. O runtime agora configura explicitamente
+`RPZ_PRIMARY_COMPANY_SERVER_IDS=15` para selecionar o mesmo escopo do download.
+O primário e o worker devem compartilhar essa configuração. NOTIFY empresarial
+só alcança a interseção entre servidores mapeados e RPZ_NOTIFY_SERVER_IDS, da
+mesma empresa; publicação individual não avisa um cliente mapeado à empresa.
+
+Imagem atual: `dns-panel-rpz-app:rpz-company-primary-20261023`. No teste após
+publicação o SOA empresarial anunciou 86 e o NOTIFY não recebeu ACK. Confirmar
+SOA pela rede do cliente e comparar o serial instalado (o arquivo histórico
+mostrado era 114). Não considerar apenas bind da porta ou checkconf como prova
+de atualização; nem um ACK como prova de instalação. Uma restauração de banco
+pode regredir seriais e precisa de reconciliação antes da validação final.
+
+
+### Evidência de refresh automático do DNS-03 e teste de remoção
+
+No log fornecido pelo cliente em 23/10/2026, o processo iniciado às 17:41:01
+sondou automaticamente o primário às 18:41:01. Recebeu serial 87 por IPv6 e
+IPv4 e registrou `timeout in 3600 seconds`. Isso comprova sondagem periódica;
+sem alteração de serial, não há novo download HTTPS a registrar no painel.
+A transferência anterior da revisão 87, às 17:26:21, foi manual e não comprova
+instalação automática de uma versão nova. O cliente desativou
+`teste-rpz.example.com` às 19:06:42 para testar esse próximo passo.
+
+O comando `unbound-control verbosity 4` modifica o nível global em execução,
+mas `get_option verbosity` consulta a configuração e pode retornar 1. Não
+interpretar essa diferença como falha na aplicação do comando. As mensagens
+sobre agendamento `auth zone ... timeout in ... seconds` exigem nível 4.
+
+NOTIFY é um caminho separado: depois da liberação de firewall de borda,
+o tcpdump do cliente mostrou os três pacotes IPv4 chegando às 18:06:39–43,
+sem resposta observada. Ainda não há prova de ACK nem diagnóstico definitivo
+do processamento local. Não atribuir a ausência de refresh periódico à falta
+de NOTIFY. No Unbound 1.26.2, a ACL geral deny/refuse é verificada antes da
+autorização de NOTIFY da zona; `allow-notify` aceita hostname dentro de rpz,
+e os primários já são autorizados por padrão. `allow_snoop` é mais amplo que
+o necessário para essa finalidade; não recomendá-lo como requisito universal.
+
+
+Confirmação do teste: o domínio foi removido do artefato empresarial no serial
+88. Às 19:41:03 de 23/10/2026 (America/Sao_Paulo), o painel registrou nova
+requisição do DNS-03 para `company:11`, revisão 88, User-Agent unbound/1.26.2,
+no ciclo previsto e sem nova transferência manual informada pelo cliente.
+Isso confirma a busca automática da nova revisão; a instalação no resolvedor
+pode ser confirmada com list_auth_zones. O teste de NOTIFY segue separado e
+não deve ser declarado aprovado a partir desse download periódico.
+
+
+## Diagnóstico RPZ e Unbound (26/10/2026)
+
+Use `docker compose -f compose.staging.yml exec app php artisan rpz:verify company:11`
+para auditar o artefato empresarial, ou `server:15` para o individual. O comando
+é somente leitura e retorna falha se o arquivo não estiver íntegro; omitir a
+chave inclui zonas históricas e de teste sem artefato. Não repara nem publica.
+Nas telas de servidor Unbound e empresa, o bloco **Conferir o RPZ no Unbound**
+fornece os comandos locais para conferir versão carregada, A/AAAA e contadores.
+Procedimento, limites da evidência e rollback: [diagnóstico RPZ](docs/contabo/rpz-diagnosticos-unbound-2026-10-26.txt).
+
+Validação externa e encerramento em 26/10/2026: União Networks, empresa 13,
+servidor 8, consome `company:13` serial 58 (93.139 domínios); serial local
+58 confirmado pelo usuário, canário A/AAAA com NXDOMAIN. O serial 59 da zona
+individual `server:8` não deve ser comparado com a empresarial. Saída do
+cliente, horários e conclusão constam no relatório de diagnóstico acima.
+
+
+## Download RPZ por feeds (26/10/2026)
+
+O painel agora gera as URLs RPZ em `https://feeds.trevizamnetwork.com.br`,
+configurado por `RPZ_FEED_BASE_URL` no Compose. `APP_URL` e o nome lógico da
+zona continuam `rpz.trevizamnetwork.com.br`. Não renomear zonas ao migrar.
+Nos DNS já instalados, alterar somente `url:` com a URL correta copiada do
+painel; validar a configuração antes de recarregar/reiniciar. URLs antigas
+seguem ativas. A primeira busca com a nova URL precisa ser conferida no DNS
+cliente; o teste de laboratório não substitui essa evidência externa.
+DNS A/AAAA e certificado público estão ativos. A renovação usa a linhagem
+existente e verifica os dois nomes antes de publicar. Procedimento e rollback:
+[origem feeds](docs/contabo/rpz-feeds-2026-10-26.txt).

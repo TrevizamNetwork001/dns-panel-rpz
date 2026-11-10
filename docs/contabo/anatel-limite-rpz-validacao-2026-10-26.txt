@@ -1,0 +1,8 @@
+zone rpz.trevizamnetwork.com.br/IN: loaded serial 1
+OK
+dns_master_load: /audit/oversize.zone:5: ran out of space
+dns_master_load: /audit/oversize.zone:6: ran out of space
+dns_master_load: /audit/oversize.zone:7: ran out of space
+dns_master_load: /audit/oversize.zone:8: ran out of space
+zone rpz.trevizamnetwork.com.br/IN: loading from master file /audit/oversize.zone failed: ran out of space
+zone rpz.trevizamnetwork.com.br/IN: not loaded due to errors.
