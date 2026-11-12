@@ -82,6 +82,11 @@ class ListaController extends Controller
         // Lista de catálogo é vinculada a servidores de várias empresas: o
         // cliente só pode ver os da própria empresa, nunca os dos outros.
         $user = Auth::user();
+        if ($user->isAdmin()) {
+            $lista->load('empresa')->loadCount(['dominios', 'dominios as dominios_ativos_count' => fn ($q) => $q->where('ativo', true)]);
+
+            return view('listas.admin-show', compact('lista'));
+        }
         $lista->load([
             'empresa',
             'servidores' => fn ($query) => $query
@@ -202,7 +207,7 @@ class ListaController extends Controller
 
         $diario = $this->serieDiaria($lista, $desde);
 
-        return view('listas.historico', compact(
+        return view(Auth::user()->isAdmin() ? 'listas.admin-historico' : 'listas.historico', compact(
             'lista', 'periodo', 'desde', 'adicionados', 'removidos', 'totalAtivos', 'diario',
             'adicionadosCount', 'removidosCount', 'mostrarDetalhe'
         ));

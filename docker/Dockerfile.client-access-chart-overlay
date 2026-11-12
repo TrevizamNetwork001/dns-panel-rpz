@@ -1,0 +1,5 @@
+ARG BASE_IMAGE=dns-panel-rpz-app:rpz-feeds-20261026
+FROM ${BASE_IMAGE}
+COPY --chown=www-data:www-data app/Http/Controllers/UserController.php app/Http/Controllers/DashboardController.php /var/www/html/app/Http/Controllers/
+COPY --chown=www-data:www-data resources/views/usuarios/form.blade.php /var/www/html/resources/views/usuarios/
+COPY --chown=www-data:www-data resources/views/dashboard/partials/grafico-atualizacoes.blade.php /var/www/html/resources/views/dashboard/partials/

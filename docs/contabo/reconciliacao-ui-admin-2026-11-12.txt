@@ -1,0 +1,57 @@
+RECONCILIAÇÃO DO CÓDIGO COM A PRODUÇÃO — 12/11/2026
+
+Base local anterior: 7c457c54c1c200712e30f2d6ee6c027c29adf6cd.
+Base do checkout do servidor: ab08183 (sessão consolidada de 10/11).
+As duas linhas de histórico foram integradas, preservando as atualizações da UI
+publicadas em 12/11 e sem reiniciar os serviços de distribuição RPZ.
+
+Imagem web da aplicação atualmente publicada:
+  dns-panel-rpz-app:ui-company-inside-20261112
+Nginx: dns-panel-rpz-web:sidebar-clean-20261110.
+
+Conferência do conteúdo
+- 183 arquivos em app, config, routes, resources e public coincidem byte a byte
+  com o container da aplicação. Hashes SHA-256 no manifesto JSON ao lado.
+- Artefatos gerados em public/build não fazem parte dessa comparação.
+- Dependências, volumes, banco, arquivos de ambiente e credenciais não foram
+  copiados para o versionamento.
+- As telas ANATEL e exceções já modernizadas no servidor foram preservadas.
+- Cadastro/edição de empresas: Cancelar e Salvar dentro do card do formulário,
+  em posição estática, conforme aprovação final do usuário.
+- Consulta e gestão de domínios antigas continuam redirecionando para /dominios.
+
+Build incremental da UI
+O compose.staging.yml deste commit já aponta o serviço app para a imagem atual
+e para docker/Dockerfile.ui-admin-overlay. Esse Dockerfile copia as views do
+checkout sobre dns-panel-rpz-app:feed-url-20261110, que precisa existir localmente.
+Não é uma receita de bootstrap em um host vazio. O build completo de código e
+assets permanece disponível em docker/Dockerfile.contabo e deve ser validado em
+ambiente isolado antes de substituir imagens dos serviços operacionais.
+
+O runtime atual usa:
+  /opt/dns-panel-rpz/compose.staging.yml
+  /root/ui-admin-release/compose.ui-admin.yml
+O segundo arquivo seleciona a imagem atual. O checkout /opt ainda contém o commit
+ab08183; não executar deploy apenas a partir dele sem atualizar a referência da
+imagem. Este commit sincroniza o checkout de trabalho em /root e registra a base
+publicada. A pasta /opt não foi alterada nesta reconciliação.
+
+Após atualizar o checkout de deploy com este commit, os comandos equivalentes são:
+  docker compose -f compose.staging.yml build app
+  docker compose -f compose.staging.yml up -d --no-deps --no-build app
+  docker compose -f compose.staging.yml exec -T app php artisan view:cache
+  docker compose -f compose.staging.yml exec -T nginx nginx -s reload
+
+Reversão da UI: selecionar explicitamente dns-panel-rpz-app:feed-url-20261110
+para app e recriar somente esse serviço. A imagem anterior permanece disponível.
+Nenhuma migration é necessária para esta reconciliação.
+
+Validação
+- Compilação Blade e git diff --check aprovados.
+- Testes executados em container descartável, sem rede e sem volumes de produção,
+  com SQLite em memória. Dependências de desenvolvimento instaladas do lockfile.
+- Dois testes de apresentação foram atualizados para a UI já publicada: motivo
+  da sugestão mostrado como texto e configuração DNS acessível via servidor.
+  A ausência do painel administrativo para cliente é verificada pelo id HTML,
+  em vez de procurar o nome também presente no CSS compartilhado.
+- Suíte completa: 528 testes / 2.581 asserções aprovados (PHPUnit 12.5.33, PHP 8.4.27).

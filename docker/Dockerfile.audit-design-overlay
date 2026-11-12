@@ -1,0 +1,3 @@
+FROM dns-panel-rpz-app:client-access-chart-compact-20261110
+COPY --chown=www-data:www-data resources/views/auditoria/index.blade.php /var/www/html/resources/views/auditoria/
+COPY --chown=www-data:www-data resources/views/auditoria/partials/stream-assets.blade.php /var/www/html/resources/views/auditoria/partials/

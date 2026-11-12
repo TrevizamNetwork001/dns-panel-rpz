@@ -169,7 +169,7 @@ class RpzEndpointTest extends TestCase
             ->assertDontSee($servidor->token);
     }
 
-    public function test_admin_sees_short_url_acl_sources_and_unbound_configuration_but_client_does_not_see_admin_panel(): void
+    public function test_admin_sees_short_url_acl_and_configuration_link_but_client_does_not_see_admin_panel(): void
     {
         [$empresa, $servidor] = $this->endpoint('spfiber', ['127.0.0.1/32']);
         $lista = Lista::factory()->create(['nome' => 'ANATEL']);
@@ -177,10 +177,14 @@ class RpzEndpointTest extends TestCase
         $admin = User::factory()->admin()->create();
         $this->actingAs($admin)->get(route('empresas.show', $empresa))->assertOk()
             ->assertSee('/rpz/spfiber.zone')->assertSee('ACL por IP')->assertSee('127.0.0.1/32')
+            ->assertSee('Ver configuração no servidor')
+            ->assertSee(route('servidores.show', $servidor), false);
+
+        $this->get(route('servidores.show', $servidor))->assertOk()
             ->assertSee('ANATEL')->assertSee('zonefile:')->assertSee('rpz-log-name:');
 
         $client = User::factory()->cliente($empresa)->create();
-        $this->actingAs($client)->get(route('empresas.show', $empresa))->assertDontSee('company-rpz-access');
+        $this->actingAs($client)->get(route('empresas.show', $empresa))->assertDontSee('id="company-rpz-access"', false);
     }
 
     public function test_company_endpoint_captures_the_client_user_agent_on_server_and_sync_log(): void

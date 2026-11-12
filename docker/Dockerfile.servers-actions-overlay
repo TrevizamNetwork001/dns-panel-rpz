@@ -1,0 +1,5 @@
+FROM dns-panel-rpz-app:security-design-20261110
+COPY --chown=www-data:www-data resources/views/servidores/partials/admin-index.blade.php /var/www/html/resources/views/servidores/partials/
+COPY --chown=www-data:www-data resources/views/servidores/partials/admin-index-styles.blade.php /var/www/html/resources/views/servidores/partials/
+COPY --chown=www-data:www-data resources/views/servidores/form.blade.php /var/www/html/resources/views/servidores/
+COPY --chown=www-data:www-data resources/views/servidores/partials/admin-form-styles.blade.php /var/www/html/resources/views/servidores/partials/

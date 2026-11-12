@@ -3,12 +3,28 @@
 @section('title', 'Histórico — ' . $lista->nome)
 
 @section('content')
+@include('partials.operation-styles')
+<div class="operation-page">
+<nav class="operation-breadcrumb" aria-label="Navegação da fonte"><a href="{{ route('listas.show', $lista) }}">{{ $lista->nome }}</a><span aria-hidden="true">/</span><span>Histórico</span></nav>
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Fonte</div>
             <h1>Histórico de alterações</h1>
             <p><a href="{{ route('listas.show', $lista) }}" class="inline-link">&larr; {{ $lista->nome }}</a></p>
         </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px">
+        <form action="{{ route('listas.historico', $lista) }}" method="GET" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+            <div class="field-group" style="margin:0;min-width:200px">
+                <label for="periodo">Período</label>
+                <select class="form-control" id="periodo" name="periodo" onchange="this.form.submit()">
+                    <option value="hoje" @selected($periodo === 'hoje')>Hoje</option>
+                    <option value="7dias" @selected($periodo === '7dias')>Últimos 7 dias</option>
+                    <option value="30dias" @selected($periodo === '30dias')>Últimos 30 dias</option>
+                </select>
+            </div>
+        </form>
     </div>
 
     <div class="metrics-grid">
@@ -80,7 +96,7 @@
                 <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#b87b28;display:inline-block"></span>Removidos</span>
             </div>
         </div>
-        <svg id="historico-chart" viewBox="0 0 {{ $chartW }} {{ $chartH }}" style="width:100%;height:auto;overflow:visible" role="img" aria-label="Domínios adicionados e removidos por dia">
+        <div class="operation-chart" tabindex="0" role="region" aria-label="Gráfico de alterações por dia, com rolagem horizontal"><svg id="historico-chart" viewBox="0 0 {{ $chartW }} {{ $chartH }}" style="width:100%;height:auto;overflow:visible" role="img" aria-label="Domínios adicionados e removidos por dia">
             {{-- gridlines --}}
             @for ($g = 0; $g <= 5; $g++)
                 @php
@@ -122,7 +138,7 @@
                     <text x="{{ $gx + $groupW / 2 }}" y="{{ $chartH - 8 }}" text-anchor="middle" font-size="10" fill="var(--text-muted)">{{ \Illuminate\Support\Carbon::parse($d['dia'])->format('d/m') }}</text>
                 @endif
             @endforeach
-        </svg>
+        </svg></div>
         <p style="color:var(--text-muted);font-size:10px;margin-top:8px">Passe o mouse numa barra pra ver o valor exato. Sem barra = sem mudança naquele dia.@if ($usaEscalaLog) Escala logarítmica — dias com poucas mudanças ficam maiores do que a proporção real com um pico isolado (ex: import inicial da lista).@endif</p>
     </div>
 
@@ -134,18 +150,7 @@
         </div>
     @endif
 
-    <div class="panel" style="margin-bottom:14px">
-        <form action="{{ route('listas.historico', $lista) }}" method="GET" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-            <div class="field-group" style="margin:0;min-width:200px">
-                <label for="periodo">Período</label>
-                <select class="form-control" id="periodo" name="periodo" onchange="this.form.submit()">
-                    <option value="hoje" @selected($periodo === 'hoje')>Hoje</option>
-                    <option value="7dias" @selected($periodo === '7dias')>Últimos 7 dias</option>
-                    <option value="30dias" @selected($periodo === '30dias')>Últimos 30 dias</option>
-                </select>
-            </div>
-        </form>
-    </div>
+
 
     @if ($mostrarDetalhe)
     <div class="details-grid">
@@ -199,4 +204,5 @@
         </div>
     </div>
     @endif
+</div>
 @endsection

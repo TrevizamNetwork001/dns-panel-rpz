@@ -1,0 +1,13 @@
+FROM dns-panel-rpz-app:audit-design-20261110 AS app
+COPY --chown=www-data:www-data public/assets/admin.css /var/www/html/public/assets/
+COPY --chown=www-data:www-data resources/views/layouts/app.blade.php /var/www/html/resources/views/layouts/
+COPY --chown=www-data:www-data resources/views/configuracoes/index.blade.php /var/www/html/resources/views/configuracoes/
+COPY --chown=www-data:www-data resources/views/dominios/busca.blade.php /var/www/html/resources/views/dominios/
+COPY --chown=www-data:www-data resources/views/empresas/index.blade.php /var/www/html/resources/views/empresas/
+COPY --chown=www-data:www-data resources/views/licencas/index.blade.php /var/www/html/resources/views/licencas/
+COPY --chown=www-data:www-data resources/views/listas/index.blade.php /var/www/html/resources/views/listas/
+COPY --chown=www-data:www-data resources/views/usuarios/index.blade.php /var/www/html/resources/views/usuarios/
+COPY --chown=www-data:www-data resources/views/servidores/partials/admin-index.blade.php /var/www/html/resources/views/servidores/partials/
+
+FROM dns-panel-rpz-web:ecosystem-fixes-20261023 AS web
+COPY public/assets/admin.css /var/www/html/public/assets/

@@ -49,7 +49,7 @@ class AdminSystemModulesPresentationTest extends TestCase
             ->assertSee('status=pending&amp;q=suspeito&amp;page=2', false)
             ->assertSee('Aprovar')
             ->assertSee('Rejeitar')
-            ->assertSee('title="Motivo operacional', false);
+            ->assertSeeText(str_repeat('Motivo operacional ', 8));
     }
 
     public function test_decided_suggestion_does_not_show_decision_actions(): void

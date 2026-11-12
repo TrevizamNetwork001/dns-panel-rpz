@@ -1,0 +1,24 @@
+FROM dns-panel-rpz-app:anatel-central-20261110
+COPY --chown=www-data:www-data resources/views/listas/partials/admin-detail-styles.blade.php /var/www/html/resources/views/listas/partials/
+COPY --chown=www-data:www-data resources/views/listas/partials/source-tools-styles.blade.php /var/www/html/resources/views/listas/partials/
+COPY --chown=www-data:www-data resources/views/listas/rpz-preview.blade.php /var/www/html/resources/views/listas/
+COPY --chown=www-data:www-data resources/views/anatel/exclusions.blade.php /var/www/html/resources/views/anatel/
+COPY --chown=www-data:www-data resources/views/anatel/index.blade.php /var/www/html/resources/views/anatel/
+COPY --chown=www-data:www-data resources/views/anatel/preview.blade.php resources/views/anatel/batch.blade.php /var/www/html/resources/views/anatel/
+COPY --chown=www-data:www-data resources/views/anatel/partials/review-domains.blade.php /var/www/html/resources/views/anatel/partials/
+COPY --chown=www-data:www-data resources/views/empresas/exceptions.blade.php /var/www/html/resources/views/empresas/
+COPY --chown=www-data:www-data resources/views/empresas/show.blade.php /var/www/html/resources/views/empresas/
+COPY --chown=www-data:www-data resources/views/empresas/partials/company-profile.blade.php /var/www/html/resources/views/empresas/partials/
+COPY --chown=www-data:www-data resources/views/sugestoes/index.blade.php /var/www/html/resources/views/sugestoes/
+COPY --chown=www-data:www-data resources/views/sugestoes/partials/admin-index.blade.php resources/views/sugestoes/partials/review-dialogs.blade.php /var/www/html/resources/views/sugestoes/partials/
+COPY --chown=www-data:www-data resources/views/layouts/app.blade.php /var/www/html/resources/views/layouts/
+COPY --chown=www-data:www-data resources/views/seguranca/index.blade.php /var/www/html/resources/views/seguranca/
+COPY --chown=www-data:www-data resources/views/configuracoes/index.blade.php /var/www/html/resources/views/configuracoes/
+COPY --chown=www-data:www-data resources/views/configuracoes/partials/styles.blade.php resources/views/configuracoes/partials/tabs.blade.php /var/www/html/resources/views/configuracoes/partials/
+COPY --chown=www-data:www-data resources/views/profile/show.blade.php resources/views/profile/password.blade.php /var/www/html/resources/views/profile/
+COPY --chown=www-data:www-data resources/views/profile/partials/styles.blade.php /var/www/html/resources/views/profile/partials/
+COPY --chown=www-data:www-data resources/views/dominios/busca.blade.php /var/www/html/resources/views/dominios/
+COPY --chown=www-data:www-data app/Models/User.php /var/www/html/app/Models/
+COPY --chown=www-data:www-data resources/views/auditoria/index.blade.php /var/www/html/resources/views/auditoria/
+COPY --chown=www-data:www-data app/Models/AuditLog.php /var/www/html/app/Models/
+COPY --chown=www-data:www-data resources/views/auditoria/partials/stream-assets.blade.php /var/www/html/resources/views/auditoria/partials/

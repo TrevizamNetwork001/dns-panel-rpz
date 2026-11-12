@@ -17,14 +17,6 @@
                         nav.scrollLeft += bounds.left - viewport.left - (nav.clientWidth - bounds.width) / 2;
                     }
                 }
-                if (active) {
-                    var nav = tab.parentElement;
-                    var bounds = tab.getBoundingClientRect();
-                    var viewport = nav.getBoundingClientRect();
-                    if (bounds.left < viewport.left || bounds.right > viewport.right) {
-                        nav.scrollLeft += bounds.left - viewport.left - (nav.clientWidth - bounds.width) / 2;
-                    }
-                }
             });
             panels.forEach(function (panel) {
                 panel.hidden = panel.dataset.settingsPanel !== name;

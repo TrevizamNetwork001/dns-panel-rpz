@@ -519,7 +519,7 @@ Lista completa: `php artisan route:list`.
 <a id="visual"></a>
 ## 🎨 Identidade visual
 
-CSS em `public/assets/app.css` — subconjunto **copiado literalmente** (não reimplementado) do `app.css` real do IRCENTER: tokens de cor/tema dark-light, shell (sidebar/topbar), `.panel`, `.data-table`, `.status-pill`, formulários, dropdown de conta (`.account-menu`), seletor de avatar (`.avatar-picker`). Cache-busting automático via `?v={mtime}` no `<link>` — não precisa de hard refresh depois de mudanças no CSS.
+O painel autenticado usa a marca **RPZ Control — Proteção DNS centralizada**, com símbolo SVG. Estilos base em `public/assets/app.css`, refinamentos do admin em `public/assets/admin.css` e parciais Blade por área. Temas claro/escuro, componentes compactos e layout responsivo. O login continua com sua implementação anterior. [Diretrizes de UI](docs/DIRETRIZES-UI-E-LOGIN-RPZ.md) e [registro da sessão de 10/11/2026](docs/SESSAO-2026-11-10.md).
 
 
 ### Auditoria dos RPZ publicados

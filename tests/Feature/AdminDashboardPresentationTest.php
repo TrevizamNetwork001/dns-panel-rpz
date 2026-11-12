@@ -16,7 +16,7 @@ class AdminDashboardPresentationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_dashboard_uses_real_source_type_pluralization_and_pt_br_counts(): void
+    public function test_admin_dashboard_keeps_metrics_without_the_source_listing(): void
     {
         $admin = User::factory()->admin()->create();
         $empresa = Empresa::factory()->create();
@@ -29,11 +29,13 @@ class AdminDashboardPresentationTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Dashboard RPZ')
-            ->assertSee('Catálogo')
             ->assertSee('1.001')
             ->assertSee('Endpoint ativo')
             ->assertSeeText('1 Normal')
-            ->assertSeeInOrder(['ANATEL', 'Catálogo', 'Anatel externo', 'Externa'])
+            ->assertSeeText('Fontes ativas')
+            ->assertDontSeeText('Fontes de bloqueio')
+            ->assertDontSee('dashboard-sources-table')
+            ->assertDontSeeText('Anatel externo')
             ->assertDontSee('metric-sparkline');
     }
 

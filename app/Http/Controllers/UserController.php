@@ -37,7 +37,8 @@ class UserController extends Controller
     {
         $data = $this->validated($request);
 
-        $senha = User::generateTemporaryPassword();
+        $senha = $data['password'] ?? User::generateTemporaryPassword();
+        $senhaDefinida = isset($data['password']);
 
         $usuario = User::create([
             ...$data,
@@ -47,7 +48,9 @@ class UserController extends Controller
         AuditLog::record('user.created', "Usuário {$usuario->email} criado (papel {$usuario->role})", $usuario->empresa_id, 'user', $usuario->id);
 
         return redirect()->route('usuarios.index')
-            ->with('status', "Usuário criado. Senha temporária (mostrada só agora): {$senha}");
+            ->with('status', $senhaDefinida
+                ? 'Usuário criado com a senha definida.'
+                : "Usuário criado. Senha temporária (mostrada só agora): {$senha}");
     }
 
     public function edit(User $usuario): View
@@ -108,6 +111,14 @@ class UserController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'.($usuario ? ",{$usuario->id}" : '')],
             'role' => ['required', 'in:admin,cliente'],
             'empresa_id' => ['nullable', 'exists:empresas,id'],
+            'password' => $usuario ? ['prohibited'] : [
+                'nullable', 'string', 'confirmed', 'min:8',
+                'regex:/[a-z]/', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^A-Za-z0-9]/',
+            ],
+        ], [
+            'password.confirmed' => 'A confirmação da senha não confere.',
+            'password.min' => 'A senha deve ter pelo menos 8 caracteres.',
+            'password.regex' => 'A senha deve ter maiúscula, minúscula, número e caractere especial.',
         ]);
 
         if ($data['role'] === 'cliente' && ! $data['empresa_id']) {

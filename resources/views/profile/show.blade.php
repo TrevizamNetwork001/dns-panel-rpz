@@ -3,19 +3,22 @@
 @section('title', 'Meu perfil')
 
 @section('content')
+@include('profile.partials.styles')
+<div class="profile-refined">
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Conta</div>
             <h1>Meu perfil</h1>
             <p>Consulte seus dados e personalize sua identificação na plataforma.</p>
         </div>
+        <div class="page-actions"><a href="{{ route('profile.password') }}" class="button button-primary"><x-ui-icon name="lock" size="15" />Alterar senha</a></div>
     </div>
 
     <div class="profile-layout">
         <div class="profile-sidebar">
             <div class="panel">
                 <div class="profile-summary-card">
-                    <span class="user-avatar user-avatar-large @if(auth()->user()->avatar) has-symbol @endif">
+                    <span class="user-avatar user-avatar-large @if(auth()->user()->avatarSymbol()) has-symbol @endif">
                         @if (auth()->user()->avatarSymbol())
                             <span class="user-avatar-symbol">{{ auth()->user()->avatarSymbol() }}</span>
                         @else
@@ -45,15 +48,16 @@
         </div>
 
         <div class="panel">
-            <div class="page-eyebrow">Personalização</div>
+
             <div class="panel-header"><h2>Escolha seu avatar</h2></div>
+            <p class="profile-help">Selecione um avatar para usar no painel. A escolha é salva automaticamente.</p>
             <form action="{{ route('profile.avatar.update') }}" method="POST">
                 @csrf
                 @method('PUT')
                 <div class="avatar-picker">
                     <label class="avatar-option">
-                        <input type="radio" name="avatar" value="" @checked(!auth()->user()->avatar) onchange="this.form.submit()">
-                        <span class="user-avatar" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center">
+                        <input type="radio" name="avatar" value="" @checked(!auth()->user()->avatarSymbol()) onchange="this.form.submit()">
+                        <span class="user-avatar profile-avatar-initial">
                             <span class="user-avatar-initials">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
                         </span>
                         <span class="avatar-option-label">Inicial do nome</span>
@@ -61,7 +65,7 @@
                     @foreach (\App\Models\User::avatarOptions() as $key => $option)
                         <label class="avatar-option">
                             <input type="radio" name="avatar" value="{{ $key }}" @checked(auth()->user()->avatar === $key) onchange="this.form.submit()">
-                            <span class="user-avatar has-symbol" style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center">
+                            <span class="user-avatar has-symbol profile-avatar-initial">
                                 <span class="user-avatar-symbol">{{ $option['symbol'] }}</span>
                             </span>
                             <span class="avatar-option-label">{{ $option['label'] }}</span>
@@ -71,4 +75,5 @@
             </form>
         </div>
     </div>
+</div>
 @endsection

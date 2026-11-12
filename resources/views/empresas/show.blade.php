@@ -15,10 +15,19 @@
         $rpzListas = $empresa->servidores->where('status', 'active')->flatMap->listas->where('status', 'active')->unique('id')->sortBy('nome');
     @endphp
 
+    <style>
+        #company-rpz-access > summary { cursor:pointer; }
+        .company-feed-help,.company-feed-ips { font-size:12px; color:var(--text-soft); line-height:1.8; }
+        .company-feed-ips { margin-top:18px; padding:12px 14px; border:1px solid var(--border-soft); border-radius:8px; }
+        .company-feed-ips summary { cursor:pointer; }
+        .company-feed-ips code { display:block; margin-top:8px; overflow-wrap:anywhere; }
+        .company-acl-form { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-top:18px; }
+        .company-acl-form .field-group { flex:1; min-width:160px; margin:0; }
+    </style>
     @include('empresas.partials.company-profile')
     @if ($isAdmin)
     <div class="details-grid">
-        <div class="panel details-card-wide"><div class="panel-header"><div><h2>Exceções de bloqueio</h2><p>Domínios liberados somente para esta empresa.</p></div><a href="{{ route('empresas.exceptions.index', $empresa) }}" class="button button-secondary">Gerenciar exceções</a></div></div>
+        <div class="panel details-card-wide"><div class="panel-header"><div><h2>Exceções de bloqueio</h2><p>Domínios liberados somente para esta empresa.</p></div><a href="{{ route('empresas.exceptions.index', $empresa) }}" class="button button-primary">Gerenciar exceções</a></div></div>
         @if (auth()->user()->isAdmin())
         <div class="panel details-card-wide">
             <div class="panel-header">
@@ -47,34 +56,25 @@
         @endif
 
         <details class="panel details-card-wide" id="company-rpz-access" @if(session('acl_test')) open @endif>
-            <summary class="panel-header"><h2>Distribuição RPZ empresarial</h2></summary>
-            <dl class="details-list">
-                <div><dt>Slug</dt><dd class="table-mono">{{ $empresa->rpz_slug ?? 'não configurado' }}</dd></div>
-                <div><dt>Método de acesso</dt><dd>ACL por IP</dd></div>
-                <div><dt>Status</dt><dd>{{ $empresa->status === 'active' ? 'Ativo' : 'Inativo' }}</dd></div>
-            </dl>
+            <summary class="panel-header"><h2>Feed agregado da empresa</h2></summary>
+            <p class="company-feed-help">URL que reúne as fontes dos servidores ativos desta empresa. Acesso com ACL por IP: somente endereços autorizados.</p>
             @if ($rpzUrl)
                 <div class="field-group" style="margin-top:14px">
-                    <label>URL RPZ</label>
+                    <label for="company-rpz-url">URL RPZ da empresa</label>
                     <div class="endpoint-secret-row"><input class="endpoint-code-field" id="company-rpz-url" value="{{ $rpzUrl }}" readonly><button type="button" class="button button-secondary" data-company-copy="company-rpz-url">Copiar URL</button></div>
                 </div>
-                <div class="field-group" style="margin-top:14px">
-                    <label>Configuração do Unbound</label>
-                    <pre class="endpoint-config-snippet" id="company-rpz-config">{{ $rpzConfig }}</pre>
-                    <button type="button" class="button button-secondary" data-company-copy="company-rpz-config">Copiar configuração Unbound</button>
-                    <small>Requer o módulo <code>respip</code>. O <code>zonefile</code> é relativo ao diretório/chroot do Unbound; use caminho absoluto se a instalação exigir.</small>
-                </div>
+                @php $servidorConfiguracao = $empresa->servidores->first(fn ($servidor) => $servidor->tipo_dns !== 'mikrotik'); @endphp
+                @if ($servidorConfiguracao)
+                    <p style="font-size:12px;color:var(--text-soft);margin-top:14px">A configuração e os testes de resolução ficam nos detalhes do servidor.</p>
+                    <a href="{{ route('servidores.show', $servidorConfiguracao) }}" class="button button-secondary">Ver configuração no servidor</a>
+                @endif
             @endif
-            @if ($rpzUrl)
-                @include('partials.rpz-diagnostics', ['diagnosticZone' => $rpzHost, 'copyAttribute' => 'data-company-copy'])
-            @endif
-            <h3 style="margin-top:18px">IPs autorizados</h3>
-            @forelse ($rpzAllowedIps as $ip)<code style="display:block">{{ $ip->ip_cidr }}</code>@empty<p>Nenhuma ACL ativa; a URL curta nega todo acesso.</p>@endforelse
-            <h3 style="margin-top:18px">Listas vinculadas</h3>
-            <p>{{ $rpzListas->pluck('nome')->join(', ') ?: 'Nenhuma lista ativa vinculada.' }}</p>
-            <form action="{{ route('empresas.rpz-acl-test', $empresa) }}" method="POST" style="display:flex;gap:8px;align-items:end;margin-top:18px">
+            <details class="company-feed-ips"><summary>Ver IPs autorizados</summary>
+            @forelse ($rpzAllowedIps as $ip)<code>{{ $ip->ip_cidr }}</code>@empty<p>Nenhuma ACL ativa; a URL curta nega todo acesso.</p>@endforelse
+            </details>
+            <form action="{{ route('empresas.rpz-acl-test', $empresa) }}" method="POST" class="company-acl-form">
                 @csrf
-                <div class="field-group" style="flex:1"><label for="rpz-acl-test-ip">Testar ACL</label><input class="form-control" id="rpz-acl-test-ip" name="ip" placeholder="IPv4 ou IPv6" required></div>
+                <div class="field-group"><label for="rpz-acl-test-ip">Testar ACL</label><input class="form-control" id="rpz-acl-test-ip" name="ip" placeholder="IPv4 ou IPv6" required></div>
                 <button class="button button-secondary" type="submit">Testar ACL</button>
             </form>
             @if (session('acl_test'))<p><strong>{{ session('acl_test.allowed') ? 'AUTORIZADO' : 'NEGADO' }}</strong> — <code>{{ session('acl_test.ip') }}</code></p>@endif

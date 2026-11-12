@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'DNS Panel RPZ')</title>
+    <title>@yield('title', 'RPZ Control')</title>
     <script>
         (function () {
             var stored = localStorage.getItem('dns-panel-theme');
@@ -15,15 +15,27 @@
         })();
     </script>
     <link rel="stylesheet" href="{{ asset('assets/app.css') }}?v={{ filemtime(public_path('assets/app.css')) }}">
+    @if(auth()->user()->isAdmin() && ! request()->routeIs('auditoria.*'))
+        <link rel="stylesheet" href="{{ asset('assets/admin.css') }}?v={{ filemtime(public_path('assets/admin.css')) }}">
+    @endif
+    <style>
+        @media(max-width:380px) {
+            .app-topbar,.topbar-actions { gap:8px; }
+            .topbar-actions,.account-menu,.user-details { min-width:0; }
+            .user-details { max-width:105px; }
+            .user-details strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+            .theme-switch,.account-menu-toggle .user-avatar { flex-shrink:0; }
+        }
+    </style>
 </head>
 <body>
     <div class="app-shell">
         <aside class="sidebar">
             <div class="sidebar-brand">
-                <span class="brand-mark">RPZ</span>
+                <span class="brand-mark" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3 27 7v8c0 7-5 11-11 14C10 26 5 22 5 15V7Z"/><path d="M16 11v5m0 0-6 5m6-5 6 5"/><circle cx="16" cy="9" r="2.2" fill="currentColor" stroke="none"/><circle cx="10" cy="22" r="2.2" fill="currentColor" stroke="none"/><circle cx="22" cy="22" r="2.2" fill="currentColor" stroke="none"/></svg></span>
                 <div>
-                    <div class="brand-name">DNS PANEL</div>
-                    <div class="brand-description">RPZ Distribution</div>
+                    <div class="brand-name">RPZ CONTROL</div>
+                    <div class="brand-description">Proteção DNS centralizada</div>
                 </div>
             </div>
 
@@ -37,7 +49,7 @@
                 <nav class="sidebar-nav">
                     <a href="{{ route('dominios.index') }}" class="sidebar-link @if(request()->routeIs('dominios.*') || request()->routeIs('consulta.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/></svg>Domínios</a>
                     <a href="{{ route('listas.index') }}" class="sidebar-link @if(request()->routeIs('listas.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg>{{ auth()->user()->isAdmin() ? 'Fontes' : 'Listas' }}</a>
-                    <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif"><x-ui-icon name="server" size="18" class="sidebar-nav-icon" />{{ auth()->user()->isAdmin() ? 'Endpoints RPZ' : 'Servidores' }}</a>
+                    <a href="{{ route('servidores.index') }}" class="sidebar-link @if(request()->routeIs('servidores.*')) is-active @endif"><x-ui-icon name="server" size="18" class="sidebar-nav-icon" />Servidores</a>
                 </nav>
 
                 <p class="sidebar-section-label">Gestão</p>
@@ -84,7 +96,7 @@
                 <div class="environment-status">
                     <span class="status-dot @if($ultimoHealth && ! $sistemasOk) is-warning @endif"></span>
                     <div>
-                        <strong>DNS Panel RPZ</strong>
+                        <strong>RPZ Control</strong>
                         @if ($ultimoHealth)
                             <span>{{ $sistemasOk ? 'Todos os sistemas operacionais' : 'Alerta de saúde detectado' }}</span>
                         @else
@@ -117,7 +129,7 @@
 
                     <details class="account-menu">
                         <summary class="account-menu-toggle user-menu" aria-label="Abrir menu da conta">
-                            <span class="user-avatar @if(auth()->user()->avatar) has-symbol @endif">
+                            <span class="user-avatar @if(auth()->user()->avatarSymbol()) has-symbol @endif">
                                 @if (auth()->user()->avatarSymbol())
                                     <span class="user-avatar-symbol">{{ auth()->user()->avatarSymbol() }}</span>
                                 @else
@@ -147,7 +159,7 @@
                 </div>
             </header>
 
-            <main class="page-content">
+            <main class="page-content @if(auth()->user()->isAdmin() && ! request()->routeIs('auditoria.*')) admin-refined @endif">
                 @if (session('status'))
                     <div class="alert-success">{{ session('status') }}</div>
                 @endif

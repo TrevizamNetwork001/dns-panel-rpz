@@ -8,17 +8,17 @@ use App\Services\DomainNormalizer;
 use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class DominioController extends Controller
 {
     public function __construct(private DomainNormalizer $normalizer, private RpzDirtyMarker $rpzDirty) {}
 
-    public function index(Lista $lista): View
+    public function index(Request $request, Lista $lista): RedirectResponse
     {
-        $dominios = $lista->dominios()->orderBy('dominio')->paginate(50);
-
-        return view('dominios.index', compact('lista', 'dominios'));
+        return redirect()->route('dominios.index', [
+            ...$request->only(['dominio', 'status', 'page']),
+            'fonte_id' => $lista->id,
+        ]);
     }
 
     public function store(Request $request, Lista $lista): RedirectResponse
@@ -43,17 +43,17 @@ class DominioController extends Controller
             $lista->dominios()->create(['dominio' => $normalized, 'ativo' => true]);
             $this->rpzDirty->markForList($lista->id);
 
-            return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio adicionado.');
+            return redirect()->route('dominios.index', ['fonte_id' => $lista->id])->with('status', 'Domínio adicionado.');
         }
 
         if (! $dominio->ativo) {
             $dominio->update(['ativo' => true]);
             $this->rpzDirty->markForList($lista->id);
 
-            return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio já existia nesta fonte e estava inativo — foi reativado.');
+            return redirect()->route('dominios.index', ['fonte_id' => $lista->id])->with('status', 'Domínio já existia nesta fonte e estava inativo — foi reativado.');
         }
 
-        return redirect()->route('listas.dominios.index', $lista)->with('status', 'Domínio já cadastrado e ativo nesta fonte — nada foi alterado.');
+        return redirect()->route('dominios.index', ['fonte_id' => $lista->id])->with('status', 'Domínio já cadastrado e ativo nesta fonte — nada foi alterado.');
     }
 
     public function bulkStore(Request $request, Lista $lista): RedirectResponse
@@ -99,7 +99,7 @@ class DominioController extends Controller
             $this->rpzDirty->markForList($lista->id);
         }
 
-        return redirect()->route('listas.dominios.index', $lista)
+        return redirect()->route('dominios.index', ['fonte_id' => $lista->id])
             ->with('status', "{$added} domínio(s) adicionado(s), {$duplicated} já existia(m), {$invalid} inválido(s).");
     }
 
@@ -112,7 +112,7 @@ class DominioController extends Controller
         $dominio->update(['ativo' => ! $dominio->ativo]);
         $this->rpzDirty->markForList($dominio->lista_id);
 
-        return redirect()->route('listas.dominios.index', $dominio->lista_id)->with('status', 'Status do domínio atualizado.');
+        return redirect()->route('dominios.index', ['fonte_id' => $dominio->lista_id])->with('status', 'Status do domínio atualizado.');
     }
 
     public function destroy(Dominio $dominio): RedirectResponse
@@ -125,7 +125,7 @@ class DominioController extends Controller
         $dominio->delete();
         $this->rpzDirty->markForList($listaId);
 
-        return redirect()->route('listas.dominios.index', $listaId)->with('status', 'Domínio removido.');
+        return redirect()->route('dominios.index', ['fonte_id' => $listaId])->with('status', 'Domínio removido.');
     }
 
     /**

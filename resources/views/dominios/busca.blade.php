@@ -3,6 +3,19 @@
 @section('title', 'Domínios')
 
 @section('content')
+    <style>
+        .domain-add-panel { margin-bottom:18px; }
+        .domain-add-panel[hidden] { display:none!important; }
+        .domain-add-panel .panel-header h2 { display:flex; align-items:center; gap:8px; font-size:15px; }
+        .domain-add-panel .panel-header h2 svg { color:var(--cyan); }
+        .domain-add-panel .panel-header p { margin:6px 0 0; font-size:12px; color:var(--text-muted); line-height:1.8; }
+        .domain-add-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+        .domain-add-fields .field-group { min-width:0; margin:0; }
+        .page-content.admin-refined .domain-add-fields .form-control { width:100%; min-height:42px; font-size:14px; }
+        .domain-add-help { margin:14px 0 0; font-size:12px; color:var(--text-muted); line-height:1.8; }
+        .domain-add-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; padding-top:16px; margin-top:16px; border-top:1px solid var(--border-soft); }
+        @media(max-width:700px) { .domain-add-fields { grid-template-columns:minmax(0,1fr); } .domain-add-actions { justify-content:flex-start; } }
+    </style>
     @php
         $isAdmin = auth()->user()->isAdmin();
         $fontesManuais = $fontesDisponiveis->where('origem', '!=', 'externa');
@@ -16,37 +29,51 @@
 
     <div class="page-heading page-heading-compact">
         <div>
+            @if($isAdmin)<div class="page-eyebrow"><x-ui-icon name="shield" size="14" />Políticas de bloqueio</div>@endif
             <h1>Domínios</h1>
             <p>{{ $isAdmin ? 'Central de bloqueios RPZ — pesquise, analise e gerencie os domínios distribuídos pelas fontes RPZ.' : 'Pesquise e consulte os domínios distribuídos pelas listas da sua empresa.' }}</p>
         </div>
         @if (auth()->user()->isAdmin() && $fontesManuais->isNotEmpty())
             <div class="page-actions">
-                <button type="button" class="button button-primary" id="btn-toggle-adicionar-dominio">+ Adicionar domínio</button>
+                <button type="button" class="button button-primary" id="btn-toggle-adicionar-dominio" aria-controls="painel-adicionar-dominio" aria-expanded="false">+ Adicionar domínio</button>
             </div>
         @endif
     </div>
 
     @if (auth()->user()->isAdmin() && $fontesManuais->isNotEmpty())
-        <div class="panel form-panel" id="painel-adicionar-dominio" style="margin-bottom:14px" hidden>
-            <div class="panel-header"><h2>Adicionar domínio</h2></div>
-            <form action="{{ route('listas.dominios.store', $fontesManuais->first()) }}" method="POST" id="form-adicionar-dominio" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <section class="panel domain-add-panel" id="painel-adicionar-dominio" aria-labelledby="domain-add-heading" hidden>
+            <div class="panel-header"><div><h2 id="domain-add-heading"><x-ui-icon name="plus" size="17" />Adicionar domínio</h2><p>Informe o domínio e selecione a fonte de destino.</p></div></div>
+            <form action="{{ route('listas.dominios.store', $fontesManuais->firstWhere('id', $fonteId) ?? $fontesManuais->first()) }}" method="POST" id="form-adicionar-dominio" class="domain-add-form">
                 @csrf
-                <div class="field-group" style="margin:0;flex:1;min-width:220px">
+                <div class="domain-add-fields"><div class="field-group">
                     <label for="novo-dominio">Domínio</label>
-                    <input class="form-control" type="text" id="novo-dominio" name="dominio" placeholder="exemplo.com" required>
+                    <input class="form-control" type="text" id="novo-dominio" name="dominio" value="{{ old('dominio') }}" placeholder="exemplo.com" autocapitalize="none" spellcheck="false" required>
                 </div>
-                <div class="field-group" style="margin:0;min-width:200px">
+                <div class="field-group">
                     <label for="novo-dominio-fonte">Fonte</label>
                     <select class="form-control" id="novo-dominio-fonte" data-form-adicionar-fonte>
                         @foreach ($fontesManuais as $fonte)
-                            <option value="{{ $fonte->id }}" data-action="{{ route('listas.dominios.store', $fonte) }}">{{ $fonte->nome }}</option>
+                            <option value="{{ $fonte->id }}" @selected($fonteId === $fonte->id) data-action="{{ route('listas.dominios.store', $fonte) }}">{{ $fonte->nome }}</option>
                         @endforeach
                     </select>
-                    <p style="color:var(--text-muted);font-size:10px;margin-top:6px">Só fontes manuais aparecem aqui — fontes externas sincronizam sozinhas e não aceitam edição manual.</p>
+
                 </div>
-                <button type="submit" class="button button-primary">Adicionar</button>
+                </div>
+                <p class="domain-add-help">Fontes externas sincronizam automaticamente e não aceitam edição manual.</p>
+                <div class="domain-add-actions"><button type="button" class="button button-secondary" id="domain-add-cancel">Cancelar</button><button type="submit" class="button button-primary">Adicionar</button></div>
             </form>
-        </div>
+        </section>
+    @endif
+
+    @if ($isAdmin && $fonteId && $fontesManuais->contains('id', $fonteId))
+        <details class="panel" style="margin-bottom:14px">
+            <summary style="cursor:pointer;font-size:13px;color:var(--text-soft)">Importar em lote nesta fonte</summary>
+            <form action="{{ route('listas.dominios.bulk', $fonteId) }}" method="POST" style="margin-top:16px">
+                @csrf
+                <div class="field-group"><label for="dominios-lote">Domínios (um por linha)</label><textarea id="dominios-lote" name="dominios" class="form-control" rows="5" required placeholder="exemplo.com&#10;outro.exemplo"></textarea></div>
+                <div class="form-actions"><button type="submit" class="button button-primary">Importar</button></div>
+            </form>
+        </details>
     @endif
 
     <div class="panel" style="margin-bottom:14px">
@@ -249,12 +276,14 @@
                 if (toggleBtn && painel) {
                     toggleBtn.addEventListener('click', function () {
                         painel.hidden = !painel.hidden;
+                        toggleBtn.setAttribute('aria-expanded', String(!painel.hidden));
                         if (!painel.hidden) {
                             document.getElementById('novo-dominio').focus();
                         }
                     });
                 }
 
+                document.getElementById('domain-add-cancel')?.addEventListener('click', function () { painel.hidden = true; toggleBtn.setAttribute('aria-expanded', 'false'); toggleBtn.focus(); });
                 var form = document.getElementById('form-adicionar-dominio');
                 var fonteSelect = document.querySelector('[data-form-adicionar-fonte]');
                 if (form && fonteSelect) {

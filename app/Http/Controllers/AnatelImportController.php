@@ -3,47 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\AnatelImport;
-use App\Models\AuditLog;
 use App\Models\Lista;
-use App\Services\AnatelImporter;
 use App\Services\AnatelPdfExtractor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AnatelImportController extends Controller
 {
-    public function store(Request $request, Lista $lista, AnatelPdfExtractor $extractor, AnatelImporter $importer): RedirectResponse
+    public function store(Request $request, Lista $lista, AnatelPdfExtractor $extractor): RedirectResponse
     {
         abort_unless($lista->isAnatel(), 404);
-        $request->validate(['pdfs' => ['required', 'array', 'min:1', 'max:'.config('anatel.max_files')], 'pdfs.*' => ['required', 'file', 'mimetypes:application/pdf,application/x-pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip', 'max:'.config('anatel.max_pdf_kb')]]);
-        $completed = [];
-        $prepared = app(\App\Services\AnatelUploadValidator::class)->prepare($request->file('pdfs'), $extractor);
-        foreach ($prepared as [$upload, $extension, $sha]) {
-            $path = $upload->storeAs(date('Y/m'), $sha.'.'.$extension, 'anatel');
-            try {
-                $import = AnatelImport::create(['lista_id' => $lista->id, 'user_id' => $request->user()->id, 'original_filename' => basename($upload->getClientOriginalName()), 'storage_path' => $path, 'sha256' => $sha, 'size_bytes' => $upload->getSize(), 'status' => 'processing', 'started_at' => now()]);
-            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
-                // Do not delete a shared hash path referenced by the winner.
-                throw ValidationException::withMessages(['pdfs' => 'Este arquivo já foi processado.']);
-            }
-            AuditLog::record('anatel.import.started', 'Importação ANATEL iniciada: '.$import->original_filename, $lista->empresa_id, 'anatel_import', $import->id);
-            try {
-                $payload = $extractor->extract([Storage::disk('anatel')->path($path)]);
-                $importer->apply($lista, $import, $payload);
-                AuditLog::record('anatel.import.completed', "Importação ANATEL concluída: {$import->fresh()->new_count} novos", $lista->empresa_id, 'anatel_import', $import->id);
-                $completed[] = $import->id;
-            } catch (\Throwable $e) {
-                if ($import->fresh()->status !== 'blocked') {
-                    $import->update(['status' => 'failed', 'error' => 'Falha no processamento do PDF.', 'finished_at' => now()]);
-                } $action = $import->fresh()->status === 'blocked' ? 'anatel.import.blocked' : 'anatel.import.failed';
-                AuditLog::record($action, 'Importação ANATEL não concluída', $lista->empresa_id, 'anatel_import', $import->id);
-            }
-        }
+        // Keep old upload URLs compatible with the same queue/review workflow.
+        // The bound list is authoritative, never a caller-supplied lista_id.
+        $request->merge(['lista_id' => $lista->id]);
 
-        return redirect()->route('anatel.history', $lista)->with('status', count($completed).' PDF(s) importado(s).');
+        return app(AnatelDashboardController::class)->store($request, $extractor);
     }
 
     public function downloadNew(Lista $lista, AnatelImport $import): StreamedResponse

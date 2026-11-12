@@ -37,6 +37,7 @@
     <div class="admin-licenses-compact">
     <div class="page-heading page-heading-compact">
         <div>
+            @if(auth()->user()->isAdmin())<div class="page-eyebrow"><x-ui-icon name="shield" size="14" />Licenciamento</div>@endif
             <h1>Licenças</h1>
             <p>{{ $licencas->total() }} cadastradas</p>
         </div>

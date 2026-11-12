@@ -1,0 +1,3 @@
+# Incremental UI release; the production base image must exist locally.
+FROM dns-panel-rpz-app:feed-url-20261110
+COPY --chown=www-data:www-data resources/views/ /var/www/html/resources/views/

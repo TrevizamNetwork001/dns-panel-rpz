@@ -13,9 +13,9 @@
     .admin-empresa-form .form-grid { gap: 20px 18px; }
     .admin-empresa-form .form-control { min-height: 46px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-soft); color: var(--text); font-size: 13px; }
     .admin-empresa-form .form-control:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-soft); }
-    .admin-empresa-form .form-actions { grid-column: 1 / -1; justify-content: flex-end; position: sticky; bottom: 12px; z-index: 5; padding: 16px 20px; margin: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: 0 8px 30px rgb(0 0 0 / 12%); }
+    .admin-empresa-form .form-actions { justify-content: flex-end; flex-wrap: wrap; position: static; display: flex; gap: 10px; padding: 0; margin: 18px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
     .admin-empresa-form .form-actions .button { min-height: 42px; padding: 0 20px; font-size: 12px; }
     html:not([data-theme="light"]) .admin-empresa-form { --surface: #061b29; --surface-soft: #0b2130; --border: #234151; --border-soft: #173444; --text-soft: #adc5d9; --cyan: #00cbee; }
     @media (max-width: 800px) { .admin-empresa-form > form { grid-template-columns: minmax(0, 1fr); } }
-    @media (max-width: 600px) { .admin-empresa-form h1 { font-size: 27px; } .admin-empresa-form .page-heading { align-items: flex-start; } .admin-empresa-form .form-panel { padding: 18px; } .admin-empresa-form > form > .form-actions { bottom: 8px; padding: 12px; } }
+    @media (max-width: 600px) { .admin-empresa-form h1 { font-size: 27px; } .admin-empresa-form .page-heading { align-items: flex-start; } .admin-empresa-form .form-panel { padding: 18px; } .admin-empresa-form .form-actions { margin-top: 16px; }  }
 </style>

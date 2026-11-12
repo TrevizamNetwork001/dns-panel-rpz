@@ -99,7 +99,7 @@
         <dialog id="endpoint-lists" class="endpoint-drawer" aria-labelledby="endpoint-lists-title">
             <div class="panel-header endpoint-drawer-heading"><div class="endpoint-card-title"><x-ui-icon name="link" size="27" /><div><h2 id="endpoint-lists-title">Listas vinculadas</h2><p class="endpoint-detail-note">{{ $servidor->listas->count() }} listas vinculadas a este servidor</p></div></div><button type="button" class="endpoint-dismiss" data-close-dialog aria-label="Fechar listas"><x-ui-icon name="x" size="20" /></button></div>
             @if (session('status'))<div class="alert-success" style="margin:0 0 14px">{{ session('status') }}</div>@endif
-            @if ($listasDisponiveis->isNotEmpty())
+            @if (! auth()->user()->isAdmin() && $listasDisponiveis->isNotEmpty())
                 <form action="{{ route('servidores.listas.attach', [$servidor, '__lista__']) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px" onsubmit="this.action = this.action.replace('__lista__', this.lista_id.value); return this.lista_id.value !== '';">
                     @csrf
                     <select name="lista_id" class="form-control" style="flex:1" required>
@@ -110,6 +110,10 @@
                     </select>
                     <button type="submit" class="button button-secondary"><x-ui-icon name="plus" size="16" />Vincular</button>
                 </form>
+            @endif
+            @if (auth()->user()->isAdmin())
+                <p class="endpoint-detail-note">Para alterar os vínculos, use a edição do servidor.</p>
+                <a href="{{ route('servidores.edit', $servidor) }}#fontes-habilitadas-panel" class="button button-secondary">Editar vínculos</a>
             @endif
             @if ($servidor->listas->isEmpty())
                 <div class="empty-state"><span>Nenhuma fonte vinculada ainda.</span></div>
@@ -129,11 +133,13 @@
                                         <span class="status-pill status-pill-normal-case {{ auth()->user()->isAdmin() && $lista->isExterna() ? 'is-info' : ($lista->empresa_id ? 'is-active' : 'is-muted') }}">{{ $tipoFonte }}</span>
                                     </td>
                                     <td>
+                                        @unless (auth()->user()->isAdmin())
                                         <form action="{{ route('servidores.listas.detach', [$servidor, $lista]) }}" method="POST">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover esta fonte do endpoint?')">Remover</button>
                                         </form>
+                                        @endunless
                                     </td>
                                 </tr>
                             @endforeach

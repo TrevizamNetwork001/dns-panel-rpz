@@ -66,10 +66,20 @@
                         @endforeach
                     </select>
                 </div>
+                @unless ($usuario->exists)
+                    <div class="field-group">
+                        <label for="password">Senha (opcional)</label>
+                        <input class="form-control" type="password" id="password" name="password" autocomplete="new-password" minlength="8" aria-describedby="password-help">
+                    </div>
+                    <div class="field-group">
+                        <label for="password_confirmation">Confirmar senha</label>
+                        <input class="form-control" type="password" id="password_confirmation" name="password_confirmation" autocomplete="new-password" minlength="8">
+                    </div>
+                @endunless
             </div>
 
             @unless ($usuario->exists)
-                <p class="user-form-note">Uma senha temporária é gerada automaticamente e mostrada só uma vez após salvar.</p>
+                <p class="user-form-note" id="password-help">Defina uma senha com pelo menos 8 caracteres, incluindo maiúscula, minúscula, número e caractere especial. Se deixar em branco, uma senha temporária será gerada automaticamente e mostrada só uma vez após salvar.</p>
             @endunless
 
             <div class="form-actions">

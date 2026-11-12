@@ -43,7 +43,7 @@ class AdminAuditPresentationTest extends TestCase
             ->assertDontSee('<table', false)->assertSee('<ul class="audit-stream"', false)
             ->assertSee('Nenhum evento corresponde à busca.')
             ->assertViewHas('totalFiltered', 8)->assertViewHas('recentCount', 8)
-            ->assertViewHas('authFailureCount', 1)->assertViewHas('destructiveCount', 2);
+            ->assertViewHas('authFailureCount', 1)->assertViewHas('destructiveCount', 1);
         foreach ($labels as $action => $label) {
             $response->assertSee('title="'.$action.'"', false)->assertSeeText($label);
             $this->assertDatabaseHas('audit_logs', ['action' => $action]);
@@ -52,6 +52,10 @@ class AdminAuditPresentationTest extends TestCase
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$response->getContent());
         $events = (new \DOMXPath($dom))->query('//li[@data-audit-search]');
         $this->assertCount(8, $events);
+        $xpath = new \DOMXPath($dom);
+        $login = $xpath->query('//li[@data-audit-search][.//strong[@title="auth.login"]]')[0];
+        $this->assertStringContainsString('audit-severity-info', $login->getAttribute('class'));
+        $this->assertStringContainsString('Severidade: Info', $login->textContent);
         foreach ($events as $event) {
             $search = $event->getAttribute('data-audit-search');
             foreach (['admin', 'empresa #11', 'empresa teste', '198.51.100.100', now()->format('d/m/Y')] as $term) {
@@ -174,7 +178,8 @@ class AdminAuditPresentationTest extends TestCase
         $this->actingAs($admin)->get(route('auditoria.index', ['categoria' => 'dominio']))
             ->assertOk()->assertViewHas('totalFiltered', 1)
             ->assertSeeText('Domínio adicionado ao bloqueio')->assertSeeText('Segurança manual')
-            ->assertSeeText('Sem usuário identificado')->assertSeeText('Ver detalhes')
+            ->assertSeeText('Sem usuário identificado')->assertDontSeeText('Ver detalhes')
+            ->assertSeeText('Bloqueio manual autorizado: malware.example')
             ->assertDontSee('Endpoints (RPZ / Mikrotik)');
     }
 

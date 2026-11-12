@@ -171,14 +171,14 @@ class ClientServersPresentationTest extends TestCase
         ]);
     }
 
-    public function test_admin_still_sees_feed_access_and_client_page_never_carries_the_token(): void
+    public function test_edit_forms_do_not_carry_feed_access_or_token(): void
     {
         $empresa = Empresa::factory()->create();
         $servidor = Servidor::factory()->for($empresa)->create();
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)->get(route('servidores.edit', $servidor))->assertOk()
-            ->assertSee('Acesso ao feed')->assertSee($servidor->token)->assertSee('id="token-toggle-btn"', false);
+            ->assertDontSee('Acesso ao feed')->assertDontSee($servidor->token)->assertDontSee('id="token-toggle-btn"', false);
 
         $cliente = User::factory()->cliente($empresa)->create();
         $html = $this->actingAs($cliente)->get(route('servidores.edit', $servidor))->assertOk()->getContent();

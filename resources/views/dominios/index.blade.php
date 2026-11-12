@@ -3,6 +3,9 @@
 @section('title', 'Domínios — ' . $lista->nome)
 
 @section('content')
+@include('partials.operation-styles')
+<div class="operation-page">
+<nav class="operation-breadcrumb" aria-label="Navegação da fonte"><a href="{{ route('listas.show', $lista) }}">{{ $lista->nome }}</a><span aria-hidden="true">/</span><span>Domínios</span></nav>
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Fonte</div>
@@ -32,12 +35,12 @@
     @endif
     <div class="details-grid">
         <div class="panel">
-            <div class="panel-header"><h2>Adicionar domínio</h2></div>
+            <div class="panel-header"><div><h2>Adicionar domínio</h2><p>Cadastre uma entrada individual nesta fonte.</p></div></div>
             <form action="{{ route('listas.dominios.store', $lista) }}" method="POST">
                 @csrf
                 <div class="field-group">
                     <label for="dominio">Domínio</label>
-                    <input class="form-control" type="text" id="dominio" name="dominio" placeholder="exemplo.com" required>
+                    <input class="form-control" type="text" id="dominio" name="dominio" placeholder="exemplo.com" value="{{ old('dominio') }}" required>
                 </div>
                 <div class="form-actions" style="justify-content:flex-start;border-top:0;padding-top:0;margin-top:10px">
                     <button type="submit" class="button button-primary">Adicionar</button>
@@ -46,12 +49,12 @@
         </div>
 
         <div class="panel">
-            <div class="panel-header"><h2>Importar em lote</h2></div>
+            <div class="panel-header"><div><h2>Importar em lote</h2><p>Adicione várias entradas de uma vez.</p></div></div>
             <form action="{{ route('listas.dominios.bulk', $lista) }}" method="POST">
                 @csrf
                 <div class="field-group">
                     <label for="dominios">Um domínio por linha (ou separado por vírgula/espaço)</label>
-                    <textarea class="form-control" id="dominios" name="dominios" rows="4" placeholder="malicioso1.example&#10;malicioso2.example" required></textarea>
+                    <textarea class="form-control" id="dominios" name="dominios" rows="4" placeholder="malicioso1.example&#10;malicioso2.example" required>{{ old('dominios') }}</textarea>
                 </div>
                 <div class="form-actions" style="justify-content:flex-start;border-top:0;padding-top:0;margin-top:10px">
                     <button type="submit" class="button button-primary">Importar</button>
@@ -74,7 +77,7 @@
                             <th>Domínio</th>
                             <th>Status</th>
                             @unless ($lista->isExterna())
-                            <th class="table-actions-column"></th>
+                            <th class="table-actions-column"><span class="operation-sr-only">Ações</span></th>
                             @endunless
                         </tr>
                     </thead>
@@ -115,4 +118,5 @@
             </div>
         @endif
     </div>
+</div>
 @endsection

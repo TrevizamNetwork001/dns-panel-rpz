@@ -3,6 +3,9 @@
 @section('title', 'Sugestões de domínio')
 
 @section('content')
+@if(auth()->user()->isAdmin())
+@include('sugestoes.partials.admin-index')
+@else
     <style>
         .admin-suggestions-compact { max-width: 1400px; margin: 0 auto; }
         .admin-suggestions-compact .page-heading { align-items: center; margin-bottom: 22px; }
@@ -154,4 +157,5 @@
     @if (auth()->user()->isAdmin() && $sugestoes->contains('status', 'pending'))
         @include('sugestoes.partials.review-dialogs')
     @endif
+@endif
 @endsection

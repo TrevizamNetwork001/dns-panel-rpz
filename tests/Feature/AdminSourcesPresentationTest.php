@@ -73,9 +73,9 @@ class AdminSourcesPresentationTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Resumo operacional')
-            ->assertSee('Domínios (11)')
-            ->assertSee('mostrando os primeiros 10 de 11 domínios')
-            ->assertSee('dominio-09.example')
+            ->assertSeeText('11')
+            ->assertDontSee('mostrando os primeiros')
+            ->assertDontSee('dominio-09.example')
             ->assertDontSee('dominio-10.example')
             ->assertSee('há 1 dia');
     }
@@ -89,8 +89,8 @@ class AdminSourcesPresentationTest extends TestCase
             ->assertOk()
             ->assertSee('rows="3"', false)
             ->assertSee('mínimo de 100 domínios')
-            ->assertSee('Endpoints RPZ vinculados')
-            ->assertSee('a distribuição pode incluir endpoints de todas as empresas');
+            ->assertSee('Servidores vinculados')
+            ->assertSee('selecione os servidores de cada empresa');
     }
 
     public function test_client_listing_does_not_receive_admin_sources_scope(): void

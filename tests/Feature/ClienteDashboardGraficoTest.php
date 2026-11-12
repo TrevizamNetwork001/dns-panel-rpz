@@ -87,4 +87,49 @@ class ClienteDashboardGraficoTest extends TestCase
         $this->actingAs($admin)->get(route('dashboard'))->assertOk()
             ->assertDontSee('id="grafico-atualizacoes"', false);
     }
+
+    public function test_each_dns_has_its_own_series_and_stable_color_when_filtered(): void
+    {
+        $empresa = Empresa::factory()->create();
+        $cliente = User::factory()->cliente($empresa)->create();
+        $servidores = Servidor::factory()->count(8)->for($empresa)->create();
+        foreach ($servidores as $i => $servidor) {
+            for ($j = 0; $j <= $i; $j++) {
+                $this->consulta($servidor, now());
+            }
+        }
+
+        $response = $this->actingAs($cliente)->get(route('dashboard'))->assertOk()
+            ->assertSeeText('Todos os DNS');
+        $series = $response->viewData('seriesDns');
+        $this->assertCount(8, $series);
+        $this->assertCount(8, $series->pluck('cor')->unique());
+        $this->assertSame(8, substr_count($response->getContent(), '<polyline'));
+        foreach ($series as $i => $serie) {
+            $this->assertCount(30, $serie['pontos']);
+            $this->assertSame($i + 1, $serie['pontos'][29]['total']);
+            $this->assertSame(0, $serie['pontos'][0]['total']);
+        }
+
+        $selected = $servidores[1];
+        $filtered = $this->get(route('dashboard', ['dns' => $selected->id]))->assertOk();
+        $this->assertSame($selected->id, $filtered->viewData('dnsSelecionado'));
+        $this->assertSame(1, substr_count($filtered->getContent(), '<polyline'));
+        $filtered->assertSee('data-dns-id="'.$selected->id.'"', false)
+            ->assertDontSee('data-dns-id="'.$servidores[0]->id.'"', false);
+        $this->assertSame($series->pluck('cor', 'id')->all(), $filtered->viewData('seriesDns')->pluck('cor', 'id')->all());
+    }
+
+    public function test_dns_filter_cannot_access_other_companies_and_handles_invalid_values(): void
+    {
+        $cliente = User::factory()->cliente()->create();
+        $alheio = Servidor::factory()->create(['nome' => 'DNS privado de outra empresa']);
+        $this->consulta($alheio, now());
+        foreach ([$alheio->id, 'invalido', ['1']] as $dns) {
+            $response = $this->actingAs($cliente)->get(route('dashboard', ['dns' => $dns]))
+                ->assertOk()->assertDontSeeText($alheio->nome);
+            $this->assertNull($response->viewData('dnsSelecionado'));
+            $this->assertCount(0, $response->viewData('seriesDns'));
+        }
+    }
 }

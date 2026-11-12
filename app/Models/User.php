@@ -65,7 +65,7 @@ class User extends Authenticatable
             'servidor' => ['label' => 'Servidor', 'symbol' => '🖥️'],
             'escudo' => ['label' => 'Escudo', 'symbol' => '🛡️'],
             'ceo' => ['label' => 'CEO', 'symbol' => '🧑‍💼'],
-            // Opcoes ludicas depois -- mantidas, ninguem perde avatar ja salvo.
+            // Opcoes adicionais de avatar.
             'raposa' => ['label' => 'Raposa', 'symbol' => '🦊'],
             'lobo' => ['label' => 'Lobo', 'symbol' => '🐺'],
             'coruja' => ['label' => 'Coruja', 'symbol' => '🦉'],
@@ -73,7 +73,6 @@ class User extends Authenticatable
             'aguia' => ['label' => 'Águia', 'symbol' => '🦅'],
             'robo' => ['label' => 'Robô', 'symbol' => '🤖'],
             'astronauta' => ['label' => 'Astronauta', 'symbol' => '🧑‍🚀'],
-            'burro' => ['label' => 'Burro', 'symbol' => '🐴'],
             'boi' => ['label' => 'Boi', 'symbol' => '🐂'],
         ];
     }

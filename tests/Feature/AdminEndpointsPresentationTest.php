@@ -52,13 +52,10 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertSee('<option value="unbound" selected>Unbound (RPZ)</option>', false)
             ->assertSee('MikroTik RouterOS v7 (Adlist)')
             ->assertDontSee('BIND9 (em breve)')
-            ->assertSee('id="rpz-url-value" type="text"', false)
-            ->assertSee('readonly', false)
-            ->assertSee('••••••••••••••••••••••••••••')
-            ->assertSee('id="token-value"', false)
-            ->assertDontSee('id="token-masked"', false)
-            ->assertSee('Mostrar')
-            ->assertSee('Copiar')
+            ->assertDontSee('Acesso ao feed')
+            ->assertDontSee('id="rpz-url-value"', false)
+            ->assertDontSee('id="token-value"', false)
+            ->assertDontSee($servidor->token)
             ->assertSee('Selecionar todas')
             ->assertSee('Limpar seleção')
             ->assertSee('Catálogo / Importação ANATEL')
@@ -66,7 +63,7 @@ class AdminEndpointsPresentationTest extends TestCase
             ->assertDontSee('Estável')
             ->assertSee('marcadas === 1 ? \'selecionada\' : \'selecionadas\'', false);
 
-        $this->assertSame(1, substr_count($response->getContent(), 'id="token-value"'));
+        $this->assertSame(0, substr_count($response->getContent(), 'id="token-value"'));
     }
 
     public function test_admin_detail_prioritizes_operational_state_access_and_masked_config(): void

@@ -1,0 +1,3 @@
+FROM dns-panel-rpz-app:source-tools-20261110
+COPY --chown=www-data:www-data resources/views/anatel/index.blade.php /var/www/html/resources/views/anatel/
+COPY --chown=www-data:www-data resources/views/listas/partials/source-tools-styles.blade.php /var/www/html/resources/views/listas/partials/

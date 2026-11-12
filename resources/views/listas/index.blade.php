@@ -5,6 +5,7 @@
 @section('content')
     <div class="page-heading page-heading-compact">
         <div>
+            @if(auth()->user()->isAdmin())<div class="page-eyebrow"><x-ui-icon name="list" size="14" />Fontes de proteção</div>@endif
             <h1>{{ auth()->user()->isAdmin() ? 'Fontes' : 'Listas' }}</h1>
             <p>{{ $listas->total() }} cadastradas · {{ $listasAtivas }} ativas</p>
         </div>

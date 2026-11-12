@@ -17,7 +17,7 @@ class RpzDiagnosticsPresentationTest extends TestCase
         $company = Empresa::factory()->create();
         $server = Servidor::factory()->create(['empresa_id' => $company->id, 'tipo_dns' => 'unbound']);
         $this->actingAs(User::factory()->admin()->create());
-        foreach ([route('servidores.show', $server), route('empresas.show', $company)] as $url) {
+        foreach ([route('servidores.show', $server)] as $url) {
             $this->get($url)->assertOk()
                 ->assertSeeText('Conferir o RPZ no Unbound')
                 ->assertSeeText('unbound-control stats_noreset')
@@ -26,6 +26,10 @@ class RpzDiagnosticsPresentationTest extends TestCase
                 ->assertSeeText('rpz: applied')
                 ->assertSeeText('Copiar diagnóstico');
         }
+        $this->get(route('empresas.show', $company))->assertOk()
+            ->assertSeeText('Ver configuração no servidor')
+            ->assertSee(route('servidores.show', $server))
+            ->assertDontSeeText('Copiar diagnóstico');
     }
 
     public function test_mikrotik_does_not_receive_unbound_diagnostic_commands(): void

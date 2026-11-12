@@ -55,7 +55,12 @@ class AnatelIntegrationTest extends TestCase
     {
         $this->fakeExtractor($domains);
 
-        return $this->actingAs($this->admin)->post(route('anatel.imports.store', $this->lista), ['pdfs' => [$this->pdf($name, implode(' ', $domains))]]);
+        $response = $this->actingAs($this->admin)->post(route('anatel.imports.store', $this->lista), ['pdfs' => [$this->pdf($name, implode(' ', $domains))]]);
+        foreach (AnatelImport::where('status', 'awaiting_approval')->get() as $import) {
+            $this->post(route('anatel.approve', $import))->assertRedirect();
+        }
+
+        return $response;
     }
 
     public function test_admin_can_create_anatel_list(): void
@@ -118,6 +123,9 @@ class AnatelIntegrationTest extends TestCase
         $a = $this->pdf('a.pdf', 'a');
         $b = $this->pdf('b.pdf', 'b');
         $this->actingAs($this->admin)->post(route('anatel.imports.store', $this->lista), ['pdfs' => [$a, $b]])->assertRedirect();
+        foreach (AnatelImport::where('status', 'awaiting_approval')->get() as $import) {
+            $this->post(route('anatel.approve', $import))->assertRedirect();
+        }
         $this->assertSame(1, $this->lista->dominios()->count());
     }
 

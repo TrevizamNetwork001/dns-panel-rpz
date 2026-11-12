@@ -65,11 +65,11 @@
                     <small>Vale para todos os DNS que usam a URL desta empresa. A página funciona em HTTP; sites HTTPS podem apresentar erro de certificado.</small>
                 </div>
             </div>
-        </div>
 
         <div class="form-actions">
             <a href="{{ route('empresas.index') }}" class="button button-secondary">Cancelar</a>
             <button type="submit" class="button button-primary">Salvar</button>
+        </div>
         </div>
     </form>
     </div>

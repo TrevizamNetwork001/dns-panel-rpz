@@ -3,6 +3,8 @@
 @section('title', 'Consulta de domínio')
 
 @section('content')
+@include('partials.operation-styles')
+<div class="operation-page">
     <div class="page-heading">
         <div>
             <div class="page-eyebrow">Ferramentas</div>
@@ -12,11 +14,11 @@
     </div>
 
     <div class="panel">
-        <form action="{{ route('consulta.index') }}" method="GET" style="display:flex;gap:10px">
-            <input type="text" name="dominio" class="form-control" placeholder="exemplo.com ou www.exemplo.com" value="{{ $termoOriginal }}" autofocus>
+        <form action="{{ route('consulta.index') }}" method="GET" class="operation-search">
+            <div class="field-group"><label for="consulta-dominio">Domínio ou trecho</label><input id="consulta-dominio" aria-describedby="consulta-help" type="text" name="dominio" class="form-control" placeholder="exemplo.com ou www.exemplo.com" value="{{ $termoOriginal }}" autofocus></div>
             <button type="submit" class="button button-primary">Consultar</button>
         </form>
-        <p style="color:var(--text-muted);font-size:10px;margin:10px 0 0">A consulta principal é por domínio completo (é assim que o DNS resolve de verdade). Se você digitar só um pedaço, mostramos sugestões de domínios cadastrados que contêm esse trecho.</p>
+        <p id="consulta-help" class="operation-note">A consulta principal é por domínio completo (é assim que o DNS resolve de verdade). Se você digitar só um pedaço, mostramos sugestões de domínios cadastrados que contêm esse trecho.</p>
     </div>
 
     @if ($termo !== null)
@@ -26,7 +28,7 @@
             @if ($resultados->isEmpty())
                 <div class="empty-state">
                     <span class="status-pill is-active" style="margin-right:8px">Livre</span>
-                    <span>Não encontrado em nenhuma lista. Não está sendo bloqueado.</span>
+                    <span>Não encontrado nas listas consultadas.</span>
                 </div>
             @else
                 <div class="table-responsive">
@@ -88,4 +90,5 @@
             </div>
         @endif
     @endif
+</div>
 @endsection

@@ -1,6 +1,9 @@
 <style>
     .suggestion-dialog { box-sizing: border-box; width: min(480px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 24px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); }
     .suggestion-dialog::backdrop { background: color-mix(in srgb, var(--background) 78%, transparent); }
+    .suggestion-dialog .form-control { font-size:14px; min-height:40px; }
+    .suggestion-dialog label { font-size:13px; }
+    .suggestion-dialog summary { font-size:12px; }
     .suggestion-dialog h2 { margin: 0 0 18px; font-size: 18px; }
     .suggestion-dialog p { color: var(--text-soft); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
     .suggestion-context { display: grid; gap: 12px; margin: 0 0 20px; font-size: 13px; }
