@@ -1,0 +1,84 @@
+CORREÇÃO DE DEPENDÊNCIAS DE SEGURANÇA — 12/11/2026
+
+A auditoria do Composer identificou 8 avisos conhecidos em 5 pacotes instalados
+no runtime de produção. Foram atualizados somente os pacotes afetados:
+
+Pacote                     Antes       Depois
+symfony/filesystem         8.1.6       8.1.11
+symfony/http-foundation    8.1.9       8.1.11
+symfony/http-kernel        8.1.4       8.1.11
+symfony/mime               8.1.4       8.1.10
+symfony/routing            8.1.2       8.1.11
+
+Laravel e PHP não tiveram troca de versão. PHP continua 8.4.27, com
+session.upload_progress.enabled=0. A resolução do Composer usa platform.php
+8.4.27 para permanecer compatível com o runtime, mesmo se o container do
+Composer executar outra versão de PHP.
+
+Validação antes da publicação
+- composer audit --locked: nenhum aviso de segurança conhecido.
+- Mesma análise sem dependências de desenvolvimento: sem avisos conhecidos.
+- 533 testes / 2.607 asserções aprovados, executados sem root e sem rede.
+- Nova imagem web validada com volumes de produção somente leitura e sessões/
+  cache temporários: telas administrativas e redirecionamentos existentes OK.
+- Bootstrap do comando do primário RPZ validado na imagem de processamento.
+- Backup SQLite consistente criado antes da atualização:
+  database.sqlite.auto-20261112-194441.bak.gz (volume de backups da produção).
+- Nenhuma migration, alteração da APP_KEY ou redefinição de usuários.
+
+Imagens incrementais
+- Web: dns-panel-rpz-app:security-web-20261112
+  Base: dns-panel-rpz-app:ui-company-inside-20261112
+- Fila/agendador/sincronização/backup/primários:
+  dns-panel-rpz-app:security-workers-20261112
+  Base: dns-panel-rpz-app:rpz-company-primary-20261023
+
+Dockerfile: docker/Dockerfile.security-overlay. O build usa o código da imagem
+selecionada para gerar o autoload e troca apenas vendor, composer.json e lock.
+Isso preserva o código específico das imagens web e de processamento. Não é o
+Dockerfile de instalação em uma máquina vazia; para isso use o Dockerfile completo
+e o procedimento INSTALACAO-NOVA.md, que também instala o lock corrigido.
+
+Configuração de publicação
+O compose.staging.yml versionado registra as imagens corrigidas. O runtime ainda
+usa a base /opt/dns-panel-rpz/compose.staging.yml com o override persistente
+/root/ui-admin-release/compose.ui-admin.yml; o override inclui os sete serviços PHP.
+Não executar somente o compose antigo de /opt, pois isso selecionaria imagens
+anteriores. O checkout de /opt não foi alterado nesta entrega.
+
+Comando do painel:
+ docker compose --project-directory /opt/dns-panel-rpz \
+   -f /opt/dns-panel-rpz/compose.staging.yml \
+   -f /root/ui-admin-release/compose.ui-admin.yml \
+   up -d --no-deps --no-build --wait --wait-timeout 120 app
+
+Após trocar PHP-FPM, recarregar nginx e limpar o cache de rotas da aplicação para
+não preservar matchers compilados anteriores à correção. Os demais serviços são
+recriados sem dependências; os primários IPv4/IPv6 são atualizados separadamente.
+Nenhum comando é executado nos DNS dos clientes.
+
+Reversão
+As imagens-base anteriores permanecem no Docker. O override anterior está em
+/root/security-review/compose.before-security.yml. Com o compose ORIGINAL de /opt,
+esse override volta a selecionar a imagem web anterior e as imagens originais dos
+workers/primários. Recriar os serviços e recarregar nginx se uma reversão for
+necessária. Reverter reintroduz os avisos de dependências; é apenas contingência.
+
+Prevenção
+- O workflow de testes passa a executar composer audit --locked em cada push/PR.
+- O teste de instalação independente também é disparado por mudanças nos arquivos
+  de dependências PHP e Node.
+- Não foram adicionados 2FA ou chaves CAPTCHA: são melhorias separadas. A correção
+  dos avisos conhecidos não equivale a garantir ausência de outras vulnerabilidades.
+
+Referências oficiais de exemplo:
+https://symfony.com/cve-2026-118514
+https://symfony.com/cve-2026-118516
+https://github.com/symfony/symfony/security/advisories/GHSA-3h27-hjv7-fqjx
+
+Resultado após publicação
+- Sete containers PHP selecionam as imagens corrigidas, sem reinícios em loop.
+- Aplicação saudável; login HTTPS respondeu 200.
+- As cinco pastas de pacotes Symfony publicadas coincidem byte a byte com os
+  pacotes corrigidos instalados pelo Composer no checkout.
+- Cache de rotas limpo, views compiladas e nginx recarregado.

@@ -26,6 +26,9 @@ jobs:
       - name: Instala dependencias do Composer
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
+      - name: Verifica avisos de seguranca das dependencias
+        run: composer audit --locked --no-interaction
+
       - name: Prepara .env de teste
         run: |
           cp .env.example .env

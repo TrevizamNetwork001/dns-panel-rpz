@@ -1,0 +1,15 @@
+# Patch dependencies without replacing the code of the selected running service.
+# For a new host, use the independent full build in Dockerfile instead.
+ARG BASE_IMAGE=dns-panel-rpz-app:ui-company-inside-20261112
+FROM ${BASE_IMAGE} AS runtime
+
+FROM composer:2.8 AS dependencies
+WORKDIR /app
+COPY --from=runtime /var/www/html/ /app/
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-interaction --no-progress --prefer-dist \
+    --no-scripts --optimize-autoloader --classmap-authoritative
+
+FROM runtime
+COPY --from=dependencies --chown=www-data:www-data /app/vendor /var/www/html/vendor
+COPY --chown=www-data:www-data composer.json composer.lock /var/www/html/

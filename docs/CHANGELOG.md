@@ -4,6 +4,13 @@ Histórico das mudanças por data, agrupadas por área. Consulte o histórico Gi
 
 ## 12/11/2026
 
+### Correção de avisos de segurança do Symfony
+
+- Atualizados somente filesystem, http-foundation, http-kernel e routing para 8.1.11; mime para 8.1.10. Eliminados os 8 avisos conhecidos encontrados pelo Composer.
+- Preservadas as versões do PHP e Laravel e o código específico de cada serviço. Imagens incrementais de segurança separadas para web e processamento.
+- Composer passa a resolver dependências para PHP 8.4.27; auditoria de segurança adicionada ao workflow de testes.
+- Suíte: 533 testes / 2.607 asserções aprovados. Backup anterior, publicação, limites e reversão em `docs/contabo/dependencias-seguranca-2026-11-12.txt`.
+
 ### Instalação independente com um único shell script
 
 - Novo `scripts/install-panel.sh` baixa o código, prepara Docker em Debian/Ubuntu, gera chave exclusiva e inicializa banco, primeiro admin, HTTPS e serviços próprios.
