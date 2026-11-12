@@ -345,8 +345,6 @@ class RpzZoneBuildService
             return false;
         }
         $path = Storage::disk('local')->path($version->file_path);
-        // The file can be replaced/corrupted by another process between builds.
-        clearstatcache(true, $path);
 
         return is_file($path) && is_readable($path) && filesize($path) === (int) $version->file_size
             && hash_equals((string) $version->file_hash, hash_file('sha256', $path));

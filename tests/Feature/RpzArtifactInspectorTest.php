@@ -53,7 +53,9 @@ class RpzArtifactInspectorTest extends TestCase
     {
         $zone = $this->published();
         $v = $zone->currentVersion;
-        Storage::disk('local')->put($v->file_path, 'corrupt');
+        // Published artifacts are read-only; simulate external replacement, not an in-place write.
+        Storage::disk('local')->delete($v->file_path);
+        $this->assertTrue(Storage::disk('local')->put($v->file_path, 'corrupt'));
         $this->artisan('rpz:verify', ['zone_key' => $zone->zone_key])->expectsOutputToContain('SHA-256 diferente')->assertFailed();
         $this->assertSame('corrupt', Storage::disk('local')->get($v->file_path));
         Storage::disk('local')->delete($v->file_path);
@@ -67,7 +69,9 @@ class RpzArtifactInspectorTest extends TestCase
         $v = $zone->currentVersion;
         $owner = implode('.', array_fill(0, 4, str_repeat('a', 60)));
         $content = $owner." CNAME .\nallowed.example CNAME rpz-passthru.\nredirect.example CNAME sink.example.\n";
-        Storage::disk('local')->put($v->file_path, $content);
+        // Published artifacts are read-only; simulate external replacement, not an in-place write.
+        Storage::disk('local')->delete($v->file_path);
+        $this->assertTrue(Storage::disk('local')->put($v->file_path, $content));
         $v->update(['file_hash' => hash('sha256', $content), 'file_size' => strlen($content), 'rule_count' => 2]);
         $report = app(RpzArtifactInspector::class)->inspect($zone);
         $this->assertFalse($report['ok']);

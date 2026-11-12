@@ -10,7 +10,7 @@ Histórico das mudanças por data, agrupadas por área. Consulte o histórico Gi
 - `compose.install.yml` usa volumes/imagens por projeto e build completo de código/assets a partir de imagens públicas; não depende dos overlays da produção.
 - Reexecução preserva chave e acessos, faz backup antes de migrations e mantém imagens para reversão. Não cria usuário ou senha padrão.
 - Validado em laboratório com banco vazio, login no navegador, ACL, HTTPS com CA interna, download real pelo Unbound, NXDOMAIN e restauração do backup.
-- Suíte PHP: 533 testes / 2.604 asserções aprovados. Workflow dedicado de instalação adicionado.
+- Suíte PHP: 533 testes / 2.607 asserções aprovados. Workflow dedicado de instalação adicionado.
 - Passo a passo, limites e recuperação em [INSTALACAO-NOVA.md](INSTALACAO-NOVA.md).
 
 ### Reconciliação da UI publicada com o repositório

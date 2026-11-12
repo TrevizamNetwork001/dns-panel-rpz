@@ -187,7 +187,7 @@ O conteúdo desse arquivo é lido pela entrada padrão; a senha não entra nos a
 
 ## Validação e referências
 
-A instalação foi exercitada com volumes novos, login real no navegador, geração/entrega RPZ, negação por ACL, backup com restauração/integridade e reexecução preservando configuração e administrador. Um Unbound real fez a primeira transferência HTTPS e respondeu NXDOMAIN para o domínio sintético bloqueado. A suíte PHP completa passou com 533 testes e 2.604 asserções; o instalador passou no ShellCheck. HTTPS foi verificado com CA interna no laboratório e o Caddyfile de produção foi validado. Isso não substitui a emissão ACME e o teste externo nos domínios reais de cada VPS.
+A instalação foi exercitada com volumes novos, login real no navegador, geração/entrega RPZ, negação por ACL, backup com restauração/integridade e reexecução preservando configuração e administrador. Um Unbound real fez a primeira transferência HTTPS e respondeu NXDOMAIN para o domínio sintético bloqueado. A suíte PHP completa passou com 533 testes e 2.607 asserções; o instalador passou no ShellCheck. HTTPS foi verificado com CA interna no laboratório e o Caddyfile de produção foi validado. Isso não substitui a emissão ACME e o teste externo nos domínios reais de cada VPS.
 
 O workflow `.github/workflows/install-smoke.yml` exercita a instalação e a reexecução em um runner com Docker, sem banco de produção. A preparação apt de uma VPS virgem e a emissão ACME pública dependem do sistema e DNS de destino; não foram apresentadas como teste feito em uma VPS externa.
 

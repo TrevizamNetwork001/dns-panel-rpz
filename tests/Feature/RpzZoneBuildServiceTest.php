@@ -73,7 +73,9 @@ class RpzZoneBuildServiceTest extends TestCase
         $key = 'server:'.$server->id;
         $service->build($key);
         $version = RpzZone::where('zone_key', $key)->firstOrFail()->currentVersion;
-        Storage::disk('local')->put($version->file_path, 'corrupt');
+        // Published artifacts are read-only; simulate external replacement, not an in-place write.
+        Storage::disk('local')->delete($version->file_path);
+        $this->assertTrue(Storage::disk('local')->put($version->file_path, 'corrupt'));
         $this->assertSame('restored', $service->build($key)['status']);
         $this->assertSame($version->file_hash, hash('sha256', Storage::disk('local')->get($version->file_path)));
         $version->update(['file_hash' => str_repeat('0', 64)]);
