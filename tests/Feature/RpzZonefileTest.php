@@ -12,6 +12,8 @@ use App\Models\Servidor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
 class RpzZonefileTest extends TestCase
 {
@@ -212,6 +214,9 @@ class RpzZonefileTest extends TestCase
         $this->assertSame(0, $exitCode, 'named-checkzone falhou: '.implode("\n", $output));
     }
 
+    // Measure the endpoint under 128M independently of earlier tests in the suite.
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
     public function test_handles_large_domain_lists_without_high_memory_usage(): void
     {
         // Regressao: a versao antiga carregava tudo via Eloquent (with()/pluck()/

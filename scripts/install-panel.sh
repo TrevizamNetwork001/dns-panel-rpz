@@ -198,7 +198,10 @@ dc build app web
 printf '\nInicializando banco e serviços…\n'
 # Wait for PHP before refreshing nginx. Waiting on a stale nginx first can deadlock
 # an update: its health check would still target the previous PHP container IP.
-dc up -d --wait --wait-timeout 180 app queue scheduler external-sync backup
+dc up -d --wait --wait-timeout 180 app
+# Compose v2 also requires a healthcheck on every explicitly awaited service.
+# The loop/worker services intentionally use process liveness, so start them separately.
+dc up -d --no-deps queue scheduler external-sync backup
 dc up -d --no-deps web
 rpz_nginx_ready=0
 for ((rpz_attempt=1; rpz_attempt<=10; rpz_attempt++)); do
