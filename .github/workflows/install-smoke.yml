@@ -1,0 +1,71 @@
+name: Instalacao independente
+
+on:
+  push:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.env.install.example'
+      - 'compose.install.yml'
+      - 'docker/install/**'
+      - 'scripts/install-panel.sh'
+      - 'app/Console/Commands/CreatePanelAdmin.php'
+      - 'database/migrations/**'
+      - 'tests/safety/*installation*'
+      - '.github/workflows/install-smoke.yml'
+  pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.env.install.example'
+      - 'compose.install.yml'
+      - 'docker/install/**'
+      - 'scripts/install-panel.sh'
+      - 'app/Console/Commands/CreatePanelAdmin.php'
+      - 'database/migrations/**'
+      - 'tests/safety/*installation*'
+      - '.github/workflows/install-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  clean-install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instala com banco e volumes novos
+        run: |
+          set -euo pipefail
+          openssl rand -base64 24 > /tmp/rpz-admin-password
+          chmod 600 /tmp/rpz-admin-password
+          sudo env RPZ_PROJECT_NAME=rpz-ci RPZ_UPSTREAM_PORT=18089 \
+            RPZ_PANEL_DOMAIN=panel.install.test RPZ_FEED_DOMAIN=feeds.install.test \
+            RPZ_ACME_EMAIL=admin@example.test RPZ_ADMIN_EMAIL=admin@example.test \
+            RPZ_ADMIN_PASSWORD_FILE=/tmp/rpz-admin-password \
+            bash scripts/install-panel.sh --source-dir "$GITHUB_WORKSPACE" --local-only
+          sudo cp .env.install /tmp/rpz-env-before
+      - name: Reexecucao preserva configuracao e administrador
+        run: |
+          set -euo pipefail
+          sudo env RPZ_ADMIN_EMAIL=admin@example.test RPZ_ADMIN_PASSWORD_FILE=/tmp/rpz-admin-password \
+            bash scripts/install-panel.sh --source-dir "$GITHUB_WORKSPACE" --local-only
+          sudo cmp -s .env.install /tmp/rpz-env-before
+          sudo bash scripts/install-panel.sh --source-dir "$GITHUB_WORKSPACE" --local-only --check
+      - name: Valida entrega e ACL com dados sinteticos
+        run: |
+          set -euo pipefail
+          sudo docker compose --project-name rpz-ci --env-file .env.install -f compose.install.yml \
+            exec -T -e RPZ_INSTALLATION_SMOKE=1 app php < tests/safety/build_installation_fixture.php
+          curl --fail --silent http://127.0.0.1:18089/rpz/lab-install.zone > /tmp/rpz-test.zone
+          grep -q 'blocked.install.test' /tmp/rpz-test.zone
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18089/rpz/negado-install.zone)" = 403
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18089/rpz/inexistente.zone)" = 404
+      - name: Limpa somente o projeto descartavel
+        if: always()
+        run: |
+          if sudo test -f .env.install; then
+            sudo docker compose --project-name rpz-ci --env-file .env.install -f compose.install.yml down --volumes --remove-orphans
+          fi
+          sudo rm -f /tmp/rpz-admin-password /tmp/rpz-env-before

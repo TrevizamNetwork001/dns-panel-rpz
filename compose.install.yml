@@ -1,0 +1,129 @@
+# Independent new installation. Never combine with staging/recovery compose files.
+name: ${RPZ_PROJECT_NAME:-rpz-panel}
+
+x-app: &app
+  image: ${RPZ_PROJECT_NAME:-rpz-panel}-app:${RPZ_RELEASE:-local}
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: app
+  env_file: [.env.install]
+  networks: [backend]
+  volumes:
+    - data:/data
+    - storage:/var/www/html/storage
+    - cache:/var/www/html/bootstrap/cache
+    - backups:/backups
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: {max-size: 10m, max-file: '3'}
+
+services:
+  init:
+    <<: *app
+    user: root
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETUID, SETGID]
+    command: [/bin/sh, /usr/local/bin/rpz-install-init]
+    restart: 'no'
+    healthcheck: {disable: true}
+    mem_limit: 256m
+  app:
+    <<: *app
+    depends_on:
+      init: {condition: service_completed_successfully}
+    mem_limit: 768m
+    cpus: '1.0'
+  web:
+    image: ${RPZ_PROJECT_NAME:-rpz-panel}-web:${RPZ_RELEASE:-local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: web
+    networks: [backend]
+    volumes:
+      - storage:/var/www/html/storage:ro
+    ports: ['127.0.0.1:${RPZ_UPSTREAM_PORT:-18082}:8080']
+    depends_on:
+      app: {condition: service_healthy}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp, /var/cache/nginx, /var/run]
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  edge:
+    image: caddy:2-alpine@sha256:78bd35025c7ba85961dd149ae670315129954e77abe2383ac47c89106b35ade9
+    profiles: [https]
+    # Preserve IPv4/IPv6 client origin for the RPZ ACL; HTTP backend is loopback only.
+    network_mode: host
+    environment:
+      RPZ_PANEL_DOMAIN: ${RPZ_PANEL_DOMAIN:?Defina o dominio do painel}
+      RPZ_FEED_DOMAIN: ${RPZ_FEED_DOMAIN:?Defina o dominio dos feeds}
+      RPZ_ACME_EMAIL: ${RPZ_ACME_EMAIL:?Defina o email HTTPS}
+      RPZ_UPSTREAM_PORT: ${RPZ_UPSTREAM_PORT:-18082}
+    volumes:
+      - ./docker/install/Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy-config:/config
+    depends_on:
+      web: {condition: service_healthy}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  queue:
+    <<: *app
+    command: [php, artisan, 'queue:work', database, '--sleep=1', '--tries=3', '--timeout=360', '--max-time=3600']
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+    stop_grace_period: 400s
+    mem_limit: 768m
+  scheduler:
+    <<: *app
+    command: [php, artisan, 'schedule:work', '--no-interaction']
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+    mem_limit: 384m
+  external-sync:
+    <<: *app
+    command: [/usr/local/bin/rpz-automation, external-sync]
+    environment: {AUTOMATION_INTERVAL: '21600'}
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+    mem_limit: 384m
+  backup:
+    <<: *app
+    command: [/usr/local/bin/rpz-automation, backup]
+    environment: {AUTOMATION_INTERVAL: '3600', BACKUP_DIR: /backups, BACKUP_KEEP_DAYS: '14'}
+    depends_on:
+      init: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+    mem_limit: 256m
+
+networks:
+  backend: {}
+volumes:
+  data: {}
+  storage: {}
+  cache: {}
+  backups: {}
+  certificates: {}
+  caddy-config: {}

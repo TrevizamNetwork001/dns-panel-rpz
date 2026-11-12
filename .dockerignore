@@ -27,3 +27,12 @@ backups*/
 .recovery/
 certbot/
 auth.json
+
+# Local installer state and development/runtime caches are not application source.
+.install-state
+.install-lock
+bootstrap/cache/*.php
+storage/framework/testing/
+storage/framework/views/*.php
+.phpunit*
+RESUMO_SISTEMA_E_LAYOUT_ATUAL.txt

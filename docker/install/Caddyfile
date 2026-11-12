@@ -1,0 +1,16 @@
+{
+	email {$RPZ_ACME_EMAIL}
+	admin off
+}
+{$RPZ_PANEL_DOMAIN} {
+	reverse_proxy 127.0.0.1:{$RPZ_UPSTREAM_PORT:18082}
+}
+{$RPZ_FEED_DOMAIN} {
+	@feed path /rpz/* /mikrotik/*
+	handle @feed {
+		reverse_proxy 127.0.0.1:{$RPZ_UPSTREAM_PORT:18082}
+	}
+	handle {
+		respond 404
+	}
+}

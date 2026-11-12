@@ -47,3 +47,10 @@ __pycache__/
 /Bloqueios_Dominios.zip
 
 /referencias/
+
+# Independent installation secrets and installer state
+.env.install
+.install-state
+.install-lock/
+/.env.install.*
+!/.env.install.example

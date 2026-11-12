@@ -80,7 +80,14 @@ App\Models\User::create([
 ]);
 ```
 
-### Produção (Docker)
+### Painel independente em VPS nova (instalador)
+
+Para instalar outro painel do zero, use o [passo a passo com um único `.sh`](docs/INSTALACAO-NOVA.md). O instalador constrói as imagens a partir do código, cria banco e administrador próprios e sobe HTTPS e serviços automáticos com `compose.install.yml`.
+
+### Ambiente legado de produção (Docker)
+
+Os comandos abaixo pertencem ao ambiente legado. Para uma VPS nova, use o instalador acima; não copie IPs, nomes de volumes ou imagens do servidor existente.
+
 
 ```bash
 docker compose build app nginx

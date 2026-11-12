@@ -5,6 +5,14 @@ RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --opt
 COPY . .
 RUN composer dump-autoload --no-dev --no-interaction --optimize --classmap-authoritative
 
+# Full build for a new installation: assets and PHP code use the same revision.
+FROM node:22-alpine AS assets
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY --from=vendor /app /app
+RUN npm run build
+
 FROM php:8.4.27-fpm-alpine@sha256:6b83fd767e1902ae4c89fe11f929f02e78bf769215c703060ac8a7c4be672c8c AS app
 RUN apk add --no-cache ca-certificates curl fcgi icu-libs libzip libxml2 py3-pip py3-virtualenv python3 sqlite \
     && apk add --no-cache --virtual .build-deps curl-dev icu-dev libzip-dev libxml2-dev linux-headers oniguruma-dev sqlite-dev $PHPIZE_DEPS \
@@ -17,11 +25,15 @@ COPY docker/requirements-anatel.txt /tmp/requirements-anatel.txt
 RUN python3 -m venv /opt/anatel-venv \
     && /opt/anatel-venv/bin/pip install --no-cache-dir --disable-pip-version-check -r /tmp/requirements-anatel.txt \
     && rm /tmp/requirements-anatel.txt
+RUN apk add --no-cache bind-tools su-exec
 WORKDIR /var/www/html
 COPY --from=vendor --chown=www-data:www-data /app /var/www/html
+COPY --from=assets --chown=www-data:www-data /app/public/build /var/www/html/public/build
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-rpz.ini
 COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-rpz.conf
+COPY docker/php-fpm.contabo.conf /usr/local/etc/php-fpm.d/zzzz-contabo.conf
 COPY docker/init.sh /usr/local/bin/rpz-init
+COPY docker/install/init.sh /usr/local/bin/rpz-install-init
 COPY docker/backup.sh /usr/local/bin/rpz-backup
 COPY docker/automation-loop.sh /usr/local/bin/rpz-automation
 RUN chmod 0755 /usr/local/bin/rpz-* \
@@ -33,5 +45,6 @@ CMD ["php-fpm", "-F"]
 FROM nginxinc/nginx-unprivileged:1.28.0-alpine AS web
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=vendor --chown=nginx:nginx /app/public /var/www/html/public
+COPY --from=assets --chown=nginx:nginx /app/public/build /var/www/html/public/build
 RUN ln -sfn ../storage/app/public /var/www/html/public/storage
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:8080/up || exit 1
