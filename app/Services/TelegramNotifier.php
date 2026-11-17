@@ -101,6 +101,11 @@ class TelegramNotifier
             .'Revise e, se aplicável, atualize a página /unbound-seguranca do painel: '.e($url));
     }
 
+    public function notifyAnatelPublished(int $importId, int $added, int $reactivated): bool
+    {
+        return $this->send("<b>ANATEL · Feed RPZ publicado</b>\nImportação nº {$importId}\nDomínios novos: {$added}\nDomínios reativados: {$reactivated}");
+    }
+
     private function send(string $texto): bool
     {
         $config = $this->config();

@@ -16,3 +16,13 @@ Schedule::command('unbound:check-release')
 
 // Recover durable dirty markers after failed/lost jobs, including first publication.
 Schedule::command('rpz:build --dirty')->everyFiveMinutes()->withoutOverlapping(10);
+
+Schedule::command('anatel:consultar-caixa --isolated')
+    ->dailyAt(config('anatel.imap_scan_time'))
+    ->when(fn (): bool => config('anatel.imap_list_id') > 0)
+    ->withoutOverlapping(10);
+
+Schedule::command('anatel:avisar-publicacao --isolated')
+    ->everyFiveMinutes()
+    ->when(fn (): bool => config('anatel.publication_notices_enabled'))
+    ->withoutOverlapping(10);

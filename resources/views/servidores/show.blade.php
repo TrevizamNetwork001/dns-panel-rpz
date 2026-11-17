@@ -100,9 +100,9 @@
             <div class="panel-header endpoint-drawer-heading"><div class="endpoint-card-title"><x-ui-icon name="link" size="27" /><div><h2 id="endpoint-lists-title">Listas vinculadas</h2><p class="endpoint-detail-note">{{ $servidor->listas->count() }} listas vinculadas a este servidor</p></div></div><button type="button" class="endpoint-dismiss" data-close-dialog aria-label="Fechar listas"><x-ui-icon name="x" size="20" /></button></div>
             @if (session('status'))<div class="alert-success" style="margin:0 0 14px">{{ session('status') }}</div>@endif
             @if (! auth()->user()->isAdmin() && $listasDisponiveis->isNotEmpty())
-                <form action="{{ route('servidores.listas.attach', [$servidor, '__lista__']) }}" method="POST" style="display:flex;gap:8px;margin-bottom:14px" onsubmit="this.action = this.action.replace('__lista__', this.lista_id.value); return this.lista_id.value !== '';">
+                <form action="{{ route('servidores.listas.attach', [$servidor, '__lista__']) }}" method="POST" class="endpoint-lists-actions" onsubmit="this.action = this.action.replace('__lista__', this.lista_id.value); return this.lista_id.value !== '';">
                     @csrf
-                    <select name="lista_id" class="form-control" style="flex:1" required>
+                    <select name="lista_id" class="form-control" aria-label="Fonte para vincular" required>
                         <option value="" disabled selected>Vincular uma fonte disponível...</option>
                         @foreach ($listasDisponiveis as $lista)
                             <option value="{{ $lista->id }}">{{ $lista->nome }}</option>
@@ -112,35 +112,49 @@
                 </form>
             @endif
             @if (auth()->user()->isAdmin())
-                <p class="endpoint-detail-note">Para alterar os vínculos, use a edição do servidor.</p>
-                <a href="{{ route('servidores.edit', $servidor) }}#fontes-habilitadas-panel" class="button button-secondary">Editar vínculos</a>
+                <div class="endpoint-lists-actions">
+                    <a href="{{ route('servidores.edit', $servidor) }}#fontes-habilitadas-panel" class="button button-secondary"><x-ui-icon name="pencil" size="16" />Editar vínculos</a>
+                </div>
             @endif
             @if ($servidor->listas->isEmpty())
                 <div class="empty-state"><span>Nenhuma fonte vinculada ainda.</span></div>
             @else
                 <div class="table-responsive">
-                    <table class="data-table">
+                    <table class="data-table endpoint-linked-sources">
                         <thead>
-                            <tr><th>Fonte</th><th>Tipo</th><th class="table-actions-column"></th></tr>
+                            <tr>
+                                <th scope="col">Fonte</th>
+                                <th scope="col" class="endpoint-source-type">Tipo</th>
+                                @unless (auth()->user()->isAdmin())
+                                    <th scope="col" class="table-actions-column">Ações</th>
+                                @endunless
+                            </tr>
                         </thead>
                         <tbody>
                             @foreach ($servidor->listas as $lista)
-                                @php $tipoFonte = auth()->user()->isAdmin() ? ($lista->isAnatel() ? 'Catálogo / Importação ANATEL' : ($lista->isExterna() ? 'Externa' : ($lista->empresa_id ? 'Própria' : 'Catálogo'))) : ($lista->empresa_id ? 'Própria' : 'Catálogo'); @endphp
-                                <tr>
+                                @php
+                                    $tipoFonte = match (true) {
+                                        auth()->user()->isAdmin() && $lista->isAnatel() => ['anatel', 'Importação ANATEL'],
+                                        auth()->user()->isAdmin() && $lista->isExterna() => ['externa', 'Externa'],
+                                        $lista->empresa_id !== null => ['propria', 'Própria'],
+                                        default => ['catalogo', 'Catálogo'],
+                                    };
+                                @endphp
+                                <tr class="endpoint-source-{{ $tipoFonte[0] }}">
                                     <td><div class="endpoint-source-name"><x-list-category-icon :lista="$lista" /><div><a href="{{ route('listas.show', $lista) }}" class="table-primary-link">{{ $lista->nome }}</a>
                                         @if ($lista->descricao)<small class="lista-descricao" style="display:block;margin-top:2px;color:var(--text-muted);font-size:11px;line-height:1.4">{{ $lista->descricao }}</small>@endif</div></div></td>
                                     <td>
-                                        <span class="status-pill status-pill-normal-case {{ auth()->user()->isAdmin() && $lista->isExterna() ? 'is-info' : ($lista->empresa_id ? 'is-active' : 'is-muted') }}">{{ $tipoFonte }}</span>
+                                        <span class="status-pill status-pill-normal-case endpoint-source-label">{{ $tipoFonte[1] }}</span>
                                     </td>
+                                    @unless (auth()->user()->isAdmin())
                                     <td>
-                                        @unless (auth()->user()->isAdmin())
                                         <form action="{{ route('servidores.listas.detach', [$servidor, $lista]) }}" method="POST">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="table-action-link" style="background:none;border:0" onclick="return confirm('Remover esta fonte do endpoint?')">Remover</button>
+                                            <button type="submit" class="table-action-link" style="background:none;border:0" aria-label="Remover {{ $lista->nome }}" onclick="return confirm('Remover esta fonte do endpoint?')">Remover</button>
                                         </form>
-                                        @endunless
                                     </td>
+                                    @endunless
                                 </tr>
                             @endforeach
                         </tbody>
@@ -361,14 +375,24 @@ systemctl restart unbound</pre>
             document.querySelectorAll('[data-close-dialog]').forEach(function (button) {
                 button.addEventListener('click', function () {
                     button.closest('dialog').close();
-                    if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
                 });
             });
             document.querySelectorAll('dialog.endpoint-drawer').forEach(function (dialog) {
+                dialog.addEventListener('close', function () {
+                    if (window.location.hash === '#' + dialog.id) {
+                        history.replaceState(null, '', window.location.pathname + window.location.search);
+                    }
+                    var trigger = document.querySelector('[data-endpoint-dialog="' + dialog.id + '"]');
+                    if (!document.querySelector('dialog.endpoint-drawer[open]')) {
+                        trigger?.focus({ preventScroll: true });
+                    }
+                });
                 dialog.addEventListener('click', function (event) {
-                    if (event.target === dialog) {
+                    var bounds = dialog.getBoundingClientRect();
+                    var outside = event.clientX < bounds.left || event.clientX >= bounds.right
+                        || event.clientY < bounds.top || event.clientY >= bounds.bottom;
+                    if (event.target === dialog && outside) {
                         dialog.close();
-                        if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
                     }
                 });
             });

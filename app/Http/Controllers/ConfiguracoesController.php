@@ -11,6 +11,8 @@ use App\Services\ServidoresInativosCleaner;
 use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ConfiguracoesController extends Controller
@@ -27,6 +29,12 @@ class ConfiguracoesController extends Controller
 
         return view('configuracoes.index', [
             'telegram' => $telegram->config(),
+            'imap' => [
+                'email' => Setting::get('anatel_imap_email', 'rpz@trevizamnetwork.com.br'),
+                'host' => Setting::get('anatel_imap_host', 'mail.trevizamnetwork.com.br'),
+                'port' => Setting::get('anatel_imap_port', '993'),
+                'has_password' => Setting::getEncrypted('anatel_imap_password') !== null,
+            ],
             'r2' => $r2->config(),
             'r2Usage' => $r2->cachedUsage(),
             'limpeza' => $limpeza->config() + ['candidatos' => $limpeza->inativosQuery()->count()],
@@ -67,6 +75,42 @@ class ConfiguracoesController extends Controller
         AuditLog::record('configuracoes.telegram_atualizado', 'Configuração de notificação Telegram atualizada');
 
         return back()->with('status', 'Configuração salva.');
+    }
+
+    public function updateImap(Request $request): RedirectResponse
+    {
+        $data = $request->validateWithBag('imap', [
+            'email' => ['required', 'email:rfc', 'max:254'],
+            'host' => ['required', 'string', 'max:253', 'regex:/\A(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z](?:[a-z0-9-]{0,61}[a-z0-9])?\z/i'],
+            'port' => ['required', 'integer', 'between:1,65535'],
+            'password' => ['nullable', 'string', 'max:1024'],
+        ]);
+
+        DB::transaction(function () use ($data): void {
+            $port = (string) (int) $data['port'];
+            $connectionChanged = $data['email'] !== Setting::get('anatel_imap_email')
+                || $data['host'] !== Setting::get('anatel_imap_host')
+                || $port !== Setting::get('anatel_imap_port');
+
+            if (! isset($data['password']) && ($connectionChanged || Setting::getEncrypted('anatel_imap_password') === null)) {
+                throw ValidationException::withMessages([
+                    'password' => 'Informe a senha da caixa para salvar esta conexão.',
+                ])->errorBag('imap');
+            }
+
+            Setting::set('anatel_imap_email', $data['email']);
+            Setting::set('anatel_imap_host', $data['host']);
+            Setting::set('anatel_imap_port', $port);
+
+            if (isset($data['password'])) {
+                Setting::setEncrypted('anatel_imap_password', $data['password']);
+            }
+
+            AuditLog::record('configuracoes.imap_atualizado', 'Configuração da caixa de entrada IMAP atualizada');
+        });
+
+        return redirect()->route('configuracoes.index', ['aba' => 'integracoes'])
+            ->with('status', 'Configuração IMAP salva.');
     }
 
     public function testTelegram(TelegramNotifier $telegram): RedirectResponse

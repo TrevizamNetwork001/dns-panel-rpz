@@ -2,6 +2,15 @@
 
 Histórico das mudanças por data, agrupadas por área. Consulte o histórico Git para os commits de cada alteração. Este arquivo começa em 17/09/2026; o que veio antes está no histórico do git.
 
+## 18/11/2026
+
+- **Central Anatel.** Consulta IMAP diária às 8h de Brasília no ambiente publicado. Assuntos com Anatel ou Ciberlab são selecionados para leitura de PDF e XLSX. Os anexos identificados pelo mesmo conteúdo não geram outra prévia. A publicação ainda exige aprovação administrativa.
+- **Confirmações.** O agendador envia a confirmação após aprovação ao contato cadastrado da empresa e aos contatos adicionais em cópia oculta. O Telegram interno avisa após verificar a publicação do feed. Relatos sem empresa identificada ou sem destinatário cadastrado não geram e-mail.
+- **Configuração.** A área Integrações permite salvar as credenciais IMAP com senha criptografada. A área Empresas permite gerenciar contatos adicionais em um painel lateral.
+- **Interface.** O painel usa a marca Trevizam DNS e oferece Novidades da versão no rodapé. A tela Ver listas distingue tipos de fonte por cor e texto. A Auditoria apresenta eventos RPZ em português e oferece a opção de mostrar eventos de rotina.
+
+Em novas instalações, aplique as migrações antes de iniciar o agendador. Defina `ANATEL_IMAP_LIST_ID` com o ID da fonte de destino para habilitar a consulta. O horário padrão `ANATEL_IMAP_SCAN_TIME` é `08:00` no fuso da aplicação. Habilite `ANATEL_PUBLICATION_NOTICES_ENABLED` para os avisos, configure o Telegram no painel e informe `ANATEL_SMTP_HOST` e `ANATEL_SMTP_PORT` para o envio por TLS. O SMTP usa as credenciais da caixa cadastrada. Use `php artisan anatel:consultar-caixa --dry-run` para verificar a leitura sem criar prévias.
+
 ## 12/11/2026
 
 ### Correção de avisos de segurança do Symfony

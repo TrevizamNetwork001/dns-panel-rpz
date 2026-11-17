@@ -64,6 +64,8 @@
     .endpoint-workspace .endpoint-drawer-heading { border-bottom: 1px solid var(--border-soft); padding: 3px 4px 22px; margin-bottom: 12px; align-items: flex-start; }
     .endpoint-drawer-heading h2 { font-size: 17px !important; }
     .endpoint-dismiss { border: 0; background: transparent; color: var(--text-soft); padding: 4px; cursor: pointer; }
+    .endpoint-lists-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .endpoint-lists-actions select { flex: 1 1 200px; min-width: 0; }
     .endpoint-source-name { display: flex; align-items: center; gap: 19px; }
     .endpoint-source-name > svg { color: var(--text-soft); flex-shrink: 0; width: 23px; height: 23px; }
     .endpoint-source-name .table-primary-link { color: var(--text); font-weight: 600; font-size: 12px; }
@@ -72,7 +74,20 @@
     .endpoint-drawer .data-table td { overflow-wrap: anywhere; padding: 22px 8px; }
     .endpoint-drawer .data-table th:nth-child(2) { width: 102px; }
     .endpoint-drawer .data-table th:last-child { width: 75px; }
+    .endpoint-drawer .endpoint-linked-sources th.endpoint-source-type { width: 102px; }
     .endpoint-drawer .status-pill { white-space: normal; font-size: 10px; padding: 6px 12px; border: 0; }
+    #endpoint-lists .endpoint-drawer-heading .endpoint-card-title > svg { color: var(--cyan); }
+    .endpoint-linked-sources .endpoint-source-anatel { --source-ink: #a9440a; }
+    .endpoint-linked-sources .endpoint-source-externa { --source-ink: #1768b2; }
+    .endpoint-linked-sources .endpoint-source-propria { --source-ink: #13724d; }
+    .endpoint-linked-sources .endpoint-source-catalogo { --source-ink: #7046b0; }
+    html:not([data-theme="light"]) .endpoint-linked-sources .endpoint-source-anatel { --source-ink: #ffb16d; }
+    html:not([data-theme="light"]) .endpoint-linked-sources .endpoint-source-externa { --source-ink: #7ec9ff; }
+    html:not([data-theme="light"]) .endpoint-linked-sources .endpoint-source-propria { --source-ink: #79e0b1; }
+    html:not([data-theme="light"]) .endpoint-linked-sources .endpoint-source-catalogo { --source-ink: #cab0ff; }
+    .endpoint-linked-sources .endpoint-source-name > svg,
+    .endpoint-linked-sources .endpoint-source-label { color: var(--source-ink); }
+    .endpoint-linked-sources .endpoint-source-label { background: color-mix(in srgb, var(--source-ink) 13%, var(--surface)); }
     .endpoint-drawer .table-action-link { color: var(--endpoint-orange); font-size: 11px; padding: 0; cursor: pointer; }
     .endpoint-drawer-footer { display: flex; align-items: center; gap: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); padding: 15px; margin-top: 26px; }
     .endpoint-drawer-footer svg { flex-shrink: 0; color: var(--cyan); }
@@ -137,6 +152,7 @@
         .endpoint-drawer .data-table td { padding: 18px 4px; }
         .endpoint-drawer .data-table th:nth-child(2) { width: 80px; }
         .endpoint-drawer .data-table th:last-child { width: 64px; }
+        .endpoint-drawer .endpoint-linked-sources th.endpoint-source-type { width: 80px; }
         .endpoint-event { grid-template-columns: 76px minmax(0, 1fr); }
         .endpoint-event-message, .endpoint-event-ip { grid-column: 2; }
         .endpoint-ip-form, .endpoint-secret-row { flex-wrap: wrap; }

@@ -9,7 +9,9 @@ use App\Services\RpzDirtyMarker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class EmpresaController extends Controller
@@ -104,7 +106,7 @@ class EmpresaController extends Controller
     {
         $empresa = $request->route('empresa');
 
-        return $request->validate([
+        $data = $request->validate([
             'nome' => ['required', 'string', 'max:255'],
             'nome_fantasia' => ['nullable', 'string', 'max:255'],
             'telefone' => ['nullable', 'string', 'max:32'],
@@ -117,8 +119,31 @@ class EmpresaController extends Controller
             ],
             'documento' => ['nullable', 'string', 'max:32'],
             'email_contato' => ['nullable', 'email', 'max:255'],
+            'emails_adicionais' => ['sometimes', 'nullable', 'string', 'max:2600'],
             'status' => ['required', 'in:active,inactive'],
             'rpz_bloqueio_modo' => ['sometimes', 'required', 'in:nxdomain,redirect'],
         ]);
+
+        if (array_key_exists('emails_adicionais', $data)) {
+            $lines = preg_split('/\R/u', $data['emails_adicionais'] ?? '');
+            $emails = array_values(array_unique(array_filter(array_map(
+                fn (string $line): string => strtolower(trim($line)),
+                $lines ?: [],
+            ))));
+            $validator = Validator::make(['emails' => $emails], [
+                'emails' => ['array', 'max:10'],
+                'emails.*' => ['email:rfc', 'max:254'],
+            ], [
+                'emails.max' => 'Informe até 10 e-mails adicionais.',
+                'emails.*.email' => 'Confira os endereços e informe um e-mail válido por linha.',
+                'emails.*.max' => 'Cada endereço pode ter até 254 caracteres.',
+            ]);
+            if ($validator->fails()) {
+                throw ValidationException::withMessages(['emails_adicionais' => $validator->errors()->first()]);
+            }
+            $data['emails_adicionais'] = $emails;
+        }
+
+        return $data;
     }
 }

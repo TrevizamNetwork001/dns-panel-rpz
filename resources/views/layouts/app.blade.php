@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>@yield('title', 'RPZ Control')</title>
+    <title>@yield('title', 'Trevizam DNS')</title>
     <script>
         (function () {
             var stored = localStorage.getItem('dns-panel-theme');
@@ -34,7 +34,7 @@
             <div class="sidebar-brand">
                 <span class="brand-mark" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3 27 7v8c0 7-5 11-11 14C10 26 5 22 5 15V7Z"/><path d="M16 11v5m0 0-6 5m6-5 6 5"/><circle cx="16" cy="9" r="2.2" fill="currentColor" stroke="none"/><circle cx="10" cy="22" r="2.2" fill="currentColor" stroke="none"/><circle cx="22" cy="22" r="2.2" fill="currentColor" stroke="none"/></svg></span>
                 <div>
-                    <div class="brand-name">RPZ CONTROL</div>
+                    <div class="brand-name">Trevizam DNS</div>
                     <div class="brand-description">Proteção DNS centralizada</div>
                 </div>
             </div>
@@ -96,20 +96,17 @@
                 <div class="environment-status">
                     <span class="status-dot @if($ultimoHealth && ! $sistemasOk) is-warning @endif"></span>
                     <div>
-                        <strong>RPZ Control</strong>
+                        <strong>Estado do serviço</strong>
                         @if ($ultimoHealth)
-                            <span>{{ $sistemasOk ? 'Todos os sistemas operacionais' : 'Alerta de saúde detectado' }}</span>
+                            <span>{{ $sistemasOk ? 'Operação normal' : 'Atenção: verificação com alerta' }}</span>
                         @else
-                            <span>Aguardando primeira checagem</span>
+                            <span>Aguardando primeira verificação</span>
                         @endif
                     </div>
                 </div>
                 @if ($appVersion)
                     <div class="sidebar-version">
-                        <span>v{{ $appVersion }}</span>
-                        @if (auth()->user()->isAdmin() && ! request()->routeIs('servidores.*'))
-                            <span class="sidebar-version-badge">Estável</span>
-                        @endif
+                        <a href="{{ route('novidades.index') }}" class="inline-link">Novidades da versão v{{ $appVersion }}</a>
                     </div>
                 @endif
             </div>

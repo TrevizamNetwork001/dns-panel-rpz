@@ -19,8 +19,24 @@ class Empresa extends Model
         'rpz_bloqueio_modo',
         'documento',
         'email_contato',
+        'emails_adicionais',
         'status',
     ];
+
+    protected $casts = ['emails_adicionais' => 'array'];
+
+    /** @return list<string> */
+    public function emailsParaNotificacoes(): array
+    {
+        $emails = [];
+        foreach ([$this->email_contato, ...($this->emails_adicionais ?? [])] as $email) {
+            if (is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $emails[strtolower($email)] ??= $email;
+            }
+        }
+
+        return array_values($emails);
+    }
 
     protected static function booted(): void
     {

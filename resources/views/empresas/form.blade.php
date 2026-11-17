@@ -49,6 +49,31 @@
                     <input class="form-control" type="email" id="email_contato" name="email_contato" value="{{ old('email_contato', $empresa->email_contato) }}">
                 </div>
 
+                <div class="empresa-extra-contatos">
+                    <button type="button" class="button button-secondary" id="empresa-contatos-open" aria-haspopup="dialog" aria-controls="empresa-contatos">
+                        <x-ui-icon name="settings" size="16" />
+                        Gerenciar contatos
+                    </button>
+                </div>
+                <dialog class="empresa-contatos-drawer" id="empresa-contatos" aria-labelledby="empresa-contatos-title" @if ($errors->has('emails_adicionais')) data-validation-error @endif>
+                    <div class="panel-header">
+                        <h2 id="empresa-contatos-title">Contatos adicionais</h2>
+                        <button type="button" class="button button-secondary" data-empresa-contatos-close aria-label="Fechar contatos adicionais">
+                            <x-ui-icon name="x" size="18" />
+                        </button>
+                    </div>
+                    <div class="field-group">
+                        <label for="emails_adicionais">E-mails adicionais</label>
+                        <textarea class="form-control" id="emails_adicionais" name="emails_adicionais" rows="3" maxlength="2600" spellcheck="false" aria-describedby="emails-adicionais-help">{{ old('emails_adicionais', implode("\n", $empresa->emails_adicionais ?? [])) }}</textarea>
+                        <small id="emails-adicionais-help">Até 10 e-mails, um por linha. Esses contatos também recebem a confirmação de aprovação da Anatel.</small>
+                        @error('emails_adicionais')<small role="alert">{{ $message }}</small>@enderror
+                    </div>
+                    <div class="empresa-contatos-actions">
+                        <small>As alterações são gravadas ao salvar a empresa.</small>
+                        <button type="button" class="button button-primary" data-empresa-contatos-close>Concluir</button>
+                    </div>
+                </dialog>
+
                 <div class="field-group">
                     <label for="status">Status</label>
                     <select class="form-control" id="status" name="status">
@@ -73,4 +98,18 @@
         </div>
     </form>
     </div>
+    <script>
+        (() => {
+            const dialog = document.getElementById('empresa-contatos');
+            const trigger = document.getElementById('empresa-contatos-open');
+
+            trigger.addEventListener('click', () => dialog.showModal());
+            dialog.querySelectorAll('[data-empresa-contatos-close]').forEach((button) => {
+                button.addEventListener('click', () => dialog.close());
+            });
+            if (dialog.hasAttribute('data-validation-error')) {
+                dialog.showModal();
+            }
+        })();
+    </script>
 @endsection

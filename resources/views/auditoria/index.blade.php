@@ -100,13 +100,13 @@
             </div>
             <div class="audit-filter-footer">
             <label class="audit-routine-toggle">
-                <input type="hidden" name="ocultar_rotina" value="0">
-                <input type="checkbox" name="ocultar_rotina" value="1" @checked($ocultarRotina)>
-                Ocultar rotina (sync, backup, healthcheck)
+                <input type="hidden" name="ocultar_rotina" value="1">
+                <input type="checkbox" name="ocultar_rotina" value="0" @checked(! $ocultarRotina)>
+                Mostrar eventos de rotina
             </label>
             <div class="audit-filter-actions">
             <button type="submit" class="button button-primary"><x-ui-icon name="search" size="16" /> Aplicar</button>
-            @if ($query !== '' || $bucketFilter !== 'all' || $categoryFilter !== 'all' || $userFilter !== 'all' || $dataInicio !== '' || $dataFim !== '' || $ocultarRotina)
+            @if ($query !== '' || $bucketFilter !== 'all' || $categoryFilter !== 'all' || $userFilter !== 'all' || $dataInicio !== '' || $dataFim !== '' || ! $ocultarRotina)
                 <a href="{{ route('auditoria.index') }}" class="button button-secondary">Limpar</a>
             @endif
             </div>
@@ -144,7 +144,8 @@
                         $empresaNome = $log->empresa->nome ?? null;
                         if ($log->target_type === 'empresa' && $targetName === $empresaNome) $empresaNome = null;
                         $date = $log->created_at->format('d/m/Y H:i:s');
-                        $searchText = mb_strtolower(implode(' ', [$log->action, $actionLabel, $actor, $target, $log->ip_address, $date, $severity, $log->description, $empresaNome ?? '']));
+                        $displayDescription = $log->displayDescription();
+                        $searchText = mb_strtolower(implode(' ', [$log->action, $actionLabel, $actor, $target, $log->ip_address, $date, $severity, $log->description, $displayDescription, $empresaNome ?? '']));
                         $routine = \App\Models\AuditLog::isRotina($log->action);
                     @endphp
                     <li class="audit-event audit-severity-{{ $bucket }}{{ $routine ? ' audit-event-routine' : '' }}" data-audit-search="{{ $searchText }}">
@@ -153,7 +154,7 @@
                             <div class="audit-action-row"><strong class="audit-action" title="{{ $log->action }}">{{ $actionLabel }}</strong><span class="audit-severity-pill" aria-label="Severidade: {{ $severity }}">{{ $severity }}</span></div>
                             <div class="audit-meta">
                                 <span>{{ $log->action === 'rpz.endpoint.denied' ? 'Origem' : 'Quem executou' }}: <strong>{{ $actor }}</strong></span>
-                                @if ($target)<span class="audit-context">{{ $target }}</span>@endif
+                                @if ($target && $log->target_type !== 'rpz_zone')<span class="audit-context">{{ $target }}</span>@endif
                                 @if ($empresaNome)<span class="audit-context">Empresa: {{ $empresaNome }}</span>@endif
                                 <span class="audit-context audit-category">Categoria: {{ $categoryLabel }}</span>
                             </div>
@@ -161,11 +162,11 @@
                                 <p class="audit-description">{{ str_contains((string) $log->description, '[Teste técnico do painel]') ? 'Teste de acesso realizado pelo próprio painel; a recusa era esperada.' : 'Esta tentativa foi recusada porque o IP de origem não correspondeu aos IPs autorizados da empresa.' }} Este evento registra apenas essa tentativa, não o estado atual dos DNS.</p>
                             @endif
                             @if ($log->description)
-                                <p class="audit-description">{{ $log->displayDescription() }}</p>
+                                <p class="audit-description">{{ $displayDescription }}</p>
                             @endif
                             <span class="audit-sr-only">Severidade: {{ $severity }}</span>
                         </div>
-                        <span class="audit-ip"><x-ui-icon name="server" size="14" /><span>{{ $log->ip_address ? 'IP: '.$log->ip_address : 'IP não registrado' }}</span></span>
+                        <span class="audit-ip"><x-ui-icon name="server" size="14" /><span>@if ($log->isRpzGeneration() && $log->user_id === null && in_array($log->ip_address, ['127.0.0.1', '::1'], true)) IP interno ({{ $log->ip_address }}) @else {{ $log->ip_address ? 'IP: '.$log->ip_address : 'IP não registrado' }} @endif</span></span>
                     </li>
                 @endforeach
             </ul>
