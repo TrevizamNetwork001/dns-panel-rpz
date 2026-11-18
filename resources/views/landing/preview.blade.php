@@ -1,7 +1,7 @@
 <figure class="dashboard-preview" aria-labelledby="preview-caption">
     <div class="preview-shell">
         <div class="preview-sidebar" aria-hidden="true">
-            <div class="brand">@include('landing.mark') <span><strong>RPZ</strong> DNS</span></div>
+            <div class="brand">@include('landing.mark') <span><strong>DNS</strong> Center</span></div>
             @foreach ([['activity', 'Dashboard'], ['server', 'DNS Autoritativo'], ['refresh', 'DNS Recursivo'], ['shield', 'Políticas RPZ'], ['list', 'Relatórios'], ['settings', 'Configurações']] as [$icon, $label])
                 <span class="preview-nav {{ $loop->first ? 'active' : '' }}"><x-ui-icon :name="$icon" size="14" /> {{ $label }}</span>
             @endforeach

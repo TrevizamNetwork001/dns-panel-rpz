@@ -4,6 +4,16 @@ Histórico das mudanças por data, agrupadas por área. Consulte o histórico Gi
 
 ## 18/11/2026
 
+### Landing e login do DNS Center
+
+- Visitantes recebem a landing pública em `/`. A mesma rota entrega o dashboard existente a usuários autenticados. `/login` continua sendo a entrada para autenticação.
+- A landing apresenta as políticas RPZ disponíveis, a integração com Unbound e os módulos de DNS planejados. A prévia do painel é ilustrativa e seus assets são locais.
+- O login apresenta apenas marca, formulário, mensagens de autenticação e link **Voltar ao início**. A assinatura Trevizam Network, o ano e a versão aparecem no rodapé da landing.
+- Validado em Chromium entre 360 e 1920 px, com revisão visual em 1366 e 390 px. Os 30 testes focados em autenticação, autorização e dashboard passaram. Após a publicação, foram conferidos o acesso público, os assets, o login e o redirecionamento de visitantes na área de servidores.
+- A distribuição exige publicar os templates e o middleware na imagem da aplicação e os assets locais na imagem que serve os arquivos estáticos. O build completo do projeto inclui ambos. Esta entrega dispensa migração.
+
+### Operação e interface do painel
+
 - **Central Anatel.** Consulta IMAP diária às 8h de Brasília no ambiente publicado. Assuntos com Anatel ou Ciberlab são selecionados para leitura de PDF e XLSX. Os anexos identificados pelo mesmo conteúdo não geram outra prévia. A publicação ainda exige aprovação administrativa.
 - **Confirmações.** O agendador envia a confirmação após aprovação ao contato cadastrado da empresa e aos contatos adicionais em cópia oculta. O Telegram interno avisa após verificar a publicação do feed. Relatos sem empresa identificada ou sem destinatário cadastrado não geram e-mail.
 - **Configuração.** A área Integrações permite salvar as credenciais IMAP com senha criptografada. A área Empresas permite gerenciar contatos adicionais em um painel lateral.

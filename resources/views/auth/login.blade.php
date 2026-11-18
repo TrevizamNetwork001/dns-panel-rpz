@@ -3,54 +3,60 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Entrar — DNS Panel RPZ</title>
-    <script>
-        (function () {
-            var stored = localStorage.getItem('dns-panel-theme');
-            document.documentElement.setAttribute('data-theme', stored === 'light' ? 'light' : 'dark');
-        })();
-    </script>
-    <link rel="stylesheet" href="{{ asset('assets/app.css') }}?v={{ filemtime(public_path('assets/app.css')) }}">
+    <meta name="theme-color" content="#071a36">
+    <title>Entrar | DNS Center</title>
+    <link rel="stylesheet" href="{{ asset('assets/landing.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/login.css') }}?v={{ filemtime(public_path('assets/login.css')) }}">
 </head>
-<body>
-    <div class="login-page">
-        <div class="login-card">
-            <div class="brand">DNS PANEL</div>
-            <h1>Entrar</h1>
-            <p class="subtitle">Acesse com o e-mail e a senha da sua conta.</p>
+<body class="platform-login">
+    <main class="login-main">
+        <section class="login-card" aria-labelledby="login-heading">
+            <div class="login-brand">
+                @include('landing.mark')
+                <span><strong>DNS</strong> Center</span>
+            </div>
+            <h1 id="login-heading">Entrar na plataforma</h1>
+            <p class="login-intro">Acesse com o e-mail e a senha da sua conta.</p>
 
             @if ($errors->any())
-                <div class="alert-error">
-                    @foreach ($errors->all() as $error)
-                        {{ $error }}
-                    @endforeach
+                <div class="login-feedback login-error" role="alert">
+                    <x-ui-icon name="alert" size="18" />
+                    <ul>
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
                 </div>
             @endif
 
             @if (session('status'))
-                <div class="alert-success">{{ session('status') }}</div>
+                <div class="login-feedback login-success" role="status">
+                    <x-ui-icon name="check" size="18" />
+                    <p>{{ session('status') }}</p>
+                </div>
             @endif
 
-            <form action="{{ route('login.attempt') }}" method="POST">
+            <form action="{{ route('login.attempt') }}" method="POST" class="login-form">
                 @csrf
-                <div class="form-group">
+                <div class="login-field">
                     <label for="email">E-mail</label>
-                    <input class="form-control" type="email" id="email" name="email" value="{{ old('email') }}" required autofocus>
+                    <input type="email" id="email" name="email" value="{{ old('email') }}" autocomplete="username" required>
                 </div>
-                <div class="form-group">
+                <div class="login-field">
                     <label for="password">Senha</label>
-                    <input class="form-control" type="password" id="password" name="password" required>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
                 </div>
-                <label class="remember">
-                    <input type="checkbox" name="remember" value="1"> Manter conectado
+                <label class="login-remember">
+                    <input type="checkbox" name="remember" value="1" @checked(old('remember'))>
+                    Manter conectado
                 </label>
-                <button type="submit" class="primary-button">Entrar</button>
+                <button type="submit" class="button primary">Entrar <x-ui-icon name="chevron" size="17" /></button>
             </form>
-
-            <p class="subtitle" style="margin-top:20px;margin-bottom:0">
-                Ainda não tem conta? <a href="{{ route('register') }}" style="color:var(--cyan)">Cadastre sua empresa</a>
-            </p>
-        </div>
-    </div>
+            <a class="login-back" href="{{ route('dashboard') }}">
+                <x-ui-icon name="chevron" size="15" />
+                Voltar ao início
+            </a>
+        </section>
+    </main>
 </body>
 </html>

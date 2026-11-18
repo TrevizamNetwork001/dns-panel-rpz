@@ -19,18 +19,18 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="RPZ DNS para provedores e empresas. Gerencie políticas de resposta DNS, distribua feeds RPZ e acompanhe a integração com Unbound.">
+    <meta name="description" content="DNS Center para provedores e empresas. Gerencie políticas de resposta DNS, distribua feeds RPZ e acompanhe a integração com Unbound.">
     <meta name="theme-color" content="#071a36">
-    <title>RPZ DNS | Plataforma Unificada de DNS</title>
+    <title>DNS Center | Plataforma Unificada de DNS</title>
     <link rel="stylesheet" href="{{ asset('assets/landing.css') }}">
 </head>
 <body>
     <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
     <header class="site-header">
         <div class="container header-row">
-            <a class="brand" href="#inicio" aria-label="RPZ DNS, início">
+            <a class="brand" href="#inicio" aria-label="DNS Center, início">
                 @include('landing.mark')
-                <span><strong>RPZ</strong> DNS</span>
+                <span><strong>DNS</strong> Center</span>
             </a>
             <span class="header-tagline">Plataforma Completa de DNS</span>
             <nav class="desktop-nav" aria-label="Navegação principal">
@@ -64,8 +64,8 @@
                     </div>
                     <p class="hero-scope">Para ISPs, operadoras e equipes de infraestrutura.</p>
                 </div>
-                <div class="hero-visual" aria-label="Visão da plataforma RPZ DNS">
-                    <img src="{{ asset('assets/rpz-network.svg') }}" alt="" width="720" height="490" fetchpriority="high">
+                <div class="hero-visual" aria-label="Visão da plataforma DNS Center">
+                    <img src="{{ asset('assets/rpz-network.svg') }}?v=dns-center" alt="" width="720" height="490" fetchpriority="high">
                     @foreach ($modules as $module)
                         <div class="network-card network-card-{{ $module['tone'] }}">
                             <span class="module-icon tone-{{ $module['tone'] }}"><x-ui-icon :name="$module['icon']" size="25" /></span>
@@ -127,7 +127,7 @@
             <div class="final-cta">
                 <div>
                     <h2 id="final-title">Sua infraestrutura DNS merece uma plataforma completa.</h2>
-                    <p>Centralize a gestão, simplifique a operação e evolua a segurança da sua rede com o RPZ DNS.</p>
+                    <p>Centralize a gestão, simplifique a operação e evolua a segurança da sua rede com o DNS Center.</p>
                 </div>
                 <a class="button primary" href="{{ route('login') }}">Acessar Plataforma <x-ui-icon name="chevron" size="17" /></a>
             </div>
@@ -137,8 +137,8 @@
     <footer class="site-footer">
         <div class="container footer-row">
             <div>
-                <a class="brand" href="#inicio">@include('landing.mark') <span><strong>RPZ</strong> DNS</span></a>
-                <p>Plataforma Unificada de DNS</p>
+                <a class="brand" href="#inicio">@include('landing.mark') <span><strong>DNS</strong> Center</span></a>
+                <p>Um produto desenvolvido por Trevizam Network.</p>
             </div>
             <nav aria-label="Navegação no rodapé">
                 @foreach ($navigation as $anchor => $label)
@@ -146,7 +146,7 @@
                 @endforeach
                 <a href="{{ route('login') }}">Acessar Plataforma</a>
             </nav>
-            <small>© {{ now()->year }} RPZ DNS</small>
+            @include('landing.product-footer')
         </div>
     </footer>
     <script src="{{ asset('assets/landing.js') }}" defer></script>
