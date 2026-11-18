@@ -38,10 +38,13 @@ Route::get('/mikrotik/{identifier}.hosts', [MikrotikHostsController::class, 'sho
     ->where('identifier', '[A-Za-z0-9][A-Za-z0-9-]{0,79}')
     ->name('mikrotik.hosts');
 
+Route::get('/', [DashboardController::class, 'index'])
+    ->middleware(\App\Http\Middleware\ShowPublicLanding::class)
+    ->name('dashboard');
+
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::view('/novidades', 'novidades.index')->name('novidades.index');
 
     Route::resource('servidores', ServidorController::class)->parameters(['servidores' => 'servidor']);
