@@ -41,6 +41,7 @@ Este é um projeto novo e separado do painel antigo (`dns-panel-central`, que ge
 - [🖥️ Segurança do host (SSH / fail2ban)](#seguranca-host)
 - [💓 Healthcheck](#healthcheck)
 - [📲 Notificação por Telegram](#telegram)
+- [Integração Hermes via Telegram (piloto MCP)](integrations/hermes-rpz/README.md)
 - [☁️ Backup externo (Cloudflare R2)](#backup)
 - [🧹 Limpeza de servidores inativos](#limpeza)
 - [🚧 Página de bloqueio (não implementada)](#pagina-bloqueio)
