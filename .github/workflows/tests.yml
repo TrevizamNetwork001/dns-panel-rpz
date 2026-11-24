@@ -39,6 +39,7 @@ jobs:
         run: php artisan test
 
       - name: Testa o adaptador Hermes RPZ
+        if: ${{ !cancelled() }}
         run: |
           python3 -m venv "${RUNNER_TEMP}/hermes-rpz-venv"
           "${RUNNER_TEMP}/hermes-rpz-venv/bin/python" -m pip install -r integrations/hermes-rpz/requirements.txt
