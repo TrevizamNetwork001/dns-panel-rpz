@@ -93,14 +93,26 @@ Tamanho = Annotated[int, Field(ge=1, le=50)]
 Dominio = Annotated[str, Field(min_length=1, max_length=255)]
 
 
+RESPOSTA_SINCRONIZACAO = (
+    "Comece pelo que o RPZ registrou e indique a zona a que os dados pertencem. "
+    "Se a última entrega registrada corresponder à revisão publicada dessa zona, use o título "
+    "«Entrega em dia» e informe o servidor, a revisão e o horário do download. "
+    "Se houver somente registro de acesso ao feed, descreva-o como acesso. "
+    "Se faltar o registro do serial carregado, use: «O painel registra o download. "
+    "Para saber se o Unbound já está usando essa revisão, consulte o próprio DNS.» "
+    "Ajuste a primeira frase ao dado disponível se faltar registro de download. "
+    "Quando houver confirmação do resolvedor, informe o serial e o horário registrados. "
+    "Cite a zona individual quando ela for relevante para a pergunta. "
+)
+
+
 def criar_servidor(rpz):
     if rpz.administrativo:
         return criar_servidor_operacional(rpz)
 
     mcp = FastMCP("RPZ cliente piloto", instructions=(
         "As ferramentas consultam exclusivamente a empresa associada à credencial. "
-        "Use somente os dados retornados. Separe publicação, entrega do feed e "
-        "confirmação pelo servidor. Ausência de confirmação não prova falha."
+        "Use somente os dados retornados. " + RESPOSTA_SINCRONIZACAO
     ))
 
     @mcp.tool()
@@ -130,8 +142,8 @@ def criar_servidor_operacional(rpz):
     mcp = FastMCP("RPZ operação", instructions=(
         "Para consultas por nome de cliente, primeiro busque a empresa. Use listar_listas_empresa para responder quais listas ela tem. "
         "Se houver ambiguidade, peça ao operador para escolher. "
-        "Diferencie acesso ao feed, entrega, publicação e confirmação pelo servidor. "
-        "Ausência de confirmação não prova falha. Os horários retornados já estão em America/Sao_Paulo. Mostre horas como HH:MM:SS, sem frações de segundo, em Brasília. Inclua a data quando ela for relevante. "
+        + RESPOSTA_SINCRONIZACAO
+        + "Os horários retornados já estão em America/Sao_Paulo. Mostre horas como HH:MM:SS, sem frações de segundo, em Brasília. Inclua a data quando ela for relevante. "
         "Antes de preparar uma exceção, use diagnosticar_dominio. Mostre somente o nome da empresa, sem o ID, e indique domínio, subdomínios, motivo e validade. Use um título curto, ícones e negrito para a informação principal. "
         "Peça ao administrador para responder confirma diretamente à mensagem da prévia no Telegram. Inclua /rpz_confirmar com o ID da solicitação na prévia como referência e alternativa."
     ))
