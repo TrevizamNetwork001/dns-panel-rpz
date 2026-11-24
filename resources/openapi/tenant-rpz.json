@@ -1,0 +1,877 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DNS/RPZ · API do tenant",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "security": [
+    {
+      "bearerToken": []
+    }
+  ],
+  "paths": {
+    "/listas": {
+      "get": {
+        "operationId": "listarFontes",
+        "summary": "Listar fontes visíveis",
+        "description": "Credencial de consulta ou edição.",
+        "responses": {
+          "200": {
+            "description": "Consulta ou alteração concluída",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Fonte"
+                      }
+                    },
+                    "current_page": {
+                      "type": "integer"
+                    },
+                    "last_page": {
+                      "type": "integer"
+                    },
+                    "per_page": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "422": {
+            "$ref": "#/components/responses/HTTP422"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ]
+      }
+    },
+    "/bloqueios": {
+      "get": {
+        "operationId": "listarBloqueios",
+        "summary": "Listar regras configuradas",
+        "description": "Credencial de consulta ou edição.",
+        "responses": {
+          "200": {
+            "description": "Consulta ou alteração concluída",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Bloqueio"
+                      }
+                    },
+                    "current_page": {
+                      "type": "integer"
+                    },
+                    "last_page": {
+                      "type": "integer"
+                    },
+                    "per_page": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "422": {
+            "$ref": "#/components/responses/HTTP422"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "dominio",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255,
+              "examples": [
+                "exemplo.com"
+              ]
+            }
+          },
+          {
+            "name": "lista_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "ativo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/listas/{lista}/bloqueios": {
+      "post": {
+        "operationId": "cadastrarBloqueio",
+        "summary": "Cadastrar domínio em fonte manual",
+        "description": "Credencial de consulta e edição e fonte manual habilitada.",
+        "responses": {
+          "201": {
+            "description": "Bloqueio criado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Bloqueio"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409"
+          },
+          "422": {
+            "$ref": "#/components/responses/HTTP422"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        },
+        "parameters": [
+          {
+            "name": "lista",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dominio": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "examples": [
+                      "exemplo.com"
+                    ]
+                  }
+                },
+                "required": [
+                  "dominio"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bloqueios/{id}": {
+      "get": {
+        "operationId": "consultarBloqueio",
+        "summary": "Consultar uma regra",
+        "description": "Credencial de consulta ou edição.",
+        "responses": {
+          "200": {
+            "description": "Consulta ou alteração concluída",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Bloqueio"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "editarBloqueio",
+        "summary": "Editar domínio ou status",
+        "description": "Credencial de consulta e edição e fonte manual habilitada.",
+        "responses": {
+          "200": {
+            "description": "Consulta ou alteração concluída",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Bloqueio"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409"
+          },
+          "422": {
+            "$ref": "#/components/responses/HTTP422"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dominio": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "examples": [
+                      "exemplo.com"
+                    ]
+                  },
+                  "ativo": {
+                    "type": "boolean"
+                  }
+                },
+                "minProperties": 1
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removerBloqueio",
+        "summary": "Remover regra",
+        "description": "Credencial de consulta e edição e fonte manual habilitada.",
+        "responses": {
+          "204": {
+            "description": "Operação concluída"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404"
+          },
+          "409": {
+            "$ref": "#/components/responses/HTTP409"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ]
+      }
+    },
+    "/publicacao": {
+      "get": {
+        "operationId": "consultarPublicacao",
+        "summary": "Consultar publicação da zona empresarial",
+        "description": "Credencial de consulta ou edição.",
+        "responses": {
+          "200": {
+            "description": "Consulta ou alteração concluída",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "allOf": [
+                        {
+                          "$ref": "#/components/schemas/Publicacao"
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "publicacao_habilitada": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        }
+      }
+    },
+    "/servidores": {
+      "get": {
+        "operationId": "listarServidores",
+        "summary": "Consultar entregas e confirmações por servidor",
+        "description": "Credencial de consulta ou edição.",
+        "responses": {
+          "200": {
+            "description": "Consulta ou alteração concluída",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Servidor"
+                      }
+                    },
+                    "current_page": {
+                      "type": "integer"
+                    },
+                    "last_page": {
+                      "type": "integer"
+                    },
+                    "per_page": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "422": {
+            "$ref": "#/components/responses/HTTP422"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          }
+        ]
+      }
+    },
+    "/servidores/confirmacao": {
+      "put": {
+        "operationId": "confirmarVersao",
+        "summary": "Reportar versão carregada",
+        "description": "Credencial de confirmação vinculada ao servidor.",
+        "responses": {
+          "204": {
+            "description": "Operação concluída"
+          },
+          "401": {
+            "$ref": "#/components/responses/HTTP401"
+          },
+          "403": {
+            "$ref": "#/components/responses/HTTP403"
+          },
+          "404": {
+            "$ref": "#/components/responses/HTTP404"
+          },
+          "422": {
+            "$ref": "#/components/responses/HTTP422"
+          },
+          "429": {
+            "$ref": "#/components/responses/HTTP429"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "zona": {
+                    "type": "string",
+                    "enum": [
+                      "empresa",
+                      "servidor"
+                    ]
+                  },
+                  "serial": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 4294967295
+                  }
+                },
+                "required": [
+                  "zona",
+                  "serial"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerToken": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Fonte": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "origem": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "editavel": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Bloqueio": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "lista_id": {
+            "type": "integer"
+          },
+          "dominio": {
+            "type": "string"
+          },
+          "ativo": {
+            "type": "boolean"
+          }
+        }
+      },
+      "Publicacao": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pendente",
+              "publicada",
+              "sem_publicacao"
+            ]
+          },
+          "revisao": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "serial": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "publicada_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Entrega": {
+        "type": "object",
+        "properties": {
+          "em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "zona": {
+            "type": "string",
+            "enum": [
+              "empresa",
+              "servidor"
+            ]
+          },
+          "revisao": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "publicacao_da_zona": {
+            "$ref": "#/components/schemas/Publicacao"
+          }
+        }
+      },
+      "Confirmacao": {
+        "type": "object",
+        "properties": {
+          "em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "zona": {
+            "type": "string",
+            "enum": [
+              "empresa",
+              "servidor"
+            ]
+          },
+          "serial": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4294967295
+          },
+          "publicacao_da_zona": {
+            "$ref": "#/components/schemas/Publicacao"
+          }
+        }
+      },
+      "Erro": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "Servidor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "ultimo_acesso_feed_em": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "ultima_entrega_rpz": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Entrega"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ultima_confirmacao": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Confirmacao"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "publicacao_individual": {
+            "$ref": "#/components/schemas/Publicacao"
+          }
+        }
+      }
+    },
+    "responses": {
+      "HTTP401": {
+        "description": "Credencial inválida ou expirada",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            }
+          }
+        }
+      },
+      "HTTP403": {
+        "description": "Permissão insuficiente",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            }
+          }
+        }
+      },
+      "HTTP404": {
+        "description": "Recurso indisponível",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            }
+          }
+        }
+      },
+      "HTTP409": {
+        "description": "Domínio já cadastrado ou conflito de vínculos",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            }
+          }
+        }
+      },
+      "HTTP422": {
+        "description": "Dados inválidos",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            }
+          }
+        }
+      },
+      "HTTP429": {
+        "description": "Limite de chamadas atingido",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            }
+          }
+        }
+      }
+    }
+  }
+}

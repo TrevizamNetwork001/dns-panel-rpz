@@ -50,6 +50,17 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('listas', ListaController::class)->only(['index']);
 
+    Route::prefix('integracoes')->name('integracoes.')
+        ->middleware(\App\Http\Middleware\EnsureTenantIntegrationAccess::class)->group(function () {
+            Route::get('/', [\App\Http\Controllers\TenantIntegrationController::class, 'index'])->name('index');
+            Route::get('/openapi.json', [\App\Http\Controllers\TenantIntegrationController::class, 'openapi'])->name('openapi');
+            Route::post('/credenciais', [\App\Http\Controllers\TenantIntegrationController::class, 'store'])->middleware('throttle:10,1')->name('credentials.store');
+            Route::delete('/credenciais/{id}', [\App\Http\Controllers\TenantIntegrationController::class, 'destroy'])->whereNumber('id')->name('credentials.destroy');
+            Route::post('/listas/{lista}/bloqueios', [\App\Http\Controllers\TenantRpzController::class, 'store'])->whereNumber('lista')->name('rules.store');
+            Route::patch('/bloqueios/{id}', [\App\Http\Controllers\TenantRpzController::class, 'update'])->whereNumber('id')->name('rules.update');
+            Route::delete('/bloqueios/{id}', [\App\Http\Controllers\TenantRpzController::class, 'destroy'])->whereNumber('id')->name('rules.destroy');
+        });
+
     Route::get('/perfil', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/perfil/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::get('/perfil/senha', [ProfileController::class, 'editPassword'])->name('profile.password');
@@ -114,6 +125,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/usuarios/{usuario}/resetar-senha', [UserController::class, 'resetPassword'])->name('usuarios.reset-password');
 
         Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes.index');
+        Route::post('/configuracoes/hermes', [ConfiguracoesController::class, 'generateHermesCredential'])->middleware('throttle:6,1')->name('configuracoes.hermes.store');
+        Route::delete('/configuracoes/hermes', [ConfiguracoesController::class, 'revokeHermesCredential'])->middleware('throttle:6,1')->name('configuracoes.hermes.destroy');
         Route::put('/configuracoes/telegram', [ConfiguracoesController::class, 'updateTelegram'])->name('configuracoes.telegram.update');
         Route::post('/configuracoes/telegram/testar', [ConfiguracoesController::class, 'testTelegram'])->name('configuracoes.telegram.test');
         Route::put('/configuracoes/limpeza-servidores', [ConfiguracoesController::class, 'updateLimpezaServidores'])->name('configuracoes.limpeza-servidores.update');

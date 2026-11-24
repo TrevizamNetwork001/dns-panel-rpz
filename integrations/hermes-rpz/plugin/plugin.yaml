@@ -1,0 +1,5 @@
+name: rpz-approval
+version: 1.1.0
+description: Confirma solicitações de exceção RPZ com a identidade do Telegram.
+provides_hooks:
+  - pre_gateway_dispatch

@@ -133,6 +133,42 @@
         </div>
 
         <div id="settings-panel-integracoes" role="tabpanel" aria-labelledby="settings-tab-integracoes" data-settings-panel="integracoes" hidden>
+            <section class="settings-section" aria-labelledby="hermes-settings-title">
+                <div class="settings-heading">
+                    <div>
+                        <h2 id="hermes-settings-title">Hermes Agent</h2>
+                        <p>Consulta de sincronização RPZ para todas as empresas</p>
+                    </div>
+                    <span class="settings-status {{ $hermesConfigured ? 'is-enabled' : '' }}">{{ $hermesConfigured ? 'Credencial ativa' : 'Sem credencial' }}</span>
+                </div>
+                <p class="settings-copy">A credencial dá acesso de leitura à situação da publicação, entrega e confirmação dos servidores.</p>
+
+                @if ($hermesToken !== null)
+                    <div class="field-group">
+                        <label for="hermes-token">Credencial exibida uma vez</label>
+                        <input id="hermes-token" class="form-control settings-mono" type="text" value="{{ $hermesToken }}" readonly aria-describedby="hermes-token-help">
+                        <small id="hermes-token-help" class="settings-note">Copie para o arquivo privado do Hermes na VPS e mantenha a credencial fora do Telegram.</small>
+                    </div>
+                @endif
+
+                <div class="settings-actions">
+                    @if ($hermesConfigured)
+                        <form method="POST" action="{{ route('configuracoes.hermes.destroy') }}">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="button button-secondary">Revogar credencial</button>
+                        </form>
+                    @endif
+                    <form method="POST" action="{{ route('configuracoes.hermes.store') }}">
+                        @csrf
+                        <button type="submit" class="button button-primary">{{ $hermesConfigured ? 'Substituir credencial' : 'Gerar credencial de leitura' }}</button>
+                    </form>
+                </div>
+                @if ($hermesConfigured)
+                    <p class="settings-note">Gerar uma substituta invalida a credencial atual imediatamente.</p>
+                @endif
+            </section>
+
             <dl class="settings-summary">
                 <div><dt>Fontes gerenciadas</dt><dd>{{ $integracoes['total'] }}</dd><dd class="settings-summary-note">Externas e ANATEL</dd></div>
                 <div><dt>Sincronizações ativas</dt><dd>{{ $integracoes['ativas'] }}</dd><dd class="settings-summary-note">Executadas automaticamente</dd></div>
