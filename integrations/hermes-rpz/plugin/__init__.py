@@ -72,6 +72,12 @@ def confirmar(raw_args, *, source=None, platform=None):
         local = datetime.fromisoformat(confirmed).astimezone(ZoneInfo("America/Sao_Paulo"))
         receipt_time = f" às {local:%d/%m/%Y %H:%M:%S} (Brasília)"
     company = result.get("empresa") or "Empresa da solicitação"
+    if result.get("tipo") == "cadastro_lista_manual":
+        action = {"cadastrar": "cadastrada", "alterar": "alterada", "remover": "removida"}[result["operacao"]]
+        return (
+            f"✅ **Lista {action}**{receipt_time}\n"
+            f"🏢 **{company}** · 📋 **{result['lista']}** (ID {result['lista_id']})"
+        )
     if "lista_id" in result and "servidores_vinculados" in result:
         domain_action = "incluído" if result["operacao"] == "incluir" else "removido"
         publication_status = f"RPZ: {state}." if result["servidores_vinculados"] else "Lista sem servidores vinculados."

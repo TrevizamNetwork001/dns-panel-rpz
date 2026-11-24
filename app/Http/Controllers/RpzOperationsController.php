@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Dominio;
 use App\Models\Empresa;
 use App\Models\Lista;
+use App\Services\DomainNormalizer;
 use App\Services\RpzSynchronizationStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -69,6 +71,61 @@ class RpzOperationsController extends Controller
         return response()->json(['empresa' => $company->only(['id', 'nome'])] + $links->toArray());
     }
 
+    public function buscarDominio(Request $request, DomainNormalizer $normalizer): JsonResponse
+    {
+        $filters = $request->validate([
+            'dominio' => ['required', 'string', 'max:255'],
+            'page' => ['sometimes', 'integer', 'min:1'],
+        ]);
+        $domain = $normalizer->normalize($filters['dominio'], false);
+        abort_if($domain === null, 422, 'Domínio inválido.');
+
+        $rules = Dominio::query()->where('dominio', $domain)
+            ->with('lista.empresa:id,nome')->orderBy('lista_id')->orderBy('id')
+            ->paginate(25)->withQueryString()
+            ->through(fn (Dominio $rule): array => [
+                'dominio' => $rule->dominio,
+                'regra_ativa' => $rule->ativo,
+                'lista' => $rule->lista->only(['id', 'nome', 'origem', 'status']),
+                'empresa' => $rule->lista->empresa?->only(['id', 'nome']),
+                'atualizado_em' => $rule->updated_at,
+            ]);
+
+        return response()->json(['dominio' => $domain] + $rules->toArray());
+    }
+
+    public function listasDaEmpresa(Request $request, int $empresa): JsonResponse
+    {
+        $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
+        $company = Empresa::query()->findOrFail($empresa);
+        $companyServers = fn (Builder $query) => $query->where('servidores.empresa_id', $company->id);
+        $lists = Lista::query()
+            ->where(fn (Builder $query) => $query->where('listas.empresa_id', $company->id)
+                ->orWhereHas('servidores', $companyServers))
+            ->with(['servidores' => fn ($query) => $query->where('servidores.empresa_id', $company->id)
+                ->orderBy('servidores.nome')->select(['servidores.id', 'servidores.nome', 'servidores.status'])])
+            ->withCount(['dominios', 'dominios as dominios_ativos_count' => fn (Builder $query) => $query->where('ativo', true)])
+            ->withMax('dominios as dominios_atualizados_em', 'updated_at')
+            ->withCasts(['dominios_atualizados_em' => 'datetime'])
+            ->orderBy('nome')->orderBy('id')->paginate(25)->withQueryString()
+            ->through(function (Lista $list) use ($company): array {
+                $automatic = $list->origem === 'externa' && $list->sync_ativo && filled($list->fonte_url);
+                $interval = (int) config('lists.sync_interval_hours.'.$list->fonte_externa, 0);
+
+                return $list->only(['id', 'nome', 'origem', 'status', 'updated_at', 'last_sync_at',
+                    'dominios_count', 'dominios_ativos_count', 'dominios_atualizados_em']) + [
+                    'propria' => (int) $list->empresa_id === (int) $company->id,
+                    'servidores' => $list->servidores->map->only(['id', 'nome', 'status']),
+                    'sincronizacao_automatica' => $automatic,
+                    'elegivel_para_sincronizar_a_partir_de' => $automatic && $interval > 0
+                        ? $list->last_sync_at?->copy()->addHours($interval)->toISOString()
+                        : null,
+                ];
+            });
+
+        return response()->json(['empresa' => $company->only(['id', 'nome'])] + $lists->toArray());
+    }
+
     public function conteudoLista(Request $request, int $empresa, int $lista): JsonResponse
     {
         $request->validate(['page' => ['sometimes', 'integer', 'min:1']]);
@@ -77,6 +134,7 @@ class RpzOperationsController extends Controller
             ->where('origem', 'manual')
             ->where(fn (Builder $query) => $query->whereNull('empresa_id')->orWhere('empresa_id', $company->id))
             ->withMax('dominios as dominios_atualizados_em', 'updated_at')
+            ->withCasts(['dominios_atualizados_em' => 'datetime'])
             ->findOrFail($lista);
         $domains = $list->dominios()
             ->orderBy('dominio')

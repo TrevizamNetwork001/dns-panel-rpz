@@ -98,3 +98,11 @@ A ferramenta usa `GET /api/v1/operacao/empresas/{empresa}/listas/{lista}/conteud
 Use `preparar_dominio_lista_manual` com o ID da empresa, o ID da lista, o domínio, a operação e o motivo. O fluxo atende listas manuais próprias da empresa. O Hermes apresenta a prévia com os servidores vinculados. Responda `confirma` à prévia no tópico autorizado. Após a confirmação, o RPZ registra a mudança na auditoria e sinaliza a lista para republicação.
 
 Veja o [manual da API](../../docs/MANUAL-INTEGRACOES.md) para o contrato HTTP e um exemplo de consulta.
+
+## Operação de listas pelo Telegram
+
+- “Quais listas a SBCNET tem?” consulta listas próprias e listas vinculadas aos servidores da empresa, com status, contagens de domínios e datas de atualização.
+- “Em quais listas está example.test?” busca o cadastro exato e informa se cada regra e lista estão ativas. Para avaliar o bloqueio de um cliente e suas exceções, peça o diagnóstico por empresa.
+- “Cadastre uma lista manual na SBCNET”, “desative a lista” ou “remova a lista” prepara a alteração para confirmação no tópico autorizado. A prévia de remoção inclui a contagem de domínios e os servidores vinculados. O cadastro é restrito às listas manuais próprias da empresa.
+
+A consulta de fontes externas apresenta a última sincronização e, quando há intervalo mínimo configurado, o horário a partir do qual a fonte pode sincronizar novamente. A execução depende do agendador.
