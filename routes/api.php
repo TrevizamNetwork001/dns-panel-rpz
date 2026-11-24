@@ -21,9 +21,11 @@ Route::prefix('v1')->middleware(['throttle:120,1', AuthenticateTenantApi::class]
 });
 
 Route::prefix('v1/operacao')->middleware(['throttle:60,1', AuthenticateRpzOperations::class])->group(function (): void {
+    Route::get('dominios', [RpzOperationsController::class, 'buscarDominio']);
     Route::get('empresas', [RpzOperationsController::class, 'empresas']);
     Route::get('empresas/{empresa}/excecoes', [RpzExceptionRequestController::class, 'index'])->whereNumber('empresa');
     Route::get('empresas/{empresa}/diagnostico-dominio', [RpzExceptionRequestController::class, 'diagnose'])->whereNumber('empresa');
+    Route::get('empresas/{empresa}/listas', [RpzOperationsController::class, 'listasDaEmpresa'])->whereNumber('empresa');
     Route::get('empresas/{empresa}/listas-disponiveis', [RpzListLinkRequestController::class, 'listas'])->whereNumber('empresa');
     Route::get('empresas/{empresa}/listas/{lista}/conteudo', [RpzOperationsController::class, 'conteudoLista'])
         ->whereNumber(['empresa', 'lista']);
@@ -32,6 +34,8 @@ Route::prefix('v1/operacao')->middleware(['throttle:60,1', AuthenticateRpzOperat
 });
 
 Route::prefix('v1/operacao')->middleware('throttle:20,1')->group(function (): void {
+    Route::post('empresas/{empresa}/solicitacoes-lista-manual', [RpzExceptionRequestController::class, 'prepareManualList'])
+        ->whereNumber('empresa')->middleware(AuthenticateRpzOperations::class);
     Route::post('empresas/{empresa}/listas/{lista}/solicitacoes-dominio', [RpzExceptionRequestController::class, 'prepareManualDomain'])
         ->whereNumber(['empresa', 'lista'])->middleware(AuthenticateRpzOperations::class);
     Route::post('empresas/{empresa}/solicitacoes-vinculo', [RpzListLinkRequestController::class, 'prepare'])

@@ -9,6 +9,7 @@ use App\Services\CompanyRpzExceptions;
 use App\Services\RpzExceptionPolicy;
 use App\Services\RpzListLinkConfirmation;
 use App\Services\RpzManualDomainRequests;
+use App\Services\RpzManualListRequests;
 use App\Services\RpzSynchronizationStatus;
 use App\Services\RpzZoneBuilder;
 use Illuminate\Http\JsonResponse;
@@ -107,6 +108,20 @@ class RpzExceptionRequestController extends Controller
             ->header('Cache-Control', 'private, no-store');
     }
 
+    public function prepareManualList(Request $request, int $empresa, RpzManualListRequests $lists): JsonResponse
+    {
+        $input = $request->validate([
+            'operacao' => ['required', 'in:cadastrar,alterar,remover'],
+            'lista_id' => ['required_if:operacao,alterar,remover', 'prohibited_if:operacao,cadastrar', 'integer', 'min:1'],
+            'nome' => ['required_if:operacao,cadastrar', 'prohibited_if:operacao,remover', 'filled', 'string', 'max:255'],
+            'descricao' => ['prohibited_if:operacao,remover', 'nullable', 'string'],
+            'status' => ['prohibited_if:operacao,remover', 'in:active,inactive'],
+            'motivo' => ['required', 'string', 'max:255'],
+        ]);
+
+        return response()->json(['data' => $lists->prepare($empresa, $input)], 201);
+    }
+
     public function confirm(
         Request $request,
         string $id,
@@ -114,6 +129,7 @@ class RpzExceptionRequestController extends Controller
         RpzSynchronizationStatus $status,
         RpzListLinkConfirmation $links,
         RpzManualDomainRequests $domains,
+        RpzManualListRequests $lists,
     ): JsonResponse
     {
         $token = $request->bearerToken();
@@ -141,6 +157,11 @@ class RpzExceptionRequestController extends Controller
         $operator = $userId === null ? null : User::query()->find($userId);
         abort_unless($operator?->isAdmin(), 403, 'Operador sem permissão administrativa.');
         Auth::setUser($operator);
+
+        if (DB::table('rpz_manual_list_requests')->where('id', $id)->exists()) {
+            return response()->json(['data' => $lists->confirm($id, $operator)])
+                ->header('Cache-Control', 'private, no-store');
+        }
 
         if (DB::table('rpz_manual_domain_requests')->where('id', $id)->exists()) {
             $receipt = $domains->confirm($id, $operator);
