@@ -1,0 +1,17 @@
+# Override BASE_IMAGE when building for a worker or scheduler.
+ARG BASE_IMAGE=dns-panel-rpz-app:hermes-rpz-build-retry-20261124
+FROM composer:2.8 AS composer
+FROM ${BASE_IMAGE}
+
+WORKDIR /var/www/html
+COPY --chown=www-data:www-data app/Http/Controllers/RpzExceptionRequestController.php app/Http/Controllers/RpzOperationsController.php app/Http/Controllers/
+COPY --chown=www-data:www-data app/Services/RpzManualListRequests.php app/Services/
+COPY --chown=www-data:www-data database/migrations/2026_11_24_150000_create_rpz_manual_list_requests.php database/migrations/
+COPY --chown=www-data:www-data routes/api.php routes/
+
+# Regenerate the inherited classmap after adding PHP files.
+USER root
+RUN --mount=type=bind,from=composer,source=/usr/bin/composer,target=/tmp/composer \
+    COMPOSER_ALLOW_SUPERUSER=1 php /tmp/composer dump-autoload --no-dev --no-interaction --optimize --classmap-authoritative --no-scripts --no-plugins \
+    && php -r '$loader = require "vendor/autoload.php"; exit($loader->isClassMapAuthoritative() && class_exists(App\Services\RpzManualListRequests::class) ? 0 : 1);'
+USER www-data
