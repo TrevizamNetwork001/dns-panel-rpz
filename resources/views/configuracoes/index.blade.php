@@ -195,6 +195,17 @@
                     <dd class="settings-summary-note">Sem atualização automática</dd>
                 </div>
             </dl>
+            <section class="settings-section" aria-labelledby="settings-feeds-title">
+                <div class="settings-heading"><h2 id="settings-feeds-title">Listas e feeds</h2></div>
+                <dl class="settings-inventory">
+                    <div>
+                        <dt>Última sincronização registrada</dt>
+                        <dd class="settings-mono">{{ $integracoes['ultima_sync']?->format('d/m/Y H:i') ?? 'ainda não executada' }}</dd>
+                    </div>
+                </dl>
+                <p class="settings-note">URLs, formatos e pausas são administrados diretamente em cada fonte.</p>
+                <a class="settings-shortcut" href="{{ route('listas.index') }}">Gerenciar fontes</a>
+            </section>
             <section class="settings-section" aria-labelledby="settings-imap-title">
                 <div class="settings-heading">
                     <div>
