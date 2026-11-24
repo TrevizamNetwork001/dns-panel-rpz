@@ -38,10 +38,14 @@ Route::get('/mikrotik/{identifier}.hosts', [MikrotikHostsController::class, 'sho
     ->where('identifier', '[A-Za-z0-9][A-Za-z0-9-]{0,79}')
     ->name('mikrotik.hosts');
 
+Route::get('/', [DashboardController::class, 'index'])
+    ->middleware(\App\Http\Middleware\ShowPublicLanding::class)
+    ->name('dashboard');
+
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::view('/novidades', 'novidades.index')->name('novidades.index');
 
     Route::resource('servidores', ServidorController::class)->parameters(['servidores' => 'servidor']);
     Route::post('/servidores/{servidor}/listas/{lista}/attach', [ServidorController::class, 'attachLista'])->name('servidores.listas.attach');
@@ -74,6 +78,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('admin')->group(function () {
         Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');
         Route::post('/anatel/imports', [AnatelDashboardController::class, 'store'])->name('anatel.dashboard.store');
+        Route::post('/anatel/imports/email', [AnatelDashboardController::class, 'importLatestEmail'])->middleware('throttle:6,1')->name('anatel.email.import');
         Route::get('/anatel/imports/{import}/status', [AnatelDashboardController::class, 'status'])->name('anatel.dashboard.status');
         Route::get('/anatel/imports/{import}/preview', [AnatelDashboardController::class, 'preview'])->name('anatel.preview');
         Route::post('/anatel/imports/{import}/approve', [AnatelDashboardController::class, 'approve'])->name('anatel.approve');
@@ -125,6 +130,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/usuarios/{usuario}/resetar-senha', [UserController::class, 'resetPassword'])->name('usuarios.reset-password');
 
         Route::get('/configuracoes', [ConfiguracoesController::class, 'index'])->name('configuracoes.index');
+        Route::put('/configuracoes/imap', [ConfiguracoesController::class, 'updateImap'])->name('configuracoes.imap.update');
         Route::post('/configuracoes/hermes', [ConfiguracoesController::class, 'generateHermesCredential'])->middleware('throttle:6,1')->name('configuracoes.hermes.store');
         Route::delete('/configuracoes/hermes', [ConfiguracoesController::class, 'revokeHermesCredential'])->middleware('throttle:6,1')->name('configuracoes.hermes.destroy');
         Route::put('/configuracoes/telegram', [ConfiguracoesController::class, 'updateTelegram'])->name('configuracoes.telegram.update');

@@ -198,6 +198,7 @@ class AuditLog extends Model
             'anatel_exclusion' => 'Exclusão ANATEL',
             'anatel_import' => 'Importação ANATEL',
             'rbl_event' => 'Evento RBL',
+            'rpz_zone' => 'Zona RPZ',
             'security_ban' => 'Bloqueio de segurança',
             default => ucfirst(str_replace('_', ' ', $targetType)),
         };
@@ -207,9 +208,46 @@ class AuditLog extends Model
 
     public function displayDescription(): string
     {
-        return $this->action === 'rpz.endpoint.downloaded'
-            ? 'Lista RPZ entregue com sucesso.'
-            : (string) $this->description;
+        $description = (string) $this->description;
+        if ($this->action === 'rpz.endpoint.downloaded') {
+            return 'Lista RPZ entregue com sucesso.';
+        }
+        if (! $this->isRpzGeneration()) {
+            return $description;
+        }
+
+        $description = preg_replace(
+            ['/\(server:(\d+)/', '/\(company:(\d+)/'],
+            ['(Servidor #$1', '(Empresa #$1'],
+            $description,
+        );
+
+        $description = match ($this->action) {
+            'rpz.build_validated' => preg_replace_callback(
+                '/(?<=, )([0-9]+) bytes(?=\)$)/',
+                static fn (array $matches): string => number_format((int) $matches[1] / 1_000_000, 2, ',', '.').' MB',
+                $description,
+            ) ?? $description,
+            'rpz.version_published' => preg_replace_callback(
+                '/(?<=, )([0-9]+) bytes, ([0-9]+)\s*ms(?=\)$)/',
+                static fn (array $matches): string => number_format((int) $matches[1] / 1_000_000, 2, ',', '.').' MB, '
+                    .number_format((int) $matches[2] / 1_000, 3, ',', '.').' s',
+                $description,
+            ) ?? $description,
+            default => $description,
+        };
+
+        return str_replace(
+            ['Build da zona RPZ iniciado', 'Artefato RPZ validado', 'The process has been signaled with signal "9".'],
+            ['O painel iniciou a geração da lista RPZ', 'Arquivo RPZ validado', 'O processo de validação foi encerrado pelo sistema (sinal 9).'],
+            $description,
+        );
+    }
+
+    public function isRpzGeneration(): bool
+    {
+        return str_starts_with($this->action, 'rpz.build_')
+            || in_array($this->action, ['rpz.version_published', 'rpz.artifact_restored'], true);
     }
 
     public function actorLabel(): string
@@ -225,7 +263,7 @@ class AuditLog extends Model
                 ? 'Teste técnico do painel'
                 : 'Solicitação sem sessão de usuário';
         }
-        if (str_starts_with($this->action, 'health.')) {
+        if (str_starts_with($this->action, 'health.') || $this->isRpzGeneration()) {
             return 'Sistema (automático)';
         }
         return 'Sem usuário identificado';
@@ -306,6 +344,12 @@ class AuditLog extends Model
             'rpz.endpoint.denied' => 'Tentativa de download RPZ recusada',
             'rpz.endpoint.downloaded' => 'Servidor consultou a lista RPZ',
             'rpz.endpoint.slug_changed' => 'Identificador (slug) do endpoint RPZ alterado',
+            'rpz.build_started' => 'Geração da lista RPZ iniciada',
+            'rpz.build_unchanged' => 'Lista RPZ conferida, sem alterações',
+            'rpz.build_validated' => 'Arquivo RPZ validado',
+            'rpz.build_failed' => 'Tentativa de gerar ou publicar a lista RPZ interrompida',
+            'rpz.version_published' => 'Nova versão da lista RPZ publicada',
+            'rpz.artifact_restored' => 'Arquivo RPZ restaurado',
 
             // RBL Checker
             'rbl.delist.updated' => 'Solicitação de delist RBL atualizada',

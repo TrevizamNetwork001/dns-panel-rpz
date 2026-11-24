@@ -24,6 +24,26 @@
 <div class="source-actions"><button class="button button-primary" type="submit">Iniciar importação</button></div>
 <p class="source-help">Os domínios só entram na fonte após sua aprovação.</p>
 </form>
+<hr>
+<form action="{{ route('anatel.email.import') }}" method="POST" class="source-exclusion-form">
+    @csrf
+    <h3>Caixa de entrada Anatel</h3>
+    <p class="source-help">Busca PDFs e planilhas XLSX do último e-mail da caixa configurada e cria prévias para revisão.</p>
+    <div class="field-group">
+        <label for="imap_lista_id">Fonte de destino dos anexos</label>
+        <select class="form-control" id="imap_lista_id" name="imap_lista_id" required>
+            <option value="">Selecione a fonte</option>
+            @foreach ($listas as $lista)
+                <option value="{{ $lista->id }}" @selected((string) old('imap_lista_id') === (string) $lista->id)>{{ $lista->nome }}</option>
+            @endforeach
+        </select>
+        @error('imap_lista_id')<span class="source-field-error" role="alert">{{ $message }}</span>@enderror
+        @error('imap')<span class="source-field-error" role="alert">{{ $message }}</span>@enderror
+    </div>
+    <div class="source-actions">
+        <button class="button button-secondary" type="submit">Buscar anexos do último e-mail</button>
+    </div>
+</form>
 @endif
 </section>
 <section class="panel anatel-review-panel"><div class="panel-header"><h2>Revisão e publicação</h2>@if($pending->isNotEmpty())<span class="source-small-count">{{ $pending->sum('anatel_pending_count') }} pendente(s)</span>@endif</div>

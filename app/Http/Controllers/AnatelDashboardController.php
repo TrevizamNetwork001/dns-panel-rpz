@@ -6,11 +6,15 @@ use App\Jobs\ProcessAnatelImport;
 use App\Models\AnatelImport;
 use App\Models\AuditLog;
 use App\Models\Lista;
+use App\Services\AnatelImapAttachments;
 use App\Services\AnatelImporter;
+use App\Services\AnatelPdfExtractor;
+use App\Services\AnatelUploadValidator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -26,15 +30,52 @@ class AnatelDashboardController extends Controller
         return view('anatel.index', compact('listas', 'imports'));
     }
 
-    public function store(Request $request, \App\Services\AnatelPdfExtractor $extractor): RedirectResponse
+    public function store(Request $request, AnatelPdfExtractor $extractor): RedirectResponse
     {
         $data = $request->validate(['lista_id' => ['required', 'exists:listas,id'], 'pdfs' => ['required', 'array', 'min:1', 'max:'.config('anatel.max_files')], 'pdfs.*' => ['required', 'file', 'mimetypes:application/pdf,application/x-pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip', 'max:'.config('anatel.max_pdf_kb')]]);
         $lista = Lista::findOrFail($data['lista_id']);
         abort_unless($lista->isAnatel(), 422);
+
+        return $this->queueFiles($request, $lista, $request->file('pdfs'), $extractor);
+    }
+
+    public function importLatestEmail(Request $request, AnatelImapAttachments $imap, AnatelPdfExtractor $extractor): RedirectResponse
+    {
+        $data = $request->validate(['imap_lista_id' => ['required', 'integer', 'exists:listas,id']]);
+        $lista = Lista::findOrFail($data['imap_lista_id']);
+        abort_unless($lista->isAnatel(), 422);
+        $directory = sys_get_temp_dir().'/anatel-imap-'.bin2hex(random_bytes(16));
+        File::makeDirectory($directory, 0700);
+
+        try {
+            $uploads = $imap->latest($directory);
+            if (count($uploads) === 1) {
+                $sha = hash_file('sha256', $uploads[0]->getPathname());
+                $existing = AnatelImport::with('lista')->where('sha256', $sha)->first();
+
+                if ($existing !== null) {
+                    return redirect()->route('anatel.preview', $existing)
+                        ->with('status', "Este anexo já consta na importação nº {$existing->id} da fonte {$existing->lista->nome}.");
+                }
+            }
+
+            return $this->queueFiles($request, $lista, $uploads, $extractor);
+        } catch (ValidationException $exception) {
+            throw ValidationException::withMessages(['imap' => $exception->validator->errors()->first()]);
+        } finally {
+            File::deleteDirectory($directory);
+        }
+    }
+
+    private function queueFiles(Request $request, Lista $lista, array $uploads, AnatelPdfExtractor $extractor): RedirectResponse
+    {
         $ids = [];
-        $prepared = app(\App\Services\AnatelUploadValidator::class)->prepare($request->file('pdfs'), $extractor);
+        $prepared = app(AnatelUploadValidator::class)->prepare($uploads, $extractor);
         foreach ($prepared as [$upload, $extension, $sha]) {
             $path = $upload->storeAs(date('Y/m'), $sha.'.'.$extension, 'anatel');
+            if ($path === false) {
+                throw ValidationException::withMessages(['pdfs' => 'Não foi possível salvar o arquivo para importação.']);
+            }
             try {
                 $import = AnatelImport::create(['lista_id' => $lista->id, 'user_id' => $request->user()->id, 'original_filename' => basename($upload->getClientOriginalName()), 'storage_path' => $path, 'sha256' => $sha, 'size_bytes' => $upload->getSize(), 'status' => 'pending', 'progress' => 0]);
             } catch (\Illuminate\Database\UniqueConstraintViolationException) {
@@ -46,7 +87,7 @@ class AnatelDashboardController extends Controller
             $ids[] = $import->id;
         }
 
-        return redirect()->route('anatel.dashboard', ['watch' => implode(',', $ids)])->with('status', 'PDF(s) recebido(s). Processamento iniciado.');
+        return redirect()->route('anatel.dashboard', ['watch' => implode(',', $ids)])->with('status', 'Arquivos recebidos. Processamento iniciado.');
     }
 
     public function status(AnatelImport $import): JsonResponse

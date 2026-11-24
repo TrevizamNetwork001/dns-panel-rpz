@@ -170,18 +170,73 @@
             </section>
 
             <dl class="settings-summary">
-                <div><dt>Fontes gerenciadas</dt><dd>{{ $integracoes['total'] }}</dd><dd class="settings-summary-note">Externas e ANATEL</dd></div>
-                <div><dt>Sincronizações ativas</dt><dd>{{ $integracoes['ativas'] }}</dd><dd class="settings-summary-note">Executadas automaticamente</dd></div>
-                <div><dt>Fontes pausadas</dt><dd>{{ $integracoes['pausadas'] }}</dd><dd class="settings-summary-note">Sem atualização automática</dd></div>
+                <div>
+                    <dt>Fontes gerenciadas</dt>
+                    <dd class="settings-summary-value">
+                        <span>{{ $integracoes['total'] }}</span>
+                        <span class="settings-summary-icon"><x-ui-icon name="list" size="20" /></span>
+                    </dd>
+                    <dd class="settings-summary-note">Externas e ANATEL</dd>
+                </div>
+                <div>
+                    <dt>Sincronizações ativas</dt>
+                    <dd class="settings-summary-value">
+                        <span>{{ $integracoes['ativas'] }}</span>
+                        <span class="settings-summary-icon"><x-ui-icon name="refresh" size="20" /></span>
+                    </dd>
+                    <dd class="settings-summary-note">Executadas automaticamente</dd>
+                </div>
+                <div>
+                    <dt>Fontes pausadas</dt>
+                    <dd class="settings-summary-value">
+                        <span>{{ $integracoes['pausadas'] }}</span>
+                        <span class="settings-summary-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M9 5v14m6-14v14"/></svg></span>
+                    </dd>
+                    <dd class="settings-summary-note">Sem atualização automática</dd>
+                </div>
             </dl>
-            <section class="settings-section">
-                <div class="settings-heading"><h2>Listas e feeds</h2></div>
-                <dl class="settings-inventory">
-                    <div><dt>Última sincronização registrada</dt><dd class="settings-mono">{{ $integracoes['ultima_sync']?->format('d/m/Y H:i') ?? 'ainda não executada' }}</dd></div>
-                    <div><dt>Estado</dt><dd>{{ $integracoes['ativas'] }} {{ $integracoes['ativas'] === 1 ? 'sincronização ativa' : 'sincronizações ativas' }} · {{ $integracoes['pausadas'] }} {{ $integracoes['pausadas'] === 1 ? 'pausada' : 'pausadas' }}</dd></div>
-                </dl>
-                <p class="settings-note">URLs, formatos e pausas são administrados diretamente em cada fonte.</p>
-                <a class="settings-shortcut" href="{{ route('listas.index') }}"><span aria-hidden="true">→</span> Gerenciar fontes</a>
+            <section class="settings-section" aria-labelledby="settings-imap-title">
+                <div class="settings-heading">
+                    <div>
+                        <h2 id="settings-imap-title">Caixa de entrada Anatel</h2>
+                        <p>IMAP com TLS desde a conexão</p>
+                    </div>
+                    <span class="settings-status {{ $imap['has_password'] ? 'is-enabled' : '' }}">{{ $imap['has_password'] ? 'Credenciais salvas' : 'Aguardando senha' }}</span>
+                </div>
+                <details class="settings-help" @if ($errors->getBag('imap')->any()) open @endif>
+                    <summary>Editar configuração IMAP</summary>
+                    <p class="settings-copy">Salve as credenciais da caixa que recebe os ofícios e anexos. A leitura automática depende da integração com o importador.</p>
+                    <form class="settings-form" action="{{ route('configuracoes.imap.update') }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="settings-fields">
+                            <div class="field-group">
+                                <label for="imap-email">E-mail da caixa</label>
+                                <input class="form-control" type="email" id="imap-email" name="email" value="{{ old('email', $imap['email']) }}" maxlength="254" autocomplete="off" required>
+                                @error('email', 'imap')<small class="settings-note" role="alert">{{ $message }}</small>@enderror
+                            </div>
+                            <div class="field-group">
+                                <label for="imap-password">Senha da caixa</label>
+                                <input class="form-control" type="password" id="imap-password" name="password" placeholder="{{ $imap['has_password'] ? '••••••••••••' : '' }}" maxlength="1024" autocomplete="new-password" aria-describedby="imap-password-help" @required(!$imap['has_password'])>
+                                <small class="settings-note" id="imap-password-help">{{ $imap['has_password'] ? 'Deixe em branco para manter a senha da mesma conexão. Informe a senha ao alterar a caixa ou o servidor.' : 'A senha será armazenada criptografada.' }}</small>
+                                @error('password', 'imap')<small class="settings-note" role="alert">{{ $message }}</small>@enderror
+                            </div>
+                            <div class="field-group">
+                                <label for="imap-host">Servidor IMAP</label>
+                                <input class="form-control settings-mono" type="text" id="imap-host" name="host" value="{{ old('host', $imap['host']) }}" maxlength="253" spellcheck="false" required>
+                                @error('host', 'imap')<small class="settings-note" role="alert">{{ $message }}</small>@enderror
+                            </div>
+                            <div class="field-group">
+                                <label for="imap-port">Porta IMAP com TLS</label>
+                                <input class="form-control settings-mono" type="number" id="imap-port" name="port" value="{{ old('port', $imap['port']) }}" min="1" max="65535" required>
+                                @error('port', 'imap')<small class="settings-note" role="alert">{{ $message }}</small>@enderror
+                            </div>
+                        </div>
+                        <div class="settings-actions">
+                            <button type="submit" class="button button-primary">Salvar configuração IMAP</button>
+                        </div>
+                    </form>
+                </details>
             </section>
         </div>
 

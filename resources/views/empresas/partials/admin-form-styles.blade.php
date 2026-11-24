@@ -11,6 +11,33 @@
     .admin-empresa-form .panel-header h2 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 15px; }
     .admin-empresa-form .panel-header h2 > svg { color: var(--cyan); }
     .admin-empresa-form .form-grid { gap: 20px 18px; }
+    .admin-empresa-form .empresa-extra-contatos { align-self: end; min-width: 0; }
+    .admin-empresa-form .empresa-contatos-drawer {
+        box-sizing: border-box;
+        position: fixed;
+        inset: 76px 14px 20px auto;
+        margin: 0;
+        width: min(495px, calc(100% - 28px));
+        max-width: none;
+        height: calc(100dvh - 96px);
+        max-height: none;
+        padding: 20px 18px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 13px;
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: 0 20px 65px rgb(0 0 0 / 18%);
+    }
+    .empresa-contatos-drawer::backdrop { background: rgb(0 8 18 / 45%); }
+    body:has(.empresa-contatos-drawer[open]) { overflow: hidden; }
+    .admin-empresa-form .empresa-contatos-drawer .panel-header { border-bottom: 1px solid var(--border-soft); }
+    .empresa-contatos-drawer textarea { min-height: 110px; resize: vertical; }
+    .empresa-contatos-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
+    .empresa-contatos-actions small { color: var(--text-soft); }
+    @media (max-width: 600px) {
+        .admin-empresa-form .empresa-contatos-drawer { inset: 0 0 0 auto; width: 100%; height: 100dvh; border-radius: 0; }
+    }
     .admin-empresa-form .form-control { min-height: 46px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface-soft); color: var(--text); font-size: 13px; }
     .admin-empresa-form .form-control:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px var(--cyan-soft); }
     .admin-empresa-form .form-actions { justify-content: flex-end; flex-wrap: wrap; position: static; display: flex; gap: 10px; padding: 0; margin: 18px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }

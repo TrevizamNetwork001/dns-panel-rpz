@@ -52,6 +52,8 @@
     .admin-settings .settings-summary > div { display:flex; flex-direction:column; gap:8px; padding:18px; border:1px solid var(--border-soft); border-radius:10px; background:var(--surface); }
     .admin-settings .settings-summary dt { font-size:12px; }
     .admin-settings .settings-summary dd:not(.settings-summary-note) { order:-1; font-size:28px; font-variant-numeric:tabular-nums; }
+    .admin-settings .settings-summary-value { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .admin-settings .settings-summary-icon { display:grid; place-items:center; flex:none; width:36px; height:36px; border:1px solid var(--border-soft); border-radius:8px; background:var(--surface-soft); color:var(--cyan); }
     .admin-settings .settings-summary-note { color:var(--text-muted); font-size:11px; line-height:1.7; }
     @media(max-width:1050px) { .admin-settings { grid-template-columns:minmax(0,1fr); } .admin-settings .settings-tabs { display:flex; flex-wrap:wrap; gap:5px; } .admin-settings [data-settings-panel] { grid-column:1; grid-row:3; } }
     @media(max-width:650px) { .admin-settings .settings-section { padding:16px; } .admin-settings .settings-fields,.admin-settings .settings-links,.admin-settings .settings-summary { grid-template-columns:minmax(0,1fr); } .admin-settings .settings-inventory > div { grid-template-columns:minmax(0,1fr); gap:4px; } .admin-settings .settings-tab { padding:9px; font-size:12px; } .admin-settings .settings-tabs { padding:7px; } }

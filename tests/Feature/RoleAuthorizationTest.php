@@ -14,7 +14,16 @@ class RoleAuthorizationTest extends TestCase
 
     public function test_guest_is_redirected_to_login(): void
     {
-        $this->get('/')->assertRedirect('/login');
+        $this->get('/servidores')->assertRedirect('/login');
+    }
+
+    public function test_guest_can_view_public_landing(): void
+    {
+        $this->get('/')->assertOk()
+            ->assertViewIs('landing.index')
+            ->assertSee('Acessar Plataforma')
+            ->assertSee('href="'.route('login').'"', false)
+            ->assertSee('Prévia ilustrativa');
     }
 
     public function test_cliente_cannot_access_empresas_list(): void
