@@ -9,6 +9,7 @@ use App\Models\Servidor;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class RpzOperationsApiTest extends TestCase
@@ -89,6 +90,50 @@ class RpzOperationsApiTest extends TestCase
             }
         }
         $this->assertDatabaseMissing('listas', ['id' => $listId]);
+    }
+
+    public function test_manual_list_confirmation_uses_the_rpz_deadline(): void
+    {
+        $company = Empresa::factory()->create();
+        $operator = User::factory()->admin()->create();
+        $operations = $this->operationsToken();
+        $approval = 'rpza_'.bin2hex(random_bytes(32));
+        config(['services.rpz_telegram' => [
+            'confirmation_hash' => hash('sha256', $approval),
+            'chat_id' => '-100', 'thread_id' => '2', 'operators' => json_encode(['10' => $operator->id]),
+        ]]);
+        $identity = ['telegram_user_id' => '10', 'telegram_chat_id' => '-100', 'telegram_thread_id' => '2'];
+        $this->travelTo(Carbon::parse('2026-11-24T23:50:00Z'));
+
+        $path = "/api/v1/operacao/empresas/{$company->id}/solicitacoes-lista-manual";
+        $prepare = fn (string $name) => $this->withToken($operations)->postJson($path, [
+            'operacao' => 'cadastrar', 'motivo' => 'Teste do prazo', 'nome' => $name,
+        ])->assertCreated()->json('data');
+        $valid = $prepare('Prévia válida');
+        $expired = $prepare('Prévia expirada');
+        $late = $prepare('Prévia após o prazo');
+        $deadline = Carbon::parse($valid['expira_em']);
+        $this->assertSame('2026-11-24 21:00:00 -03:00', $deadline->copy()
+            ->setTimezone('America/Sao_Paulo')->format('Y-m-d H:i:s P'));
+        $this->assertSame($valid['expira_em'], $expired['expira_em']);
+
+        $confirm = fn (array $preview) => $this->withToken($approval)->postJson(
+            "/api/v1/operacao/solicitacoes-excecao/{$preview['solicitacao']}/confirmacao", $identity,
+        );
+
+        $this->travelTo($deadline->copy()->subSecond());
+        $listId = $confirm($valid)->assertOk()->json('data.lista_id');
+        $this->assertDatabaseHas('audit_logs', ['action' => 'lista.created', 'target_id' => $listId]);
+
+        $this->travelTo($deadline);
+        $confirm($expired)->assertConflict();
+
+        $this->travelTo($deadline->copy()->addSecond());
+        $confirm($late)->assertConflict();
+        $this->assertDatabaseMissing('listas', ['nome' => 'Prévia expirada']);
+        $this->assertDatabaseMissing('listas', ['nome' => 'Prévia após o prazo']);
+        $this->assertDatabaseHas('rpz_manual_list_requests', ['id' => $expired['solicitacao'], 'confirmed_at' => null]);
+        $this->assertDatabaseHas('rpz_manual_list_requests', ['id' => $late['solicitacao'], 'confirmed_at' => null]);
     }
 
     private function operationsToken(): string

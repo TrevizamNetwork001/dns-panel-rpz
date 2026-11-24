@@ -145,6 +145,8 @@ def criar_servidor_operacional(rpz):
         + RESPOSTA_SINCRONIZACAO
         + "Os horários retornados já estão em America/Sao_Paulo. Mostre horas como HH:MM:SS, sem frações de segundo, em Brasília. Inclua a data quando ela for relevante. "
         "Antes de preparar uma exceção, use diagnosticar_dominio. Mostre somente o nome da empresa, sem o ID, e indique domínio, subdomínios, motivo e validade. Use um título curto, ícones e negrito para a informação principal. "
+        "Ao receber uma prévia recém-gerada, mostre o prazo informado pelo RPZ em Brasília. "
+        "A API do RPZ valida o prazo na confirmação. Só informe que a prévia venceu se a API indicar isso explicitamente. "
         "Peça ao administrador para responder confirma diretamente à mensagem da prévia no Telegram. Inclua /rpz_confirmar com o ID da solicitação na prévia como referência e alternativa."
     ))
 
