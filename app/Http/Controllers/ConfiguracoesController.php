@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\AuthenticateRpzOperations;
 use App\Jobs\RunDatabaseBackup;
 use App\Models\AuditLog;
 use App\Models\Lista;
@@ -11,13 +12,14 @@ use App\Services\ServidoresInativosCleaner;
 use App\Services\TelegramNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class ConfiguracoesController extends Controller
 {
-    public function index(TelegramNotifier $telegram, R2BackupUploader $r2, ServidoresInativosCleaner $limpeza): View
+    public function index(Request $request, TelegramNotifier $telegram, R2BackupUploader $r2, ServidoresInativosCleaner $limpeza): Response
     {
         $fontesGerenciadas = Lista::query()
             ->whereIn('origem', ['externa', 'anatel'])
@@ -27,7 +29,16 @@ class ConfiguracoesController extends Controller
             ->orderByDesc('id')
             ->first();
 
-        return view('configuracoes.index', [
+        $hermesHash = Setting::get(AuthenticateRpzOperations::TOKEN_HASH_KEY);
+        $encryptedToken = $request->session()->pull('rpz_operations_new_token');
+        $token = $encryptedToken === null ? null : Crypt::decryptString($encryptedToken);
+        if ($token !== null && $hermesHash !== hash('sha256', $token)) {
+            $token = null;
+        }
+
+        return response()->view('configuracoes.index', [
+            'hermesConfigured' => $hermesHash !== null,
+            'hermesToken' => $token,
             'telegram' => $telegram->config(),
             'imap' => [
                 'email' => Setting::get('anatel_imap_email', 'rpz@trevizamnetwork.com.br'),
@@ -51,7 +62,33 @@ class ConfiguracoesController extends Controller
                 'pausadas' => $fontesGerenciadas->where('sync_ativo', false)->count(),
                 'ultima_sync' => $fontesGerenciadas->max('last_sync_at'),
             ],
-        ]);
+        ])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function generateHermesCredential(): RedirectResponse
+    {
+        $token = 'rpzo_'.bin2hex(random_bytes(32));
+
+        DB::transaction(function () use ($token): void {
+            Setting::set(AuthenticateRpzOperations::TOKEN_HASH_KEY, hash('sha256', $token));
+            AuditLog::record('auth.rpz_operations_credential_generated', 'Credencial administrativa do Hermes gerada');
+        });
+
+        return redirect()->route('configuracoes.index', ['aba' => 'integracoes'])
+            ->with('rpz_operations_new_token', Crypt::encryptString($token));
+    }
+
+    public function revokeHermesCredential(Request $request): RedirectResponse
+    {
+        DB::transaction(function (): void {
+            Setting::set(AuthenticateRpzOperations::TOKEN_HASH_KEY, null);
+            AuditLog::record('auth.rpz_operations_credential_revoked', 'Credencial administrativa do Hermes revogada');
+        });
+
+        $request->session()->forget('rpz_operations_new_token');
+
+        return redirect()->route('configuracoes.index', ['aba' => 'integracoes'])
+            ->with('status', 'Credencial do Hermes revogada.');
     }
 
     public function updateTelegram(Request $request): RedirectResponse

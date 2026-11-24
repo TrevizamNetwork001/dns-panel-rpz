@@ -284,6 +284,7 @@ class ListaController extends Controller
         $empresaId = $request->input('empresa_id');
         $data = $request->validate([
             'empresa_id' => ['nullable', 'exists:empresas,id'],
+            'tenant_api_write' => ['sometimes', 'boolean'],
             'nome' => ['required', 'string', 'max:255'],
             'descricao' => ['nullable', 'string'],
             'status' => ['required', 'in:active,inactive'],
@@ -304,6 +305,9 @@ class ListaController extends Controller
 
         $data['empresa_id'] = $data['empresa_id'] ?? null;
         $data['origem'] = $data['origem'] ?? 'manual';
+
+        $data['tenant_api_write'] = $data['empresa_id'] !== null
+            && $data['origem'] === 'manual' && ($data['tenant_api_write'] ?? false);
 
         if ($data['origem'] === 'externa') {
             $data['fonte_formato'] = $data['fonte_formato'] ?? 'hostfile';

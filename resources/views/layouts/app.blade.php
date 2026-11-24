@@ -63,6 +63,9 @@
                     <a href="{{ route('licencas.index') }}" class="sidebar-link @if(request()->routeIs('licencas.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.5-8.5"/><path d="m16.5 6.5 2 2"/><path d="m14 9 2 2"/></svg>Licenças</a>
                     <a href="{{ route('usuarios.index') }}" class="sidebar-link @if(request()->routeIs('usuarios.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-6 8-6s8 2 8 6"/></svg>Usuários</a>
                     @endif
+                    @if (auth()->user()->isCliente() && auth()->user()->empresa?->status === 'active')
+                        <a href="{{ route('integracoes.index') }}" class="sidebar-link @if(request()->routeIs('integracoes.*')) is-active @endif"><x-ui-icon name="link" size="16" />Integrações API</a>
+                    @endif
                     <a href="{{ route('sugestoes.index') }}" class="sidebar-link @if(request()->routeIs('sugestoes.*')) is-active @endif"><svg class="sidebar-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 4-1.5 5.5-2 6.5h16c-.5-1-2-2.5-2-6.5Z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>Sugestões</a>
                 </nav>
 

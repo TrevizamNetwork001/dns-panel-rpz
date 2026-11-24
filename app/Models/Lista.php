@@ -23,10 +23,12 @@ class Lista extends Model
         'fonte_formato',
         'sync_ativo',
         'last_sync_at',
+        'tenant_api_write',
     ];
 
     protected $casts = [
         'sync_ativo' => 'boolean',
+        'tenant_api_write' => 'boolean',
         'last_sync_at' => 'datetime',
     ];
 

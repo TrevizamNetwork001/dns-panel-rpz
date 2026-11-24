@@ -77,6 +77,11 @@
                     <textarea class="form-control admin-fontes-description" id="descricao" name="descricao" rows="3">{{ old('descricao', $lista->descricao) }}</textarea>
                 </div>
 
+                <label class="field-span-2">
+                    <input type="checkbox" name="tenant_api_write" value="1" @checked(old('tenant_api_write', $lista->tenant_api_write))>
+                    Permitir que o cliente gerencie bloqueios nesta fonte manual da empresa
+                </label>
+
                 <div class="field-group source-compact-field">
                     <label for="status">Status</label>
                     <select class="form-control source-compact-select" id="status" name="status">

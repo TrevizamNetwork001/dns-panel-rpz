@@ -41,6 +41,13 @@ return [
         'cadastros_thread_id' => env('TELEGRAM_CADASTROS_THREAD_ID'),
     ],
 
+    'rpz_telegram' => [
+        'confirmation_hash' => env('RPZ_TELEGRAM_CONFIRMATION_HASH'),
+        'chat_id' => env('RPZ_TELEGRAM_CHAT_ID'),
+        'thread_id' => env('RPZ_TELEGRAM_THREAD_ID'),
+        'operators' => env('RPZ_TELEGRAM_OPERATORS'),
+    ],
+
     'turnstile' => [
         'site_key' => env('TURNSTILE_SITE_KEY'),
         'secret_key' => env('TURNSTILE_SECRET_KEY'),
