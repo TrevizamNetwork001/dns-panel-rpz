@@ -20,13 +20,13 @@ class RecursiveDnsInstaller
     public function install(RecursiveDnsServer $server, array $profile): void
     {
         $prefix = $server->ssh_user === 'root' ? '' : 'sudo -n ';
-        $command = sprintf(
-            '%stimeout -k 5s 137s sh -s -- %d %d %d',
-            $prefix, $profile['threads'], $profile['message_cache'], $profile['record_cache'],
-        );
         $script = file_get_contents(resource_path('scripts/install-recursive-unbound.sh'));
         $input = str_replace('__UNBOUND_CONFIGURATION__', rtrim($this->configuration($profile), "\n"), $script);
-        $process = $this->ssh->execute($server, $command, $input, 146);
+        $command = sprintf(
+            '%stimeout -k 5s 137s sh -c %s dns-recursivo %d %d %d',
+            $prefix, escapeshellarg($input), $profile['threads'], $profile['message_cache'], $profile['record_cache'],
+        );
+        $process = $this->ssh->execute($server, $command, '', 146);
         preg_match_all('/^unbound-install:([a-z]+)$/m', $process->getOutput(), $status);
         $result = end($status[1]);
 
