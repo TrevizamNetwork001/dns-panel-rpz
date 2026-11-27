@@ -76,6 +76,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/dominios', [ConsultaController::class, 'pagina'])->name('dominios.index');
 
     Route::middleware('admin')->group(function () {
+        Route::resource('dns-recursivo', \App\Http\Controllers\RecursiveDnsServerController::class)
+            ->parameters(['dns-recursivo' => 'server'])->only(['index', 'create', 'store', 'edit', 'update']);
+        Route::post('/dns-recursivo/{server}/diagnostico', [\App\Http\Controllers\RecursiveDnsServerController::class, 'diagnose'])
+            ->middleware('throttle:4,1')->name('dns-recursivo.diagnose');
         Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');
         Route::post('/anatel/imports', [AnatelDashboardController::class, 'store'])->name('anatel.dashboard.store');
         Route::post('/anatel/imports/email', [AnatelDashboardController::class, 'importLatestEmail'])->middleware('throttle:6,1')->name('anatel.email.import');

@@ -25,7 +25,7 @@ COPY docker/requirements-anatel.txt /tmp/requirements-anatel.txt
 RUN python3 -m venv /opt/anatel-venv \
     && /opt/anatel-venv/bin/pip install --no-cache-dir --disable-pip-version-check -r /tmp/requirements-anatel.txt \
     && rm /tmp/requirements-anatel.txt
-RUN apk add --no-cache bind-tools su-exec
+RUN apk add --no-cache bind-tools openssh-client su-exec
 WORKDIR /var/www/html
 COPY --from=vendor --chown=www-data:www-data /app /var/www/html
 COPY --from=assets --chown=www-data:www-data /app/public/build /var/www/html/public/build
