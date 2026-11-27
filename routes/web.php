@@ -80,6 +80,8 @@ Route::middleware('auth')->group(function () {
             ->parameters(['dns-recursivo' => 'server'])->only(['index', 'create', 'store', 'edit', 'update']);
         Route::post('/dns-recursivo/{server}/diagnostico', [\App\Http\Controllers\RecursiveDnsServerController::class, 'diagnose'])
             ->middleware('throttle:4,1')->name('dns-recursivo.diagnose');
+        Route::post('/dns-recursivo/{server}/chaves-ssh', [\App\Http\Controllers\RecursiveDnsServerController::class, 'hostKeys'])
+            ->middleware('throttle:4,1,dns-recursivo-chaves:')->name('dns-recursivo.host-keys');
         Route::post('/dns-recursivo/{server}/instalacao/previa', [\App\Http\Controllers\RecursiveDnsInstallController::class, 'preview'])
             ->name('dns-recursivo.install.preview');
         Route::post('/dns-recursivo/{server}/instalacao', [\App\Http\Controllers\RecursiveDnsInstallController::class, 'apply'])

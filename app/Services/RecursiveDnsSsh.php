@@ -10,26 +10,17 @@ class RecursiveDnsSsh
 {
     public function execute(RecursiveDnsServer $server, string $command, string $input, int $timeout): Process
     {
+        if ($server->ssh_fingerprint === '') {
+            throw new RuntimeException('Confirme a impressão digital do servidor antes de conectar com a senha.');
+        }
+
         $address = $server->sshAddress();
-        $scan = new Process(['ssh-keyscan', '-T', '4', '-p', (string) $server->ssh_port, '--', $address]);
-        $scan->setTimeout(6)->run();
-
-        $hostKey = null;
-        foreach (explode("\n", $scan->getOutput()) as $line) {
-            $fields = preg_split('/\s+/', trim($line));
-            if (count($fields) !== 3 || str_starts_with($fields[0], '#')) {
-                continue;
-            }
-            $key = base64_decode($fields[2], true);
-            if ($key !== false && hash_equals($server->ssh_fingerprint, 'SHA256:'.rtrim(base64_encode(hash('sha256', $key, true)), '='))) {
-                $hostKey = ($server->ssh_port == 22 ? $address : "[$address]:{$server->ssh_port}").' '.$fields[1].' '.$fields[2]."\n";
-                break;
-            }
+        $key = $this->hostKeys($server)[$server->ssh_fingerprint] ?? null;
+        if ($key === null) {
+            throw new RuntimeException('A impressão digital confirmada não apareceu entre as chaves apresentadas pelo servidor. Confira o IP, a porta e a chave pela console.');
         }
-
-        if ($hostKey === null) {
-            throw new RuntimeException('Servidor inacessível ou impressão digital SSH divergente.');
-        }
+        $host = $server->ssh_port == 22 ? $address : "[$address]:{$server->ssh_port}";
+        $hostKey = $host.' '.$key."\n";
 
         $directory = sys_get_temp_dir().'/recursive-dns-'.bin2hex(random_bytes(16));
         if (! mkdir($directory, 0700)) {
@@ -45,7 +36,7 @@ class RecursiveDnsSsh
             $process = new Process([
                 'ssh', '-F', '/dev/null', '-T', '-p', (string) $server->ssh_port, '-l', $server->ssh_user,
                 '-o', 'StrictHostKeyChecking=yes', '-o', "UserKnownHostsFile=$directory/known_hosts",
-                '-o', 'GlobalKnownHostsFile=/dev/null', '-o', 'ConnectTimeout=5',
+                '-o', 'GlobalKnownHostsFile=/dev/null', '-o', 'ConnectTimeout=8',
                 '-o', 'PreferredAuthentications=password', '-o', 'NumberOfPasswordPrompts=1',
                 '--', $address, $command,
             ], null, ['SSH_ASKPASS' => "$directory/askpass", 'SSH_ASKPASS_REQUIRE' => 'force']);
@@ -60,5 +51,36 @@ class RecursiveDnsSsh
             }
             rmdir($directory);
         }
+    }
+
+    public function fingerprints(RecursiveDnsServer $server): array
+    {
+        return array_keys($this->hostKeys($server));
+    }
+
+    private function hostKeys(RecursiveDnsServer $server): array
+    {
+        $scan = new Process(['ssh-keyscan', '-T', '8', '-p', (string) $server->ssh_port, '--', $server->sshAddress()]);
+        $scan->setTimeout(10)->run();
+
+        $keys = [];
+        foreach (explode("\n", $scan->getOutput()) as $line) {
+            $fields = preg_split('/\s+/', trim($line));
+            if (count($fields) !== 3 || str_starts_with($fields[0], '#')) {
+                continue;
+            }
+
+            $key = base64_decode($fields[2], true);
+            if ($key !== false && $key !== '') {
+                $fingerprint = 'SHA256:'.rtrim(base64_encode(hash('sha256', $key, true)), '=');
+                $keys[$fingerprint] = $fields[1].' '.$fields[2];
+            }
+        }
+
+        if ($keys === []) {
+            throw new RuntimeException('O painel não recebeu uma chave SSH. Confira o IP, a porta e se o firewall permite acesso a partir do painel.');
+        }
+
+        return $keys;
     }
 }

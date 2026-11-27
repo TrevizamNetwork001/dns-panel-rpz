@@ -60,8 +60,8 @@
                     @if ($server->exists)<small>Deixe em branco para manter a senha salva.</small>@endif
                 </label>
                 <label class="dns-field">Impressão digital da chave do host
-                    <input name="ssh_fingerprint" placeholder="SHA256:…" required value="{{ old('ssh_fingerprint', $server->ssh_fingerprint) }}">
-                    <small>Confira no servidor com <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>.</small>
+                    <input name="ssh_fingerprint" placeholder="SHA256:…" value="{{ old('ssh_fingerprint', $server->ssh_fingerprint) }}">
+                    <small>Opcional ao cadastrar. Para confirmar, cole a saída de <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> executado no servidor.</small>
                 </label>
             </div>
             <button class="button dns-primary" type="submit">Salvar cadastro</button>
@@ -71,6 +71,18 @@
     @if ($server->exists)
         <section class="dns-section dns-status">
             <h2>Diagnóstico SSH</h2>
+            <form method="post" action="{{ route('dns-recursivo.host-keys', $server) }}">
+                @csrf
+                <button type="submit" class="button">Consultar chaves SSH</button>
+            </form>
+            @if (session('dns_host_keys.server') === $server->id)
+                <p>Compare uma das chaves com a saída do comando na console do servidor. Cole a chave correspondente no campo acima e salve.</p>
+                <ul>
+                    @foreach (session('dns_host_keys.keys', []) as $fingerprint)
+                        <li><code>{{ $fingerprint }}</code></li>
+                    @endforeach
+                </ul>
+            @endif
             @if ($server->diagnostic)
                 @php($diagnostic = $server->diagnostic)
                 <dl class="dns-grid">

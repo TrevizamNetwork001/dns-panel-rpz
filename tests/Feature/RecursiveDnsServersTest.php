@@ -28,13 +28,14 @@ class RecursiveDnsServersTest extends TestCase
             'ssh_family' => 6,
             'ssh_port' => 2222,
             'ssh_user' => 'operador',
-            'ssh_fingerprint' => 'SHA256:'.str_repeat('a', 43),
+            'ssh_fingerprint' => '256 SHA256:'.str_repeat('a', 43).' root@dns-sp-01 (ED25519)',
             'password' => $password,
         ])->assertSessionHasNoErrors();
 
         $server = RecursiveDnsServer::sole();
         $this->assertTrue($server->empresa->is($company));
         $this->assertSame('2001:db8::10', $server->sshAddress());
+        $this->assertSame('SHA256:'.str_repeat('a', 43), $server->ssh_fingerprint);
         $this->assertSame($password, $server->ssh_password);
         $this->assertNotSame($password, $server->getRawOriginal('ssh_password'));
         $this->assertArrayNotHasKey('ssh_password', $server->toArray());
@@ -47,6 +48,28 @@ class RecursiveDnsServersTest extends TestCase
         $edit = route('dns-recursivo.edit', $server);
         $this->from($edit)->post(route('dns-recursivo.diagnose', $server))->assertRedirect($edit);
         $this->get($edit)->assertOk()->assertSee('Ativo')->assertDontSee($password);
+    }
+
+    public function test_registration_allows_an_unconfirmed_host_and_diagnosis_requires_confirmation(): void
+    {
+        $this->withoutVite()->actingAs(User::factory()->admin()->create());
+        $this->post(route('dns-recursivo.store'), [
+            'name' => 'DNS pendente',
+            'hostname' => 'dns-pendente',
+            'ipv4' => '192.0.2.11',
+            'ssh_family' => 4,
+            'ssh_port' => 22,
+            'ssh_user' => 'operador',
+            'password' => 'test-password',
+        ])->assertSessionHasNoErrors();
+
+        $server = RecursiveDnsServer::sole();
+        $this->assertSame('', $server->ssh_fingerprint);
+        $edit = route('dns-recursivo.edit', $server);
+        $this->get($edit)->assertOk()->assertSee('Consultar chaves SSH');
+        $this->from($edit)->post(route('dns-recursivo.diagnose', $server))
+            ->assertRedirect($edit)
+            ->assertSessionHasErrors(['diagnostic' => 'Confirme a impressão digital do servidor antes de conectar com a senha.']);
     }
 
     public function test_install_requires_an_approved_preview_and_uses_its_profile_only_once(): void
