@@ -23,6 +23,7 @@ systemctl show-environment >/dev/null 2>&1 || fail systemd
 command -v ss >/dev/null 2>&1 || fail sockets
 sockets=$(ss -H -lntu 'sport = :53') || fail sockets
 [ -z "$sockets" ] || fail port
+[ ! -x /sbin/resolvconf ] || fail resolvconf
 
 cpu=$(getconf _NPROCESSORS_ONLN)
 memory=$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo)
@@ -30,7 +31,8 @@ memory=$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo)
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get -q -o DPkg::Lock::Timeout=0 -o Acquire::Retries=0 -o Acquire::http::Timeout=8 -o Acquire::https::Timeout=8 update || fail packages
-apt-get -qy -o DPkg::Lock::Timeout=0 -o Acquire::Retries=0 -o Acquire::http::Timeout=8 -o Acquire::https::Timeout=8 install --no-install-recommends unbound dnsutils || fail packages
+apt-get -qy -o DPkg::Lock::Timeout=0 -o Acquire::Retries=0 -o Acquire::http::Timeout=8 -o Acquire::https::Timeout=8 install --no-install-recommends unbound dnsutils dns-root-data || fail packages
+/usr/libexec/unbound-helper root_trust_anchor_update || fail trust
 
 target=/etc/unbound/unbound.conf.d/55-dns-recursivo.conf
 [ ! -e "$target" ] || fail existing
