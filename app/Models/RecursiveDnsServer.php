@@ -24,6 +24,14 @@ class RecursiveDnsServer extends Model
         return $this->belongsTo(Empresa::class);
     }
 
+    public function canInstall(): bool
+    {
+        return isset($this->diagnostic['recommended'])
+            && ($this->diagnostic['unbound'] ?? null) === '1'
+            && ($this->diagnostic['active'] ?? null) !== '0'
+            && ($this->diagnostic['port_53'] ?? null) === '0';
+    }
+
     public function sshAddress(): string
     {
         return $this->ssh_family == 6 ? $this->ipv6 : $this->ipv4;

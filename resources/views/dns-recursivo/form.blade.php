@@ -93,6 +93,21 @@
                 <button type="submit" class="button">Conectar e diagnosticar</button>
             </form>
         </section>
+        @if ($server->canInstall())
+            <section class="dns-section">
+                <h2>Instalar Unbound</h2>
+                <form method="post" action="{{ route('dns-recursivo.install.preview', $server) }}">
+                    @csrf
+                    @php($profile = $server->diagnostic['recommended'])
+                    <div class="dns-grid">
+                        <label class="dns-field">Threads <input type="number" name="threads" min="1" max="{{ $server->diagnostic['cpu'] }}" required value="{{ old('threads', $profile['threads']) }}"></label>
+                        <label class="dns-field">Cache de mensagens (MiB) <input type="number" name="message_cache" min="16" required value="{{ old('message_cache', $profile['message_cache']) }}"></label>
+                        <label class="dns-field">Cache de registros (MiB) <input type="number" name="record_cache" min="32" required value="{{ old('record_cache', $profile['record_cache']) }}"></label>
+                    </div>
+                    <button type="submit" class="button dns-primary">Revisar instalação</button>
+                </form>
+            </section>
+        @endif
     @endif
 </div>
 @endsection

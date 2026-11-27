@@ -80,6 +80,10 @@ Route::middleware('auth')->group(function () {
             ->parameters(['dns-recursivo' => 'server'])->only(['index', 'create', 'store', 'edit', 'update']);
         Route::post('/dns-recursivo/{server}/diagnostico', [\App\Http\Controllers\RecursiveDnsServerController::class, 'diagnose'])
             ->middleware('throttle:4,1')->name('dns-recursivo.diagnose');
+        Route::post('/dns-recursivo/{server}/instalacao/previa', [\App\Http\Controllers\RecursiveDnsInstallController::class, 'preview'])
+            ->name('dns-recursivo.install.preview');
+        Route::post('/dns-recursivo/{server}/instalacao', [\App\Http\Controllers\RecursiveDnsInstallController::class, 'apply'])
+            ->middleware('throttle:3,1')->name('dns-recursivo.install.apply');
         Route::get('/anatel', [AnatelDashboardController::class, 'index'])->name('anatel.dashboard');
         Route::post('/anatel/imports', [AnatelDashboardController::class, 'store'])->name('anatel.dashboard.store');
         Route::post('/anatel/imports/email', [AnatelDashboardController::class, 'importLatestEmail'])->middleware('throttle:6,1')->name('anatel.email.import');
