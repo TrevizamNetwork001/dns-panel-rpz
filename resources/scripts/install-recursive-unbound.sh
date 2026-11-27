@@ -23,7 +23,12 @@ systemctl show-environment >/dev/null 2>&1 || fail systemd
 command -v ss >/dev/null 2>&1 || fail sockets
 sockets=$(ss -H -lntu 'sport = :53') || fail sockets
 [ -z "$sockets" ] || fail port
-[ ! -x /sbin/resolvconf ] || fail resolvconf
+if [ -x /sbin/resolvconf ]; then
+    case "$(readlink /sbin/resolvconf || true)" in
+        *resolvectl) ;;
+        *) fail resolvconf ;;
+    esac
+fi
 
 cpu=$(getconf _NPROCESSORS_ONLN)
 memory=$(awk '/^MemTotal:/ {print int($2/1024)}' /proc/meminfo)
