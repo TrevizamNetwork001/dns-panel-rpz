@@ -53,6 +53,7 @@ class RecursiveDnsServersTest extends TestCase
     public function test_registration_allows_an_unconfirmed_host_and_diagnosis_requires_confirmation(): void
     {
         $this->withoutVite()->actingAs(User::factory()->admin()->create());
+        $this->get(route('dns-recursivo.create'))->assertOk()->assertDontSee('name="ssh_fingerprint"', false);
         $this->post(route('dns-recursivo.store'), [
             'name' => 'DNS pendente',
             'hostname' => 'dns-pendente',

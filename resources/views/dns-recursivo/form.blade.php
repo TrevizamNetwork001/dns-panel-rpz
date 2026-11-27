@@ -59,10 +59,12 @@
                 <label class="dns-field">Senha SSH <input type="password" name="password" autocomplete="new-password" @required(!$server->exists)>
                     @if ($server->exists)<small>Deixe em branco para manter a senha salva.</small>@endif
                 </label>
+                @if ($server->exists)
                 <label class="dns-field">Impressão digital da chave do host
                     <input name="ssh_fingerprint" placeholder="SHA256:…" value="{{ old('ssh_fingerprint', $server->ssh_fingerprint) }}">
-                    <small>Opcional ao cadastrar. Para confirmar, cole a saída de <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> executado no servidor.</small>
+                    <small>Cole a saída de <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> executado no servidor.</small>
                 </label>
+                @endif
             </div>
             <button class="button dns-primary" type="submit">Salvar cadastro</button>
         </section>
