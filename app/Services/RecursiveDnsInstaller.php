@@ -21,17 +21,21 @@ class RecursiveDnsInstaller
     {
         $prefix = $server->ssh_user === 'root' ? '' : 'sudo -n ';
         $command = sprintf(
-            '%stimeout -k 5s 83s sh -s -- %d %d %d',
+            '%stimeout -k 5s 137s sh -s -- %d %d %d',
             $prefix, $profile['threads'], $profile['message_cache'], $profile['record_cache'],
         );
         $script = file_get_contents(resource_path('scripts/install-recursive-unbound.sh'));
         $input = str_replace('__UNBOUND_CONFIGURATION__', rtrim($this->configuration($profile), "\n"), $script);
-        $process = $this->ssh->execute($server, $command, $input, 90);
+        $process = $this->ssh->execute($server, $command, $input, 146);
         preg_match_all('/^unbound-install:([a-z]+)$/m', $process->getOutput(), $status);
         $result = end($status[1]);
 
         if ($process->isSuccessful() && $result === 'ok') {
             return;
+        }
+
+        if (in_array($process->getExitCode(), [124, 137], true)) {
+            throw new RuntimeException('A instalação atingiu o tempo limite no servidor. Execute o diagnóstico para conferir o estado dos pacotes e do Unbound.');
         }
 
         throw new RuntimeException(match ($result) {
