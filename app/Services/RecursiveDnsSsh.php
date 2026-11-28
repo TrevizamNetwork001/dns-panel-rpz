@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\RecursiveDnsServer;
+use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 use Symfony\Component\Process\Process;
 
@@ -15,7 +16,13 @@ class RecursiveDnsSsh
         }
 
         $address = $server->sshAddress();
-        $key = $this->hostKeys($server)[$server->ssh_fingerprint] ?? null;
+        $cacheKey = $this->hostKeyCacheKey($server);
+        $keys = Cache::get($cacheKey, []);
+        if (! isset($keys[$server->ssh_fingerprint])) {
+            $keys = $this->hostKeys($server);
+            Cache::put($cacheKey, $keys, now()->addMinutes(15));
+        }
+        $key = $keys[$server->ssh_fingerprint] ?? null;
         if ($key === null) {
             throw new RuntimeException('A impressão digital confirmada não apareceu entre as chaves apresentadas pelo servidor. Confira o IP, a porta e a chave pela console.');
         }
@@ -55,7 +62,15 @@ class RecursiveDnsSsh
 
     public function fingerprints(RecursiveDnsServer $server): array
     {
-        return array_keys($this->hostKeys($server));
+        $keys = $this->hostKeys($server);
+        Cache::put($this->hostKeyCacheKey($server), $keys, now()->addMinutes(15));
+
+        return array_keys($keys);
+    }
+
+    private function hostKeyCacheKey(RecursiveDnsServer $server): string
+    {
+        return 'dns-recursivo:ssh-host-keys:'.hash('sha256', $server->sshAddress().'|'.$server->ssh_port);
     }
 
     private function hostKeys(RecursiveDnsServer $server): array
