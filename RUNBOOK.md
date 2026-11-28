@@ -1,5 +1,7 @@
 # Runbook de incidentes — DNS Panel RPZ
 
+> Para a publicação de 27 e 28/11/2026, consulte o [registro do módulo DNS Recursivo](docs/contabo/dns-recursivo-2026-11-28.md).
+
 > Retomada de 23/10/2026 (fechamento em 24/10 na Europa): consulte
 > [estado consolidado de Unbound/RPZ e DNS-03](docs/contabo/retomada-2026-10-23-unbound-rpz.txt).
 > Refresh e busca da revisão 88 comprovados; NOTIFY ainda sem ACK. Esse registro
