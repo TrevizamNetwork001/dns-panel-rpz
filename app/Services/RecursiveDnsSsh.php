@@ -37,8 +37,6 @@ class RecursiveDnsSsh
         try {
             file_put_contents("$directory/known_hosts", $hostKey);
             file_put_contents("$directory/password", $server->ssh_password);
-            file_put_contents("$directory/askpass", "#!/bin/sh\nexec cat -- \"\$(dirname -- \"\$0\")/password\"\n");
-            chmod("$directory/askpass", 0700);
 
             $process = new Process([
                 'ssh', '-F', '/dev/null', '-T', '-p', (string) $server->ssh_port, '-l', $server->ssh_user,
@@ -46,12 +44,16 @@ class RecursiveDnsSsh
                 '-o', 'GlobalKnownHostsFile=/dev/null', '-o', 'ConnectTimeout=8',
                 '-o', 'PreferredAuthentications=password', '-o', 'NumberOfPasswordPrompts=1',
                 '--', $address, $command,
-            ], null, ['SSH_ASKPASS' => "$directory/askpass", 'SSH_ASKPASS_REQUIRE' => 'force']);
+            ], null, [
+                'SSH_ASKPASS' => resource_path('scripts/recursive-dns-ssh-askpass.sh'),
+                'SSH_ASKPASS_REQUIRE' => 'force',
+                'DNS_RECURSIVE_SSH_PASSWORD_FILE' => "$directory/password",
+            ]);
             $process->setTimeout($timeout)->setInput($input)->run();
 
             return $process;
         } finally {
-            foreach (['known_hosts', 'password', 'askpass'] as $file) {
+            foreach (['known_hosts', 'password'] as $file) {
                 if (is_file("$directory/$file")) {
                     unlink("$directory/$file");
                 }
